@@ -368,8 +368,6 @@ async def lastFM(
         # client not to send any more for now.
         return Response(b"-3")
 
-    flags = LastFMFlags(int(beatmap_id_or_hidden_flag[1:]))
-
     return Response(b"")
 
 
