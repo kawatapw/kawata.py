@@ -65,7 +65,6 @@ oauth2_scheme = HTTPBearer(auto_error=False)
 # POST/PUT /set_avatar: Update the tokenholder's avatar to a given file.
 
 # TODO handlers
-# GET /get_friends: return a list of the player's friends.
 # POST/PUT /set_player_info: update user information (updates whatever received).
 
 DATETIME_OFFSET = 0x89F7FF5F7B58000
@@ -1016,6 +1015,75 @@ async def api_get_pool(
             },
         },
     )
+
+@router.get("/get_friends")
+async def api_get_friends(
+    scope: Literal["friends", "mutuals", "all"],
+    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
+):
+    """Returns Relaionships of a given user."""
+    if not (username or user_id) or (username and user_id):
+        return ORJSONResponse(
+            {"status": "Must provide either id OR name."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # get user info from username or id
+    if username: 
+        user_info = await players_repo.fetch_one(name=username)
+    else: # if userid
+        user_info = await players_repo.fetch_one(id=user_id)
+    if user_info is None:
+        return ORJSONResponse(
+            {"status": "Player not found."},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    
+    resolved_user_id: int = user_info["id"]
+
+    if scope == "friends":
+        # Query for all friends of the resolved user_id
+        friends = await app.state.services.database.fetch_all(
+            "SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'",
+            {"user_id": resolved_user_id}
+        )
+
+        friends = [friens[0] for friend in friends]
+        return ORJSONResponse({"status": "success", "friends": friends})
+
+    elif scope == "mutuals":
+        # Query for all mutual friends of the resolved user_id
+        mutuals = await app.state.services.database.fetch_all("""
+        SELECT r1.user2
+            FROM relationships r1
+            INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2
+            WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
+            """,
+            {"user_id": resolved_user_id})
+
+        mutuals = [mutual[0] for mutual in mutuals]
+        return ORJSONResponse({"status": "success", "mutuals": mutuals})
+    
+    elif scope == "all":
+        # Query for both friends and mutual friends of the resolved user_id
+        friends = await app.state.services.database.fetch_all("""
+            SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'
+            """,
+            {"user_id": resolved_user_id}
+        )
+        friends = [friend[0] for friend in friends]
+
+        mutuals = await app.state.services.database.fetch_all("""
+            SELECT r1.user2
+            FROM relationships r1
+            INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2
+            WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
+            """,
+            {"user_id": resolved_user_id})
+
+        mutuals = [mutual[0] for mutual in mutuals]
+        return ORJSONResponse({"status": "success", "friends": friends, "mutuals": mutuals})
 
 
 # def requires_api_key(f: Callable) -> Callable:
