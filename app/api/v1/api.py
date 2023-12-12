@@ -1063,7 +1063,7 @@ async def api_get_friends(
             {"user_id": resolved_user_id}
         )
 
-        friends = [friens[0] for friend in friends]
+        friends = [friends[0] for friend in friends]
         return ORJSONResponse({"status": "success", "friends": friends})
 
     elif scope == "mutuals":

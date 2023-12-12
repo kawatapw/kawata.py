@@ -6,6 +6,7 @@ WORKDIR /srv/root
 
 RUN apt update && apt install --no-install-recommends -y \
     git curl build-essential=12.9 \
+    nginx \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml poetry.lock ./
@@ -16,7 +17,10 @@ RUN poetry install --no-root
 RUN apt update && \
     apt install -y default-mysql-client redis-tools
 
-# NOTE: done last to avoid re-run of previous steps
+# Copy Nginx configuration file
+#COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy your service files to the appropriate location
 COPY . .
 
 ENTRYPOINT [ "scripts/start_server.sh" ]
