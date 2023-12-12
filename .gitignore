@@ -19,3 +19,5 @@ poetry.toml
 .coverage
 /kawata.py/
 /.data/
+/nginx/
+/nginx
