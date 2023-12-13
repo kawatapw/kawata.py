@@ -4,7 +4,7 @@
 
 ```sh
 # clone bancho.py's repository onto your machine
-git clone https://github.com/osuAkatsuki/bancho.py
+git clone https://github.com/kawatapw/kawata.py
 
 # enter bancho.py's new directory
 cd bancho.py
