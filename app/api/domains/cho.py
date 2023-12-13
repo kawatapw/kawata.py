@@ -99,7 +99,7 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/kawatapw/kawata.py">Source code</a>
 </body>
 </html>""",
     )

@@ -9,7 +9,7 @@ and our aim is to create the most easily maintainable, reliable, and feature-ric
 osu! server implementation available.
 
 we're also fully open source!
-https://github.com/osuAkatsuki/bancho.py
+https://github.com/kawatapw/kawata.py
 """
 from __future__ import annotations
 
