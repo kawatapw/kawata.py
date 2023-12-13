@@ -49,7 +49,7 @@ def main(argv: Sequence[str]) -> int:
     """ Parse and handle command-line arguments. """
 
     parser = argparse.ArgumentParser(
-        description=("An open-source osu! server implementation by Akatsuki."),
+        description=("An open-source osu! server implementation by Akatsuki. Modified for Kawata!"),
     )
     parser.add_argument(
         "-V",
