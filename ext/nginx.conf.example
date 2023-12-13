@@ -61,7 +61,7 @@ server {
 	error_log /srv/root/nginx/logs/error/api.${DOMAIN}.log;
 
 	location / {
-		add_header 'Access-Control-Allow-Origin' 'https://web.${DOMAIN}' always;
+		add_header 'Access-Control-Allow-Origin' 'https://${DOMAIN}' always;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_set_header X-Real-IP  $remote_addr;
 		proxy_set_header Host $http_host;
