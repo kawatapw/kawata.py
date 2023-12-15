@@ -1849,6 +1849,8 @@ async def getScores(
     map_package_hash: str = Query(..., alias="h"),  # TODO: further validation
     aqn_files_found: bool = Query(..., alias="a"),
 ) -> Response:
+    if app.settings.DEBUG:
+        print(f"Player: {player} \n Requesting from editor: {requesting_from_editor_song_select} \n Leaderboard version: {leaderboard_version} \n Leaderboard type: {leaderboard_type} \n Map md5: {map_md5} \n Map filename: {map_filename} \n Mode arg: {mode_arg} \n Map set id: {map_set_id} \n Mods arg: {mods_arg} \n Map package hash: {map_package_hash} \n AQN files found: {aqn_files_found}")
     if aqn_files_found:
         stacktrace = app.utils.get_appropriate_stacktrace()
         await app.state.services.log_strange_occurrence(stacktrace)
@@ -2010,7 +2012,7 @@ async def getScores(
             for idx, s in enumerate(score_rows)
         ],
     )
-
+    
     return Response("\n".join(response_lines).encode())
 
 
