@@ -21,3 +21,5 @@ poetry.toml
 /.data/
 /nginx/
 /nginx
+*.fuse*
+*.log
