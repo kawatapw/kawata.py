@@ -58,6 +58,8 @@ DISALLOW_INGAME_REGISTRATION = read_bool(os.environ["DISALLOW_INGAME_REGISTRATIO
 DISCORD_AUDIT_LOG_WEBHOOK = os.environ["DISCORD_AUDIT_LOG_WEBHOOK"]
 
 AUTOMATICALLY_REPORT_PROBLEMS = read_bool(os.environ["AUTOMATICALLY_REPORT_PROBLEMS"])
+# Social Links used in game
+DISCORD_LINK = os.environ["DISCORD_LINK"]
 
 # advanced dev settings
 

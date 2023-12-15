@@ -75,7 +75,7 @@ BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 BASE_DOMAIN = app.settings.DOMAIN
 
-AERIS_IDENTIFICATION = 1
+AERIS_IDENTIFICATION = 3
 
 # TODO: dear god
 NOW_PLAYING_RGX = re.compile(
@@ -484,7 +484,7 @@ WELCOME_MSG = "\n".join(
     (
         f"Welcome to {BASE_DOMAIN}.",
         "To see a list of commands, use !help.",
-        "We have a public (Discord)[https://discord.gg/ShEQgUx]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_LINK}]!",
         "Enjoy the server!",
     ),
 )
@@ -492,11 +492,11 @@ WELCOME_MSG = "\n".join(
 RESTRICTED_MSG = (
     "Your account is currently in restricted mode. "
     "If you believe this is a mistake, or have waited a period "
-    "greater than 3 months, you may appeal via the form on the site."
+    "greater than 3 months, you may appeal via making a ticket in discord."
 )
 
 WELCOME_NOTIFICATION = app.packets.notification(
-    f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
+    f"Welcome back to {BASE_DOMAIN}!\nRunning kawata.py v{app.settings.VERSION}.\n{random.choice(motds)}",
 )
 
 OFFLINE_NOTIFICATION = app.packets.notification(
