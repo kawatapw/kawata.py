@@ -19,7 +19,7 @@ env:
 
 jobs:
   sync-docs-to-wiki:
-    if: github.repository == 'osuAkatsuki/bancho.py' && github.event_name != 'gollum'
+    if: github.repository == 'kawatapw/kawata.py' && github.event_name != 'gollum'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -36,7 +36,7 @@ jobs:
           commitMessage: ${{ env.GIT_COMMIT_MESSAGE }}
 
   sync-wiki-to-docs:
-    if: github.repository == 'osuAkatsuki/bancho.py' && github.event_name == 'gollum'
+    if: github.repository == 'kawatapw/kawata.py' && github.event_name == 'gollum'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

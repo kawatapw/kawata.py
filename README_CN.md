@@ -2,10 +2,10 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/osuAkatsuki/bancho.py/master.svg)](https://results.pre-commit.ci/latest/github/osuAkatsuki/bancho.py/master)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/kawatapw/kawata.py/master.svg)](https://results.pre-commit.ci/latest/github/kawatapw/kawata.py/master)
 [![Discord](https://discordapp.com/api/guilds/748687781605408908/widget.png?style=shield)](https://discord.gg/ShEQgUx)
 
-The English version: [[English]](https://github.com/osuAkatsuki/bancho.py/blob/master/README.md)
+The English version: [[English]](https://github.com/kawatapw/kawata.py/blob/master/README.md)
 
 这是中文翻译哦~由 [hedgehog-qd](https://github.com/hedgehog-qd) 在根据原英语文档部署成功后翻译的。这里
 我根据我当时遇到的问题补充了一些提示，如有错误请指正，谢谢！

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
+# Ensure Nginx Config is Set
+scripts/install-nginx-config.sh
 
 # Checking MySQL TCP connection
 scripts/wait-for-it.sh --timeout=60 $DB_HOST:$DB_PORT
