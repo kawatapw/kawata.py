@@ -5,6 +5,9 @@ import asyncio
 import re
 import struct
 import time
+import random
+from fastapi import Response
+from fastapi.responses import JSONResponse
 from collections.abc import Callable
 from collections.abc import Mapping
 from datetime import date
@@ -68,12 +71,25 @@ BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 BASE_DOMAIN = app.settings.DOMAIN
 
+AERIS_IDENTIFICATION = 1
+
+# TODO: dear god
 NOW_PLAYING_RGX = re.compile(
     r"^\x01ACTION is (?:playing|editing|watching|listening to) "
     rf"\[https://osu\.(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
     r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
     r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
 )
+
+motds = [
+    "PANIGE Lazy Boi", 
+    "This Server Is sponsored by Raid Sh- oh... it's sponsored by nothing", 
+    "Winners don't do drugs, unless it's steroids... In which case, DO LOTS OF DRUGS",
+    "Inherited Flame Cancer",
+    "Hug ?", 
+    "PP when?", 
+    ":thinking:"
+]
 
 router = APIRouter(tags=["Bancho API"])
 
@@ -102,6 +118,18 @@ async def bancho_http_handler() -> Response:
 </body>
 </html>""",
     )
+
+@router.get("/infos")
+async def bancho_view_infos() -> Response:
+    """Get server information"""
+    data = {
+        "version": AERIS_IDENTIFICATION,
+        "motd": "osu!Kawata Welcome! | " + random.choice(motds),
+        "onlineUsers": len([player for player in app.state.sessions.players if not player.bot_client]),
+        "icon": "https://kawata.pw/static/images/logo.png"
+    }
+
+    return JSONResponse(data)
 
 
 @router.get("/online")
@@ -1538,9 +1566,7 @@ class MatchChangeSettings(BasePacket):
         elif player.match.map_id == -1:
             if player.match.prev_map_id != self.match_data.map_id:
                 # new map has been chosen, send to match chat.
-                map_url = (
-                    f"https://osu.{app.settings.DOMAIN}/b/{self.match_data.map_id}"
-                )
+                map_url = f"https://osu.{app.settings.DOMAIN}/beatmapsets/#/{self.match_data.map_id}"
                 map_embed = f"[{map_url} {self.match_data.map_name}]"
                 player.match.chat.send_bot(f"Selected: {map_embed}.")
 
@@ -1675,7 +1701,6 @@ class MatchComplete(BasePacket):
         ]
 
         player.match.unready_players(expected=SlotStatus.complete)
-        player.match.reset_players_loaded_status()
 
         player.match.in_progress = False
         player.match.enqueue(
