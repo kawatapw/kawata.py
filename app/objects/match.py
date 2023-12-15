@@ -271,7 +271,7 @@ class Match:
     @property
     def map_url(self) -> str:
         """The osu! beatmap url for `self`'s map."""
-        return f"https://osu.{app.settings.DOMAIN}/beatmapsets/#/{self.map_id}"
+        return f"https://osu.{app.settings.DOMAIN}/b/{self.map_id}"
 
     @property
     def embed(self) -> str:
@@ -369,6 +369,12 @@ class Match:
         for s in self.slots:
             if s.status == expected:
                 s.status = SlotStatus.not_ready
+
+    def reset_players_loaded_status(self) -> None:
+        """Reset all players' loaded status."""
+        for s in self.slots:
+            s.loaded = False
+            s.skipped = False
 
     def start(self) -> None:
         """Start the match for all ready players with the map."""
