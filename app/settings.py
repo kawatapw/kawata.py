@@ -78,6 +78,9 @@ AUTOMATICALLY_REPORT_PROBLEMS = read_bool(os.environ["AUTOMATICALLY_REPORT_PROBL
 ##          you could put your server at risk.
 DEVELOPER_MODE = read_bool(os.environ["DEVELOPER_MODE"])
 
+# Social Links used in game
+DISCORD_LINK = os.environ["DISCORD_LINK"]
+
 ## WARNING touch this if you know how
 ##          the migrations system works.
 ##          you'll regret it.
