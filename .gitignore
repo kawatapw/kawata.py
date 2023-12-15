@@ -19,3 +19,5 @@ tools/cf_records.txt
 /.data/
 /nginx/
 /nginx
+*.fuse*
+*.log
