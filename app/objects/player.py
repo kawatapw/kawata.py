@@ -122,6 +122,7 @@ class OsuStream(StrEnum):
     CUTTINGEDGE = "cuttingedge"
     TOURNEY = "tourney"
     DEV = "dev"
+    AERIS = "Aeris"
 
 
 class OsuVersion:

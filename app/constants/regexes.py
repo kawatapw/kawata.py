@@ -4,7 +4,7 @@ import re
 
 OSU_VERSION = re.compile(
     r"^b(?P<date>\d{8})(?:\.(?P<revision>\d))?"
-    r"(?P<stream>beta|cuttingedge|dev|tourney)?$",
+    r"(?P<stream>beta|cuttingedge|dev|tourney|Aeris)?$",
 )
 
 USERNAME = re.compile(r"^[\w \[\]-]{2,15}$")
