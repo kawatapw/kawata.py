@@ -1498,7 +1498,7 @@ async def getScores(
             for idx, s in enumerate(score_rows)
         ],
     )
-    
+
     return Response("\n".join(response_lines).encode())
 
 
