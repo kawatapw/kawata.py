@@ -385,12 +385,6 @@ def display_startup_dialog() -> None:
         log("running in advanced mode", Ansi.LRED)
     if app.settings.DEBUG:
         log("running in debug mode", Ansi.LMAGENTA)
-        if app.settings.DEBUG_SCORES:
-            log("Score Submission Debugging Enabled", Ansi.LMAGENTA)
-        if app.settings.DEBUG_MESSAGES:
-            log("Message Debugging Enabled", Ansi.LMAGENTA)
-        if app.settings.DEBUG_LEADERBOARDS:
-            log("Leaderboard Debugging Enabled", Ansi.LMAGENTA)
 
     # running on root/admin grants the software potentally dangerous and
     # unnecessary power over the operating system and is not advised.

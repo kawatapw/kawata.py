@@ -39,9 +39,6 @@ from fastapi.routing import APIRouter
 from py3rijndael import Pkcs7Padding
 from py3rijndael import RijndaelCbc
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from starlette.requests import Request
-from starlette.responses import RedirectResponse
-from starlette import status
 
 import app.packets
 import app.settings
@@ -599,8 +596,7 @@ async def osuSubmitModular(
     if fl_cheat_screenshot:
         stacktrace = app.utils.get_appropriate_stacktrace()
         await app.state.services.log_strange_occurrence(stacktrace)
-    if app.settings.DEBUG and app.settings.DEBUG_SCORES:
-        log("fl_check", Ansi.LMAGENTA)
+
     # NOTE: the bancho protocol uses the "score" parameter name for both
     # the base64'ed score data, and the replay file in the multipart
     # starlette/fastapi do not support this, so we've moved it out
@@ -610,8 +606,7 @@ async def osuSubmitModular(
 
     # extract the score data and replay file from the score data
     score_data_b64, replay_file = score_parameters
-    if app.settings.DEBUG and app.settings.DEBUG_SCORES:
-        log("handle score parameters", Ansi.LMAGENTA)
+
     # decrypt the score data (aes)
     score_data, client_hash_decoded = decrypt_score_aes_data(
         score_data_b64,
@@ -1917,8 +1912,8 @@ async def getScores(
     map_package_hash: str = Query(..., alias="h"),  # TODO: further validation
     aqn_files_found: bool = Query(..., alias="a"),
 ) -> Response:
-    if app.settings.DEBUG and app.settings.DEBUG_LEADERBOARDS:
-        log(f"Player: {player} \n Requesting from editor: {requesting_from_editor_song_select} \n Leaderboard version: {leaderboard_version} \n Leaderboard type: {leaderboard_type} \n Map md5: {map_md5} \n Map filename: {map_filename} \n Mode arg: {mode_arg} \n Map set id: {map_set_id} \n Mods arg: {mods_arg} \n Map package hash: {map_package_hash} \n AQN files found: {aqn_files_found}", Ansi.LMAGENTA)
+    if app.settings.DEBUG:
+        print(f"Player: {player} \n Requesting from editor: {requesting_from_editor_song_select} \n Leaderboard version: {leaderboard_version} \n Leaderboard type: {leaderboard_type} \n Map md5: {map_md5} \n Map filename: {map_filename} \n Mode arg: {mode_arg} \n Map set id: {map_set_id} \n Mods arg: {mods_arg} \n Map package hash: {map_package_hash} \n AQN files found: {aqn_files_found}")
     if aqn_files_found:
         stacktrace = app.utils.get_appropriate_stacktrace()
         await app.state.services.log_strange_occurrence(stacktrace)
@@ -2415,16 +2410,7 @@ async def register_account(
 
 @router.post("/difficulty-rating")
 async def difficultyRatingHandler(request: Request) -> Response:
-    if app.settings.DEBUG and app.settings.DEBUG_LEADERBOARDS:
-        # Print the request body
-        body = await request.body()
-        log(f"Request URL: {request.url}\nRequest Body: {body.decode()}", Ansi.LMAGENTA)
-
-        # Print the request path
-        print(f"Request Path: {request.url.path}")
-
-    # Redirect the request
     return RedirectResponse(
-        url=f"https://osu.ppy.sh{request.url.path}",
+        url=f"https://osu.ppy.sh{request['path']}",
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
