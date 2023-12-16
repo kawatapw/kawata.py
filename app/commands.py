@@ -535,7 +535,7 @@ async def request(ctx: Context) -> str | None:
 
     bmap = ctx.player.last_np["bmap"]
 
-    if bmap.status != RankedStatus.Pending:
+    if bmap.status != RankedStatus.Pending and app.settings.REQUEST_PENDING_ONLY:
         return "Only pending maps may be requested for status change."
 
     map_requests = await map_requests_repo.fetch_all(
