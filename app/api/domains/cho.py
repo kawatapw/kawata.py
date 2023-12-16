@@ -1242,6 +1242,14 @@ class SendPrivateMessage(BasePacket):
             else:
                 # no commands triggered.
                 r_match = NOW_PLAYING_RGX.match(msg)
+                or_match = OLD_NOW_PLAYING_RGX.match(msg)
+                if app.settings.DEBUG and app.settings.DEBUG_MESSAGES:
+                    log(f"self.msg object: {self.msg}")
+                if or_match:
+                    if app.settings.DEBUG and app.settings.DEBUG_MESSAGES:
+                        log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
+                    # TODO: convert link to new format, grab mode from new link.
+                    r_match = or_match
                 if r_match:
                     # user is /np'ing a map.
                     # save it to their player instance
