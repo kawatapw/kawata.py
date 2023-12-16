@@ -84,6 +84,13 @@ NOW_PLAYING_RGX = re.compile(
     r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
     r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
 )
+OLD_NOW_PLAYING_RGX = re.compile(
+    r"^\x01ACTION is (?:playing|editing|watching|listening to) "
+    rf"\[https://{re.escape(BASE_DOMAIN)}/b/(?P<bid>\d{{1,10}}) .+\]"
+    r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
+    r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
+)
+
 
 FIRST_USER_ID = 3
 motds = [
@@ -418,10 +425,20 @@ class SendMessage(BasePacket):
             # even though this is a public channel,
             # we'll update the player's last np stored.
             r_match = NOW_PLAYING_RGX.match(msg)
+            or_match = OLD_NOW_PLAYING_RGX.match(msg)
+            if app.settings.DEBUG and app.settings.DEBUG_MESSAGES:
+                log(f"self.msg object: {self.msg}")
+            if or_match:
+                if app.settings.DEBUG and app.settings.DEBUG_MESSAGES:
+                    log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
+                # TODO: convert link to new format, grab mode from new link.
+                r_match = or_match
             if r_match:
                 # the player is /np'ing a map.
                 # save it to their player instance
                 # so we can use this elsewhere owo..
+                if app.settings.DEBUG and app.settings.DEBUG_MESSAGES:
+                    log(f"NP Regex Matched: {r_match}", Ansi.LMAGENTA)
                 bmap = await Beatmap.from_bid(int(r_match["bid"]))
 
                 if bmap:
