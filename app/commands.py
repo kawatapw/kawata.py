@@ -633,6 +633,7 @@ async def _map(ctx: Context) -> str | None:
         return "Invalid syntax: !map <rank/unrank/love> <map/set>"
 
     if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
+        print(f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}")
         return "Please /np a map first!"
 
     bmap = ctx.player.last_np["bmap"]
