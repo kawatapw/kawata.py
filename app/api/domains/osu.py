@@ -17,6 +17,7 @@ from functools import cache
 from pathlib import Path as SystemPath
 from typing import Any
 from typing import Literal
+from typing import Optional
 from urllib.parse import unquote
 from urllib.parse import unquote_plus
 
@@ -128,6 +129,93 @@ def authenticate_player_session(
 # POST /web/osu-osz2-bmsubmit-upload.php
 # GET /web/osu-osz2-bmsubmit-getid.php
 # GET /web/osu-get-beatmap-topic.php
+
+OsuClientModes = Literal[
+    "Menu",
+    "Edit",
+    "Play",
+    "Exit",
+    "SelectEdit",
+    "SelectPlay",
+    "SelectDrawings",
+    "Rank",
+    "Update",
+    "Busy",
+    "Unknown",
+    "Lobby",
+    "MatchSetup",
+    "SelectMulti",
+    "RankingVs",
+    "OnlineSelection",
+    "OptionsOffsetWizard",
+    "RankingTagCoop",
+    "RankingTeam",
+    "BeatmapImport",
+    "PackageUpdater",
+    "Benchmark",
+    "Tourney",
+    "Charts",
+]
+
+OsuClientGameModes = Literal[
+    "Osu",
+    "Taiko",
+    "CatchTheBeat",
+    "OsuMania",
+]
+
+
+#@router.post("/web/osu-error.php")
+async def osuError(
+    username: str | None = Form(None, alias="u"),
+    pw_md5: str | None = Form(None, alias="h"),
+    user_id: int = Form(..., alias="i", ge=3, le=2_147_483_647),
+    osu_mode: OsuClientModes = Form(..., alias="osumode"),
+    game_mode: OsuClientGameModes = Form(..., alias="gamemode"),
+    game_time: int = Form(..., alias="gametime", ge=0),
+    audio_time: int = Form(..., alias="audiotime"),
+    culture: str = Form(...),
+    map_id: int = Form(..., alias="beatmap_id", ge=0, le=2_147_483_647),
+    map_md5: str = Form(..., alias="beatmap_checksum", min_length=32, max_length=32),
+    exception: str = Form(...),
+    feedback: str | None = Form(None),
+    stacktrace: str = Form(...),
+    soft: bool = Form(...),
+    map_count: int = Form(..., alias="beatmap_count", ge=0),
+    compatibility: bool = Form(...),
+    ram_used: int = Form(..., alias="ram", ge=0),
+    osu_version: str = Form(..., alias="version"),
+    exe_hash: str = Form(..., alias="exehash"),
+    config: str = Form(...),
+    screenshot_file: UploadFile | None = File(None, alias="ss"),
+) -> Response:
+    """Handle an error submitted from the osu! client."""
+    if not app.settings.DEBUG and not app.settings.DEBUG_CLIENT:
+        # only handle osu-error in debug mode
+        return Response(b"")
+
+    if username and pw_md5:
+        player = await app.state.sessions.players.from_login(
+            name=unquote(username),
+            pw_md5=pw_md5,
+        )
+        if not player:
+            # player login incorrect
+            await app.state.services.log_strange_occurrence("osu-error auth failed")
+            player = None
+    else:
+        player = None
+
+    err_desc = f"{feedback} ({exception})"
+    log(f'{player or "Offline user"} sent osu-error: {err_desc}', Ansi.LCYAN)
+
+    # NOTE: this stacktrace can be a LOT of data
+    if app.settings.DEBUG and len(stacktrace) < 2000:
+        printc(stacktrace[:-2], Ansi.LMAGENTA)
+
+    # TODO: save error in db?
+
+    return Response(b"")
 
 
 @router.post("/web/osu-screenshot.php")
@@ -522,6 +610,8 @@ def parse_form_data_score_params(
             log(f"Score Data b64: {score_data_b64}", Ansi.LMAGENTA)
         assert isinstance(score_data_b64, str), "Invalid score data"
         replay_file = score_data.getlist("score")[1]
+        if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+            log(f"Replay File: {replay_file}", Ansi.LMAGENTA)
         assert isinstance(replay_file, StarletteUploadFile), "Invalid replay data"
     except AssertionError as exc:
         log(f"Failed to validate score multipart data: ({exc.args[0]})", Ansi.LRED)
@@ -627,21 +717,22 @@ async def write_log_file(type, file_path, request):
 @router.post("/web/osu-submit-modular.php")
 async def osuSubmitModular(
     request: Request,
-    #token: str = Header(...),
+    #token: Optional[str] = Header(None),
     exited_out: bool = Form(..., alias="x"),
-    #fail_time: int = Form(..., alias="ft"),
+    anti_cheat_check: Optional[bytes] | None = Form(None, alias="pl"),
+    #fail_time: Optional[int] = Form(None, alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
-    #updated_beatmap_hash: str = Form(..., alias="bmk"),
+    #updated_beatmap_hash: Optional[str] = Form(None, alias="bmk"),
     storyboard_md5: str | None = Form(None, alias="sbk"),
     iv_b64: bytes = Form(..., alias="iv"),
     unique_ids: str = Form(..., alias="c1"),  # TODO: more validaton
-    #score_time: int = Form(..., alias="st"),  # TODO: is this real name?
+    #score_time: Optional[int] = Form(None, alias="st"),  # TODO: is this real name?
     pw_md5: str = Form(..., alias="pass"),
     osu_version: str = Form(..., alias="osuver"),  # TODO: regex
     client_hash_b64: bytes = Form(..., alias="s"),
     # TODO: do these need to be Optional?
     # TODO: validate this is actually what it is
-    fl_cheat_screenshot: bytes | None = File(None, alias="i"),
+    fl_cheat_screenshot: Optional[bytes] | None = File(None, alias="i"),
 ) -> Response:
     """Handle a score submission from an osu! client with an active session."""
 
@@ -654,11 +745,13 @@ async def osuSubmitModular(
         stacktrace = app.utils.get_appropriate_stacktrace()
         await app.state.services.log_strange_occurrence(stacktrace)
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
-        log("fl_check", Ansi.LMAGENTA)
+        log("fl_check Done", Ansi.LMAGENTA)
     # NOTE: the bancho protocol uses the "score" parameter name for both
     # the base64'ed score data, and the replay file in the multipart
     # starlette/fastapi do not support this, so we've moved it out
     score_parameters = parse_form_data_score_params(await request.form())
+    if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+        log("Set Score_Parameters", Ansi.LMAGENTA)
     if score_parameters is None:
         if app.settings.DEBUG and app.settings.DEBUG_SCORES:
             log("Score_Parameters is None", Ansi.LMAGENTA)
@@ -2109,8 +2202,8 @@ async def getScores(
 
     return Response("\n".join(response_lines).encode())
 
-
-@router.post("/web/osu-comment.php")
+# TODO: Fix Consuming Bytes on old Client
+#@router.post("/web/osu-comment.php")
 async def osuComment(
     player: Player = Depends(authenticate_player_session(Form, "u", "p")),
     map_id: int = Form(..., alias="b"),
@@ -2272,6 +2365,7 @@ if app.settings.REDIRECT_OSU_URLS:
         "/community/forums/topics/{_}",
     ):
         router.get(pattern)(osu_redirect)
+
 
 
 @router.get("/ss/{screenshot_id}.{extension}")

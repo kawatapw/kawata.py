@@ -15,6 +15,8 @@ APP_PORT = int(os.environ["APP_PORT"])
 # Set some values at server start
 OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT = 0
 
+APP_TZ = os.environ["APP_TZ"]
+
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ["DB_PORT"])
 DB_USER = os.environ["DB_USER"]

@@ -48,7 +48,7 @@ server {
 	}
 
 	location /u {
-    return 301 $scheme://web.${DOMAIN}$request_uri;
+    return 301 $scheme://${DOMAIN}$request_uri;
   }
 }
 
