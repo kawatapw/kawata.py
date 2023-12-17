@@ -28,6 +28,7 @@ _app_port = support_deprecated_vars(
 )
 if _app_port:
     APP_PORT = int(_app_port)
+APP_TZ = os.environ["APP_TZ"]
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ["DB_PORT"])
