@@ -264,6 +264,11 @@ class Player:
 
         self.away_msg: str | None = None
         self.in_lobby = False
+        # TODO: Delete this after fixing root problem, Bandaid Solution FTW
+        if priv is None:
+            priv = 3
+        # ensure priv is of type Privileges
+        self.priv = priv if isinstance(priv, Privileges) else Privileges(priv)
 
         self.stats: dict[GameMode, ModeData] = {}
         self.status = Status()
