@@ -1055,9 +1055,39 @@ async def recalc(ctx: Context) -> str | None:
 
 @command(Privileges.DEVELOPER, hidden=True)
 async def debug(ctx: Context) -> str | None:
-    """Toggle the console's debug setting."""
+    """Toggle the console's master debug setting."""
     app.settings.DEBUG = not app.settings.DEBUG
     return f"Toggled {'on' if app.settings.DEBUG else 'off'}."
+
+@command(Privileges.DEVELOPER, hidden=True)
+async def debug_client(ctx: Context) -> str | None:
+    """Toggle the console's  client debug setting."""
+    app.settings.DEBUG_CLIENT = not app.settings.DEBUG_CLIENT
+    return f"Toggled {'on' if app.settings.DEBUG_CLIENT else 'off'}."
+
+@command(Privileges.DEVELOPER, hidden=True)
+async def debug_requests(ctx: Context) -> str | None:
+    """Toggle the console's requests debug setting."""
+    app.settings.DEBUG_REQUESTS = not app.settings.DEBUG_REQUESTS
+    return f"Toggled {'on' if app.settings.DEBUG_REQUESTS else 'off'}."
+
+@command(Privileges.DEVELOPER, hidden=True)
+async def debug_scores(ctx: Context) -> str | None:
+    """Toggle the console's score submission debug setting."""
+    app.settings.DEBUG_SCORES = not app.settings.DEBUG_SCORES
+    return f"Toggled {'on' if app.settings.DEBUG_SCORES else 'off'}."
+
+@command(Privileges.DEVELOPER, hidden=True)
+async def debug_messages(ctx: Context) -> str | None:
+    """Toggle the console's message debug setting."""
+    app.settings.DEBUG_MESSAGES = not app.settings.DEBUG_MESSAGES
+    return f"Toggled {'on' if app.settings.DEBUG_MESSAGES else 'off'}."
+
+@command(Privileges.DEVELOPER, hidden=True)
+async def debug_leaderboards(ctx: Context) -> str | None:
+    """Toggle the console's leaderboard debug setting."""
+    app.settings.DEBUG_LEADERBOARDS = not app.settings.DEBUG_LEADERBOARDS
+    return f"Toggled {'on' if app.settings.DEBUG_LEADERBOARDS else 'off'}."
 
 
 # NOTE: these commands will likely be removed

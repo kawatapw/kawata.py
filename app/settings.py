@@ -12,6 +12,8 @@ load_dotenv()
 
 APP_HOST = os.environ["APP_HOST"]
 APP_PORT = int(os.environ["APP_PORT"])
+# Set some values at server start
+OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT = 0
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ["DB_PORT"])
@@ -37,6 +39,7 @@ MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 
 COMMAND_PREFIX = os.environ["COMMAND_PREFIX"]
 REQUEST_PENDING_ONLY = read_bool(os.environ["REQUEST_PENDING_ONLY"])
+UNREAD_MESSAGES = read_bool(os.environ["UNREAD_MESSAGES"])
 
 SEASONAL_BGS = read_list(os.environ["SEASONAL_BGS"])
 
@@ -47,6 +50,9 @@ DATADOG_API_KEY = os.environ["DATADOG_API_KEY"]
 DATADOG_APP_KEY = os.environ["DATADOG_APP_KEY"]
 
 DEBUG = read_bool(os.environ["DEBUG"])
+DEBUG_LEVEL = os.environ["DEBUG_LEVEL"]
+DEBUG_CLIENT = read_bool(os.environ["DEBUG_CLIENT"])
+DEBUG_REQUESTS = read_bool(os.environ["DEBUG_REQUESTS"])
 DEBUG_SCORES = read_bool(os.environ["DEBUG_SCORES"])
 DEBUG_MESSAGES = read_bool(os.environ["DEBUG_MESSAGES"])
 DEBUG_LEADERBOARDS = read_bool(os.environ["DEBUG_LEADERBOARDS"])
