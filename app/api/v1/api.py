@@ -5,6 +5,7 @@ import hashlib
 import struct
 from pathlib import Path as SystemPath
 from typing import Literal
+from typing import List
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -507,6 +508,12 @@ async def api_get_player_scores(
         else None,
     }
 
+    # Add mods_readable to each score
+    for row in rows:
+        mods = Mods(row["mods"])
+        mods_readable = app.constants.mods.get_mods_string(mods)
+        row["mods_readable"] = mods_readable
+
     return ORJSONResponse(
         {
             "status": "success",
@@ -514,7 +521,6 @@ async def api_get_player_scores(
             "player": player_info,
         },
     )
-
 
 @router.get("/get_player_most_played")
 async def api_get_player_most_played(

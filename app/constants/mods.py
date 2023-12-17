@@ -300,3 +300,12 @@ SPEED_CHANGING_MODS = Mods.DOUBLETIME | Mods.NIGHTCORE | Mods.HALFTIME
 OSU_SPECIFIC_MODS = Mods.AUTOPILOT | Mods.SPUNOUT | Mods.TARGET
 # taiko & catch have no specific mods
 MANIA_SPECIFIC_MODS = Mods.MIRROR | Mods.RANDOM | Mods.FADEIN | KEY_MODS
+
+@staticmethod
+def get_mods_string(mods: Mods) -> str:
+    mod_list = []
+    for mod in Mods:
+        if mods & mod:
+            mod_list.append(mod2modstr_dict[mod])
+    mod_list.sort()
+    return "".join(mod_list)
