@@ -69,7 +69,7 @@ def get_timestamp(full: bool = False, tz: ZoneInfo | None = None) -> str:
 
 # TODO: better solution than this; this at least requires the
 # iana/tzinfo database to be installed, meaning it's limited.
-_log_tz = ZoneInfo("GMT")  # default
+_log_tz = ZoneInfo("MST")  # default
 
 
 def set_timezone(tz: ZoneInfo) -> None:
