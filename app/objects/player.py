@@ -231,6 +231,9 @@ class Player:
             self.token = self.generate_token()
 
         # ensure priv is of type Privileges
+        # TODO: Delete this after fixing root problem, Bandaid Solution FTW
+        if priv is None:
+            priv = 3
         self.priv = priv if isinstance(priv, Privileges) else Privileges(priv)
 
         self.stats: dict[GameMode, ModeData] = {}
