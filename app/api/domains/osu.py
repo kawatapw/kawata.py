@@ -1,6 +1,7 @@
 """ osu: handle connections from web, api, and beyond? """
 from __future__ import annotations
 
+import os
 import copy
 import hashlib
 import random
@@ -42,6 +43,8 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette import status
+import json
+import asyncio
 
 import app.packets
 import app.settings
@@ -536,6 +539,8 @@ def parse_form_data_score_params(
         assert len(score_parts) == 2, "Invalid score data"
 
         score_data_b64 = score_data.getlist("score")[0]
+        if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+            log(f"Score Data b64: {score_data_b64}", Ansi.LMAGENTA)
         assert isinstance(score_data_b64, str), "Invalid score data"
         replay_file = score_data.getlist("score")[1]
         assert isinstance(replay_file, StarletteUploadFile), "Invalid replay data"
@@ -575,6 +580,72 @@ def decrypt_score_aes_data(
     # score data is delimited by colons (:).
     return score_data, client_hash_decoded
 
+async def get_form_data(type, request: Request):
+    try:
+        return await request.form()
+    except Exception as e:
+        # Handle the exception here
+        if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
+            log(f"Request has no Form Data", Ansi.GRAY)
+        return None
+
+async def get_request_body(type, request: Request):
+    try:
+        return await request.body()
+    except Exception as e:
+        # Handle the exception here
+        if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
+            log(f"Request has no Body", Ansi.GRAY)
+        return None
+
+async def get_request_files(type, request: Request):
+    try:
+        return await request.files()
+    except Exception as e:
+        # Handle the exception here
+        if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
+            log(f"Request Contains no Files", Ansi.GRAY)
+        return None
+
+
+async def write_log_file(type, file_path, request):
+    log(f"Writing Log File for Old Client Submission", Ansi.GRAY)
+    with open(file_path, 'w') as file:
+        if type == "SCORE":
+            file.write("Old Client Score Submission:\n")
+        file.write(f"Request Headers:\n")
+        for header, value in request.headers.items():
+            file.write(f"{header}: {value}\n")
+        log(f"Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
+        form_data = await get_form_data(type, request)
+        log(f"Grabbed Form Data", Ansi.GRAY)
+        if form_data != None:
+            # Extract the aliases and their values from the form data
+            aliases = {alias: str(form_data.get(alias)) for alias in form_data}
+            # Convert the aliases dictionary to JSON format
+            aliases_json = json.dumps(aliases, indent=4)
+            file.write("Request Forms: \n")
+            file.write(aliases_json)
+            log(f"Form Data Written")
+        # Read the request body as bytes and decode it
+        body = await get_request_body(type, request)
+        if body != None:
+            try:
+                body_str = body.decode()
+            except Exception as e:
+                body_str = None
+            file.write(f"\nRequest Body:\n")
+            file.write(body_str)
+        files = await get_request_files(type, request)
+        if files != None:
+            file.write(f"\nFiles:\n")
+            for field, uploaded_file in files.items():
+                file.write(f"{field}: {uploaded_file.filename}\n")
+        if type == "SCORE":
+            log(f"Log File for Old Client Submission written successfully", Ansi.GRAY)
+
+
+
 @router.post("/web/osu-submit-modular.php")
 async def osuSubmitModular(
     request: Request,
@@ -596,6 +667,11 @@ async def osuSubmitModular(
 ) -> Response:
     """Handle a score submission from an osu! client with an active session."""
 
+    if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+        log("Received Score Submission from Old Client", Ansi.LMAGENTA)
+
+    if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+        log("Process FL Screenshot", Ansi.LMAGENTA)
     if fl_cheat_screenshot:
         stacktrace = app.utils.get_appropriate_stacktrace()
         await app.state.services.log_strange_occurrence(stacktrace)
@@ -606,6 +682,8 @@ async def osuSubmitModular(
     # starlette/fastapi do not support this, so we've moved it out
     score_parameters = parse_form_data_score_params(await request.form())
     if score_parameters is None:
+        if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+            log("Score_Parameters is None", Ansi.LMAGENTA)
         return Response(b"")
 
     # extract the score data and replay file from the score data
@@ -1142,7 +1220,18 @@ async def osuSubmitModular(
         f"({score.status!r}, {score.pp:,.2f}pp / {stats.pp:,}pp)",
         Ansi.LGREEN,
     )
+    # TODO: execute write log in a way that is non blocking
+    if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+        ocsslc = app.settings.OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT
+        app.settings.OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT = ocsslc + 1
+        file_path = f"./.data/logs/scores/oldclients/submission{oldClientScoreSubLogCount}.log"
 
+        # Create the file if it doesn't exist
+        if not os.path.exists(file_path):
+            open(file_path, 'a').close()
+
+        # Execute Write Log
+        asyncio.create_task(write_log_file("SCORE", file_path, request))
     return Response(response)
 
 @router.post("/web/osu-submit-modular-selector.php")

@@ -11,6 +11,9 @@ from app.settings_utils import support_deprecated_vars
 
 load_dotenv()
 
+# Set some values at server start
+OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT = 0
+
 APP_HOST = support_deprecated_vars(
     new_name="APP_HOST",
     deprecated_name="SERVER_ADDR",
@@ -50,6 +53,7 @@ MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 
 COMMAND_PREFIX = os.environ["COMMAND_PREFIX"]
 REQUEST_PENDING_ONLY = read_bool(os.environ["REQUEST_PENDING_ONLY"])
+UNREAD_MESSAGES = read_bool(os.environ["UNREAD_MESSAGES"])
 
 SEASONAL_BGS = read_list(os.environ["SEASONAL_BGS"])
 
@@ -60,6 +64,9 @@ DATADOG_API_KEY = os.environ["DATADOG_API_KEY"]
 DATADOG_APP_KEY = os.environ["DATADOG_APP_KEY"]
 
 DEBUG = read_bool(os.environ["DEBUG"])
+DEBUG_LEVEL = os.environ["DEBUG_LEVEL"]
+DEBUG_CLIENT = read_bool(os.environ["DEBUG_CLIENT"])
+DEBUG_REQUESTS = read_bool(os.environ["DEBUG_REQUESTS"])
 DEBUG_SCORES = read_bool(os.environ["DEBUG_SCORES"])
 DEBUG_MESSAGES = read_bool(os.environ["DEBUG_MESSAGES"])
 DEBUG_LEADERBOARDS = read_bool(os.environ["DEBUG_LEADERBOARDS"])

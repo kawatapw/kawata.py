@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import time
-
+import asyncio
+import starlette
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.websockets import WebSocketDisconnect
+
 
 from app.logging import Ansi
 from app.logging import log
 from app.logging import magnitude_fmt_time
 from app.logging import printc
+import app.settings
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
@@ -20,7 +24,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         call_next: RequestResponseEndpoint,
     ) -> Response:
         start_time = time.perf_counter_ns()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except TypeError as e:
+            # Handle any non JSON serializable requests
+            log(f"Non JSON Serializable Request | URL: {request.url} | Query Parameters: {request.query_params} | Request Body: {await request.body()}", Ansi.YELLOW)
+            response = Response(content="Internal Server Error: Non JSON Serializable Request", status_code=500) 
         end_time = time.perf_counter_ns()
 
         time_elapsed = end_time - start_time
@@ -36,9 +45,11 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         )
 
         url = f"{request.headers['host']}{request['path']}"
-
+        
         log(f"[{request.method}] {response.status_code} {url}", col, end=" | ")
         printc(f"Request took: {magnitude_fmt_time(time_elapsed)}", Ansi.LBLUE)
-
+        if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
+                log(f"Request Information | Client IP: {request.headers['cf-connecting-ip']} | Client Country: {request.headers['cf-ipcountry']} | Client User Agent: {request.headers['user-agent']} | Query Parameters: {request.query_params}", Ansi.YELLOW)
+                    
         response.headers["process-time"] = str(round(time_elapsed) / 1e6)
         return response
