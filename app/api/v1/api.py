@@ -15,7 +15,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
-
+import orjson
 import app.packets
 import app.state
 import app.usecases.performance
@@ -194,9 +194,18 @@ async def api_calculate_pp(
     )
 
 
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.param_functions import Query
+from starlette.responses import Response
+from fastapi.responses import ORJSONResponse
+
+router = APIRouter()
+
 @router.get("/search_players")
 async def api_search_players(
-    search: str | None = Query(None, alias="q", min=2, max=32),
+    search: Optional[str] = Query(None, alias="q", min=2, max=32),
+    limit: int = Query(25, alias="limit", ge=1, le=50),
 ) -> Response:
     """Search for users on the server by name."""
     rows = await app.state.services.database.fetch_all(
@@ -204,15 +213,21 @@ async def api_search_players(
         "FROM users "
         "WHERE name LIKE COALESCE(:name, name) "
         "AND priv & 3 = 3 "
-        "ORDER BY id ASC",
-        {"name": f"%{search}%" if search is not None else None},
+        "ORDER BY id ASC "
+        "LIMIT :limit",
+        {"name": f"%{search}%" if search is not None else None, "limit": limit},
     )
+    players = []
+    for row in rows:
+        request_response = await api_get_player_info(scope='all', user_id=row['id'])
+        player_info = orjson.loads(request_response.body)
+        players.append(player_info['player'])
 
     return ORJSONResponse(
         {
             "status": "success",
-            "results": len(rows),
-            "result": [dict(row) for row in rows],
+            "results": len(players),
+            "result": players,
         },
     )
 
@@ -239,6 +254,8 @@ async def api_get_player_info(
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ) -> Response:
     """Return information about a given player."""
+    if user_id:
+        username = None
     if not (username or user_id) or (username and user_id):
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
@@ -258,13 +275,20 @@ async def api_get_player_info(
         )
 
     resolved_user_id: int = user_info["id"]
+    resolved_clan_id: int | None = user_info["clan_id"]
     resolved_country: str = user_info["country"]
-
+    # Call api_get_clan() and attach the response to the api_data
+    
     api_data = {}
 
     # fetch user's info if requested
     if scope in ("info", "all"):
         api_data["info"] = dict(user_info)
+        if resolved_clan_id != 0:
+            info = api_data["info"]
+            clan_response = await api_get_clan(clan_id=resolved_clan_id)
+            clan_data = orjson.loads(clan_response.body)
+            info["clan"] = clan_data
 
     # fetch user's stats if requested
     if scope in ("stats", "all"):
