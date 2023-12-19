@@ -746,6 +746,7 @@ async def api_get_map_scores(
 @router.get("/get_score_info")
 async def api_get_score_info(
     score_id: int = Query(..., alias="id", ge=0, le=9_223_372_036_854_775_807),
+    b: int = Query(0, alias="b", ge=0, le=1),
 ) -> Response:
     """Return information about a given score."""
     score = await scores_repo.fetch_one(score_id)
@@ -756,7 +757,11 @@ async def api_get_score_info(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    return ORJSONResponse({"status": "success", "score": score})
+    if b == 1:
+        beatmap_info = await Beatmap.from_md5(score["map_md5"])  # Access md5 as a key in the score dictionary
+        return ORJSONResponse({"status": "success", "score": score, "beatmap_info": beatmap_info.as_dict})
+    else:
+        return ORJSONResponse({"status": "success", "score": score})
 
 
 # TODO: perhaps we can do something to make these count towards replay views,
