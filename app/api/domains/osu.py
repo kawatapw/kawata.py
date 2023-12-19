@@ -2288,7 +2288,7 @@ async def osuSeasonal() -> Response:
     return ORJSONResponse(app.settings.SEASONAL_BGS)
 
 
-@router.get("/web/bancho_connect.php")
+#@router.get("/web/bancho_connect.php")
 async def banchoConnect(
     # NOTE: this is disabled as this endpoint can be called
     #       before a player has been granted a session
