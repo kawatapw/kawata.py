@@ -6,7 +6,6 @@ import struct
 from pathlib import Path as SystemPath
 from typing import Literal
 from typing import List
-
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import status
@@ -877,7 +876,89 @@ async def api_get_replay(
         },
     )
 
+import httpx
+import json
 
+@router.get('/replays/rendered')
+async def replay_rendered(
+    score_id: int = Query(..., alias='id', ge=0, le=9_223_372_036_854_775_807),
+    ignore_game_fail: Optional[bool] = False,
+) -> Response:
+    """Render a given replay."""
+    # fetch score & make sure it exists
+    score = await app.state.services.database.fetch_one(
+        "SELECT * FROM scores WHERE id = :score_id",
+        {"score_id": score_id},
+    )
+    if not score:
+        return ORJSONResponse(
+            {"status": "Score not found."},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    # check if replay exists
+    replay_id = score['r_replay_id']
+    if replay_id:
+        return ORJSONResponse({'status': 'replay_found', 'replayId': replay_id})
+    else:
+        # Get the user id from the score
+        user_id = score['userid']
+
+        # Fetch the username from the users table
+        user = await app.state.services.database.fetch_one(
+            'SELECT name FROM users WHERE id = :user_id',
+            {"user_id": user_id},
+        )
+        username = user['name'] if user else None
+
+        # Try to get the ordr settings from the users_ordr table
+        try:
+            ordr = await app.state.services.database.fetch_one(
+                'SELECT * FROM users_ordr WHERE userid = :user_id',
+                {"user_id": user_id},
+            )
+            ordr_settings = ordr if ordr else None
+        except Exception as e:
+            print(f"Failed to get ordr settings: {e}")
+            ordr_settings = None
+
+        # Make a POST request to apis.issou.best/ordr/renders
+        url = "https://apis.issou.best/ordr/renders"
+        data = {
+            "replayURL": "https://api.kawata.pw/v1/get_replay?id=" + str(score_id),
+            "username": username,
+            "resolution": "1280x720",
+            "skin": ordr_settings['skin'] if ordr_settings else "175",
+            "showDanserLogo": "false",
+            "showAimErrorMeter": "true",
+            "showStrainGraph": "true",
+            "showSliderBreaks": "true",
+            "verificationKey": "UKzZqSD4aBH7hnV5RX3GJ6"
+        }
+        print(data)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, data=data)
+            print("Status:", response.status_code)
+            print("Content:", response.text)
+
+            if response.status_code == 201:
+                try:
+                    response_data = json.loads(response.text)
+                    render_id = response_data.get("renderID")
+                    if render_id:
+                        # Update the score's r_replay_id in the database
+                        await app.state.services.database.execute(
+                            "UPDATE scores SET r_replay_id = :render_id WHERE id = :score_id",
+                            {"render_id": render_id, "score_id": score_id},
+                        )
+                except json.JSONDecodeError:
+                    print("Failed to parse response JSON")
+
+        return {
+            'status': response.status_code,
+            'username': username,
+            'ordr_settings': ordr_settings
+        }
+        
 @router.get("/get_match")
 async def api_get_match(
     match_id: int = Query(..., alias="id", ge=1, le=64),

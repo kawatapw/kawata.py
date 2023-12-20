@@ -40,7 +40,7 @@ from app._typing import UNSET
 READ_PARAMS = textwrap.dedent(
     """\
         id, map_md5, score, pp, acc, max_combo, mods, n300, n100, n50, nmiss, ngeki, nkatu,
-        grade, status, mode, play_time, time_elapsed, client_flags, userid, perfect, online_checksum
+        grade, status, mode, play_time, time_elapsed, client_flags, userid, perfect, online_checksum, r_replay_id
     """,
 )
 
