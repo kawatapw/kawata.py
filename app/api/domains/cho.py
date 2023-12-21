@@ -210,9 +210,11 @@ async def bancho_handler(
     if osu_token is None:
         # the client is performing a login
         async with app.state.services.database.connection() as db_conn:
+            request._body = await request.body()
+            log(f"Login request from {ip}.\nRequest Body: {request._body}", Ansi.LCYAN, file=".data/logs/login.log")
             login_data = await login(
                 request.headers,
-                await request.body(),
+                request._body,
                 ip,
                 db_conn,
             )
@@ -247,6 +249,7 @@ async def bancho_handler(
     # NOTE: any unhandled packets will be ignored internally.
 
     with memoryview(await request.body()) as body_view:
+        log(f"Packet from {player}: {body_view}", Ansi.GRAY, file=".data/logs/packets.log")
         for packet in BanchoPacketReader(body_view, packet_map):
             await packet.handle(player)
 

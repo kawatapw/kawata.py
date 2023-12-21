@@ -28,7 +28,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         except TypeError as e:
             # Handle any non JSON serializable requests
-            log(f"Non JSON Serializable Request | URL: {request.url} | Query Parameters: {request.query_params} | Request Body: {await request.body()}", Ansi.YELLOW)
+            log(f"Non JSON Serializable Request | URL: {request.url} | Query Parameters: {request.query_params}", Ansi.YELLOW)
             response = Response(content="Internal Server Error: Non JSON Serializable Request", status_code=500) 
         end_time = time.perf_counter_ns()
 
