@@ -1295,7 +1295,7 @@ async def osuSubmitModular(
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
         ocsslc = app.settings.OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT
         app.settings.OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT = ocsslc + 1
-        file_path = f"./.data/logs/scores/oldclients/submission{oldClientScoreSubLogCount}.log"
+        file_path = f"./.data/logs/scores/oldclients/submission{ocsslc}.log"
 
         # Create the file if it doesn't exist
         if not os.path.exists(file_path):
