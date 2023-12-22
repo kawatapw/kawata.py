@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import struct
+import httpx
+import json
 from pathlib import Path as SystemPath
 from typing import Literal
 from typing import List
@@ -844,9 +846,6 @@ async def api_get_replay(
             ).format(**dict(row._mapping)),
         },
     )
-
-import httpx
-import json
 
 @router.get('/replays/rendered')
 async def replay_rendered(
