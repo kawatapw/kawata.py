@@ -41,11 +41,11 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         )
 
         url = f"{request.headers['host']}{request['path']}"
-        
-        log(f"[{request.method}] {response.status_code} {url}", col, end=" | ")
-        printc(f"Request took: {magnitude_fmt_time(time_elapsed)}", Ansi.LBLUE)
-        if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
-                log(f"Request Information | Client IP: {request.headers['cf-connecting-ip']} | Client Country: {request.headers['cf-ipcountry']} | Client User Agent: {request.headers['user-agent']} | Query Parameters: {request.query_params}", Ansi.YELLOW)
-                    
+        if response.status_code != 307:
+            log(f"[{request.method}] {response.status_code} {url}", col, end=" | ")
+            printc(f"Request took: {magnitude_fmt_time(time_elapsed)}", Ansi.LBLUE)
+            if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
+                    log(f"Request Information | Client IP: {request.headers['cf-connecting-ip']} | Client Country: {request.headers['cf-ipcountry']} | Client User Agent: {request.headers['user-agent']} | Query Parameters: {request.query_params}", Ansi.YELLOW)
+                        
         response.headers["process-time"] = str(round(time_elapsed) / 1e6)
         return response

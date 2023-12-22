@@ -16,6 +16,7 @@ APP_PORT = int(os.environ["APP_PORT"])
 OLD_CLIENT_SCORE_SUBMIT_LOG_COUNT = 0
 
 APP_TZ = os.environ["APP_TZ"]
+CHEAT_SERVER = read_bool(os.environ["CHEAT_SERVER"])
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ["DB_PORT"])
