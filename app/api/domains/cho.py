@@ -259,7 +259,8 @@ async def bancho_handler(
     # NOTE: any unhandled packets will be ignored internally.
 
     with memoryview(await request.body()) as body_view:
-        log(f"Packet from {player}: {body_view}", Ansi.GRAY, file=".data/logs/packets.log")
+        if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
+            log(f"Packet from {player}: {body_view}", Ansi.GRAY, file=".data/logs/packets.log")
         for packet in BanchoPacketReader(body_view, packet_map):
             await packet.handle(player)
 
