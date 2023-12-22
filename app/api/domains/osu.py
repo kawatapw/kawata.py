@@ -165,24 +165,24 @@ OsuClientGameModes = Literal[
 async def osuError(
     username: str | None = Form(None, alias="u"),
     pw_md5: str | None = Form(None, alias="h"),
-    user_id: int = Form(..., alias="i", ge=3, le=2_147_483_647),
-    osu_mode: OsuClientModes = Form(..., alias="osumode"),
-    game_mode: OsuClientGameModes = Form(..., alias="gamemode"),
-    game_time: int = Form(..., alias="gametime", ge=0),
-    audio_time: int = Form(..., alias="audiotime"),
-    culture: str = Form(...),
-    map_id: int = Form(..., alias="beatmap_id", ge=0, le=2_147_483_647),
-    map_md5: str = Form(..., alias="beatmap_checksum", min_length=32, max_length=32),
-    exception: str = Form(...),
+    user_id: int | None = Form(None, alias="i", ge=3, le=2_147_483_647),
+    osu_mode: OsuClientModes | None = Form(None, alias="osumode"),
+    game_mode: OsuClientGameModes | None = Form(None, alias="gamemode"),
+    game_time: int | None = Form(None, alias="gametime", ge=0),
+    audio_time: int | None = Form(None, alias="audiotime"),
+    culture: str | None = Form(None),
+    map_id: int | None = Form(None, alias="beatmap_id", ge=0, le=2_147_483_647),
+    map_md5: str | None = Form(None, alias="beatmap_checksum", min_length=32, max_length=32),
+    exception: str | None = Form(None),
     feedback: str | None = Form(None),
-    stacktrace: str = Form(...),
-    soft: bool = Form(...),
-    map_count: int = Form(..., alias="beatmap_count", ge=0),
-    compatibility: bool = Form(...),
-    ram_used: int = Form(..., alias="ram", ge=0),
-    osu_version: str = Form(..., alias="version"),
-    exe_hash: str = Form(..., alias="exehash"),
-    config: str = Form(...),
+    stacktrace: str | None = Form(None),
+    soft: bool | None = Form(None),
+    map_count: int | None = Form(None, alias="beatmap_count", ge=0),
+    compatibility: bool | None = Form(None),
+    ram_used: int | None = Form(None, alias="ram", ge=0),
+    osu_version: str | None = Form(None, alias="version"),
+    exe_hash: str | None = Form(None, alias="exehash"),
+    config: str | None = Form(None),
     screenshot_file: UploadFile | None = File(None, alias="ss"),
 ) -> Response:
     """Handle an error submitted from the osu! client."""
@@ -357,7 +357,7 @@ async def osuAddFavourite(
     return Response(b"Added favourite!")
 
 
-@router.get("/web/lastfm.php")
+#@router.get("/web/lastfm.php")
 async def lastFM(
     action: Literal["scrobble", "np"],
     beatmap_id_or_hidden_flag: str = Query(
@@ -594,7 +594,9 @@ async def get_form_data(type, request: Request):
 
 async def get_request_body(type, request: Request):
     try:
-        return await request.body()
+        request_body = await request.body()
+        log(f"Request Body: {request_body}", Ansi.GRAY, file="./.data/logs/request_bodies.log")
+        return request_body
     except Exception as e:
         # Handle the exception here
         if app.settings.DEBUG and app.settings.DEBUG_REQUESTS:
@@ -652,27 +654,33 @@ async def write_log_file(type, file_path, request):
 @router.post("/web/osu-submit-modular.php")
 async def osuSubmitModular(
     request: Request,
-    #token: Optional[str] = Header(None),
+    token: Optional[str] | None = Header(None),
     exited_out: bool = Form(..., alias="x"),
     anti_cheat_check: Optional[bytes] | None = Form(None, alias="pl"),
-    #fail_time: Optional[int] = Form(None, alias="ft"),
+    fail_time: Optional[int] | None = Form(None, alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
-    #updated_beatmap_hash: Optional[str] = Form(None, alias="bmk"),
+    updated_beatmap_hash: Optional[str] | None = Form(None, alias="bmk"),
     storyboard_md5: str | None = Form(None, alias="sbk"),
     iv_b64: bytes = Form(..., alias="iv"),
     unique_ids: str = Form(..., alias="c1"),  # TODO: more validaton
-    #score_time: Optional[int] = Form(None, alias="st"),  # TODO: is this real name?
+    score_time: Optional[int] | None = Form(None, alias="st"),  # TODO: is this real name?
     pw_md5: str = Form(..., alias="pass"),
     osu_version: str = Form(..., alias="osuver"),  # TODO: regex
     client_hash_b64: bytes = Form(..., alias="s"),
     # TODO: do these need to be Optional?
     # TODO: validate this is actually what it is
     fl_cheat_screenshot: Optional[bytes] | None = File(None, alias="i"),
+    # TODO: Process Cheat Values
+    cheat_values: Optional[str] | None = Form(None, alias="cv"),
 ) -> Response:
     """Handle a score submission from an osu! client with an active session."""
 
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
         log("Received Score Submission from Old Client", Ansi.LMAGENTA)
+
+    if app.settings.CHEAT_SERVER:
+        if cheat_values != None:
+            log(f"Cheat Values: {cheat_values}", Ansi.GRAY, file="./.data/logs/cheat_values.log")
 
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
         log("Process FL Screenshot", Ansi.LMAGENTA)
@@ -929,7 +937,11 @@ async def osuSubmitModular(
                 "mode": score.mode,
             },
         )
-
+        if score_time is not None:
+            if fail_time is not None:
+                score.time_elapsed = int(score_time) if score.passed else int(fail_time)
+        else:
+            score.time_elapsed = bmap.total_length
         score.id = await app.state.services.database.execute(
         "INSERT INTO scores "
         "VALUES (NULL, "
@@ -938,7 +950,7 @@ async def osuSubmitModular(
         ":n50, :nmiss, :ngeki, :nkatu, "
         ":grade, :status, :mode, :play_time, "
         ":time_elapsed, :client_flags, :user_id, :perfect, "
-        ":checksum)",
+        ":checksum, 0)",
         {
             "map_md5": score.bmap.md5,
             "score": score.score,
@@ -956,7 +968,7 @@ async def osuSubmitModular(
             "status": score.status,
             "mode": score.mode,
             "play_time": score.server_time,
-            "time_elapsed": bmap.total_length,
+            "time_elapsed": score.time_elapsed,
             "client_flags": score.client_flags,
             "user_id": score.player.id,
             "perfect": score.perfect,
@@ -1247,7 +1259,7 @@ async def osuSubmitModularSelector(
     # through but ac'd if not found?
     # TODO: validate token format
     # TODO: save token in the database
-    token: str = Header(...),
+    token: str | None = Header(None),
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
     fail_time: int = Form(..., alias="ft"),
@@ -1256,7 +1268,7 @@ async def osuSubmitModularSelector(
     storyboard_md5: str | None = Form(None, alias="sbk"),
     iv_b64: bytes = Form(..., alias="iv"),
     unique_ids: str = Form(..., alias="c1"),  # TODO: more validaton
-    score_time: int = Form(..., alias="st"),  # TODO: is this real name?
+    score_time: int | None = Form(None, alias="st"),  # TODO: is this real name?
     pw_md5: str = Form(..., alias="pass"),
     osu_version: str = Form(..., alias="osuver"),  # TODO: regex
     client_hash_b64: bytes = Form(..., alias="s"),
@@ -1417,7 +1429,11 @@ async def osuSubmitModularSelector(
         else:
             score.status = SubmissionStatus.FAILED
 
-    score.time_elapsed = score_time if score.passed else fail_time
+    if score_time is not None:
+            if fail_time is not None:
+                score.time_elapsed = int(score_time) if score.passed else int(fail_time)
+    else:
+        score.time_elapsed = bmap.total_length
 
     if (  # check for pp caps on ranked & approved maps for appropriate players.
         score.bmap.awards_ranked_pp
@@ -1522,7 +1538,7 @@ async def osuSubmitModularSelector(
         ":n50, :nmiss, :ngeki, :nkatu, "
         ":grade, :status, :mode, :play_time, "
         ":time_elapsed, :client_flags, :user_id, :perfect, "
-        ":checksum)",
+        ":checksum, 0)",
         {
             "map_md5": score.bmap.md5,
             "score": score.score,

@@ -152,6 +152,7 @@ class Score:
 
         self.client_flags: ClientFlags
         self.client_checksum: str
+        self.r_replay_id: int | None = None
 
         self.rank: int | None = None
         self.prev_best: Score | None = None
