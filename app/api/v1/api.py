@@ -248,9 +248,17 @@ async def api_get_player_info(
         api_data["info"] = dict(user_info)
         if resolved_clan_id != 0:
             info = api_data["info"]
+            # Fetch clan
             clan_response = await api_get_clan(clan_id=resolved_clan_id)
             clan_data = orjson.loads(clan_response.body)
+            # Fetch badges
+            badges_response = await api_get_badges(user_id=resolved_user_id)
+            badges_data = orjson.loads(badges_response.body)
+            print(badges_data)
+            if "badges" in badges_data and badges_data["badges"]:
+                info["badges"] = badges_data["badges"]
             info["clan"] = clan_data
+
 
     # fetch user's stats if requested
     if scope in ("stats", "all"):
@@ -892,15 +900,16 @@ async def replay_rendered(
         # Make a POST request to apis.issou.best/ordr/renders
         url = "https://apis.issou.best/ordr/renders"
         data = {
-            "replayURL": "https://api.kawata.pw/v1/get_replay?id=" + str(score_id),
-            "username": username,
-            "resolution": "1280x720",
-            "skin": ordr_settings['skin'] if ordr_settings else "175",
-            "showDanserLogo": "false",
-            "showAimErrorMeter": "true",
-            "showStrainGraph": "true",
-            "showSliderBreaks": "true",
-            "verificationKey": "UKzZqSD4aBH7hnV5RX3GJ6"
+            'replayURL': 'https://api.kawata.pw/v1/get_replay?id=' + str(score_id),
+            'username': username,
+            'resolution': '1280x720',
+            'skin': ordr_settings['skin'] if ordr_settings else 'loki_s_ultimatum_v5_fix',
+            'showDanserLogo': 'false',
+            'showAimErrorMeter': 'true',
+            'showStrainGraph': 'true',
+            'showSliderBreaks': 'true',
+            'ignoreFail': 'true',
+            'verificationKey': 'UKzZqSD4aBH7hnV5RX3GJ6'
         }
         print(data)
         async with httpx.AsyncClient() as client:
@@ -1213,6 +1222,39 @@ async def api_get_friends(
 
         mutuals = [mutual[0] for mutual in mutuals]
         return ORJSONResponse({"status": "success", "friends": friends, "mutuals": mutuals})
+
+
+@router.get("/get_badges")
+async def api_get_badges(
+    user_id: int = Query(..., alias="id", ge=1, le=2_147_483_647),
+) -> ORJSONResponse:
+    badges = []
+    
+    # Select badge_id from user_badges where userid = user_id
+    user_badges = await app.state.services.database.fetch_all(
+        "SELECT badge_id FROM user_badges WHERE userid = :user_id",
+        {"user_id": user_id}
+    )
+    
+    for user_badge in user_badges:
+        badge_id = user_badge["badge_id"]
+        
+        badge = await app.state.services.database.fetch_one(
+            "SELECT * FROM badges WHERE id = :badge_id",
+            {"badge_id": badge_id}
+        )
+        
+        badge_styles = await app.state.services.database.fetch_all(
+            "SELECT * FROM badge_styles WHERE badge_id = :badge_id",
+            {"badge_id": badge_id}
+        )
+        
+        badge = dict(badge)
+        badge["styles"] = [dict(badge_style) for badge_style in badge_styles]
+        
+        badges.append(badge)
+    print(badges)
+    return ORJSONResponse(content={"badges": badges})
 
 
 # def requires_api_key(f: Callable) -> Callable:
