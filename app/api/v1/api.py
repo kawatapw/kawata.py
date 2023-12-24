@@ -1250,10 +1250,10 @@ async def api_get_badges(
         )
         
         badge = dict(badge)
-        badge["styles"] = [dict(badge_style) for badge_style in badge_styles]
+        badge["styles"] = {style["type"]: style["value"] for style in badge_styles}
         
         badges.append(badge)
-    print(badges)
+    
     return ORJSONResponse(content={"badges": badges})
 
 
