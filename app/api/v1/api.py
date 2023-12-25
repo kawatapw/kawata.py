@@ -254,7 +254,6 @@ async def api_get_player_info(
             # Fetch badges
             badges_response = await api_get_badges(user_id=resolved_user_id)
             badges_data = orjson.loads(badges_response.body)
-            print(badges_data)
             if "badges" in badges_data and badges_data["badges"]:
                 info["badges"] = badges_data["badges"]
             info["clan"] = clan_data
@@ -854,7 +853,7 @@ async def api_get_replay(
             ).format(**dict(row._mapping)),
         },
     )
-
+# TODO: Improve this by a lot, add in timeouts, watch ws for render progress, etc.
 @router.get('/replays/rendered')
 async def replay_rendered(
     score_id: int = Query(..., alias='id', ge=0, le=9_223_372_036_854_775_807),
@@ -1024,7 +1023,14 @@ async def api_get_global_leaderboard(
         f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",
         query_parameters | {"offset": offset, "limit": limit},
     )
-
+    for i, row in enumerate(rows):
+        player = dict(row)
+        badges_response = await api_get_badges(user_id=player["player_id"])
+        badges_data = orjson.loads(badges_response.body)
+        if "badges" in badges_data and badges_data["badges"]:
+            player["badges"] = badges_data["badges"]
+        rows[i] = player
+    print(rows)
     return ORJSONResponse(
         {"status": "success", "leaderboard": [dict(row) for row in rows]},
     )
