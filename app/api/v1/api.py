@@ -1036,7 +1036,6 @@ async def api_get_global_leaderboard(
         if "badges" in badges_data and badges_data["badges"]:
             player["badges"] = badges_data["badges"]
         rows[i] = player
-    print(rows)
     return ORJSONResponse(
         {"status": "success", "leaderboard": [dict(row) for row in rows]},
     )
