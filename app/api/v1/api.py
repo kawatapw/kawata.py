@@ -33,6 +33,7 @@ from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
 from app.repositories import users as users_repo
 from app.usecases.performance import ScoreParams
+import app.settings
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -908,9 +909,8 @@ async def replay_rendered(
             'showStrainGraph': 'true',
             'showSliderBreaks': 'true',
             'ignoreFail': 'true',
-            'verificationKey': 'UKzZqSD4aBH7hnV5RX3GJ6'
+            'verificationKey': app.settings.ORDR_API_KEY
         }
-        print(data)
         async with httpx.AsyncClient() as client:
             response = await client.post(url, data=data)
             print("Status:", response.status_code)
@@ -926,6 +926,12 @@ async def replay_rendered(
                             "UPDATE scores SET r_replay_id = :render_id WHERE id = :score_id",
                             {"render_id": render_id, "score_id": score_id},
                         )
+                        return {
+                            'status': response.status_code,
+                            'username': username,
+                            'ordr_settings': ordr_settings,
+                            'render_id': render_id
+                        }
                 except json.JSONDecodeError:
                     print("Failed to parse response JSON")
 
