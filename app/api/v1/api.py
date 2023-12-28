@@ -8,9 +8,7 @@ import json
 from pathlib import Path as SystemPath
 from typing import Literal
 from typing import List
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import status
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 from fastapi.responses import Response
@@ -32,6 +30,9 @@ from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.usecases.performance import ScoreParams
 import app.settings
+from typing import Optional
+import websockets
+from starlette.responses import Response
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -196,11 +197,6 @@ async def api_calculate_pp(
     )
 
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.param_functions import Query
-from starlette.responses import Response
-from fastapi.responses import ORJSONResponse
 
 router = APIRouter()
 
@@ -940,7 +936,7 @@ async def replay_rendered(
             'showStrainGraph': 'true',
             'showSliderBreaks': 'true',
             'ignoreFail': 'true',
-            'verificationKey': app.settings.ORDR_API_KEY
+            'verificationKey': str(app.settings.ORDR_API_KEY)
         }
         async with httpx.AsyncClient() as client:
             response = await client.post(url, data=data)
@@ -1250,6 +1246,9 @@ async def api_get_badges(
         badge["styles"] = {style["type"]: style["value"] for style in badge_styles}
         
         badges.append(badge)
+        
+        # Sort the badges based on priority
+        badges.sort(key=lambda x: x['priority'], reverse=True)
     
     return ORJSONResponse(content={"badges": badges})
 
