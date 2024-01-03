@@ -236,7 +236,7 @@ class Players(list[Player]):
                 "longitude": 0.0,
                 "country": {
                     "acronym": player["country"],
-                    "numeric": app.state.services.country_codes[player["country"]],
+                    "numeric": app.state.services.country_codes[player["country"].lower()], # Fix API erroring due to uppercase country codes
                 },
             },
             silence_end=player["silence_end"],
