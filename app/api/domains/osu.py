@@ -681,6 +681,7 @@ async def osuSubmitModular(
     if app.settings.CHEAT_SERVER:
         if cheat_values != None:
             log(f"Cheat Values: {cheat_values}", Ansi.GRAY, file="./.data/logs/cheat_values.log")
+            
 
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
         log("Process FL Screenshot", Ansi.LMAGENTA)
@@ -1858,7 +1859,7 @@ async def osuRate(
     player: Player = Depends(
         authenticate_player_session(Query, "u", "p", err=b"auth fail"),
     ),
-    map_md5: str = Query(..., alias="c", min_length=32, max_length=32),
+    map_md5: str = Query(..., alias="c", max_length=32),
     rating: int | None = Query(None, alias="v", ge=1, le=10),
 ) -> Response:
     if rating is None:
