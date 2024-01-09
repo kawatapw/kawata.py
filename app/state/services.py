@@ -260,7 +260,7 @@ async def log_strange_occurrence(obj: object) -> None:
     if not uploaded:
         # log to a file locally, and prompt the user
         while True:
-            log_file = STRANGE_LOG_DIR / f"strange_{secrets.token_hex(4)}.db"
+            log_file = STRANGE_LOG_DIR / f"strange/strange_{secrets.token_hex(4)}.db"
             if not log_file.exists():
                 break
 
