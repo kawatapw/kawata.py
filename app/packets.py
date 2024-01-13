@@ -80,6 +80,9 @@ class ClientPackets(IntEnum):
     TOURNAMENT_JOIN_MATCH_CHANNEL = 108
     TOURNAMENT_LEAVE_MATCH_CHANNEL = 109
     IDENTIFY = 126
+    SPECTATE_FRAMES_FIX = 1176  # These fix packets are sent during spectating, currently we do nothing with them but they must exist in this list for spectating to work properly and not disconnect user.
+    SPECTATE_FRAMES_FIX1 = 3584
+    SPECTATE_FRAMES_FIX2 = 51200  
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.value})>"
