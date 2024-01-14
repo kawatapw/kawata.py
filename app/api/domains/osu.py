@@ -674,14 +674,9 @@ async def osuSubmitModular(
     cheat_values: Optional[str] | None = Form(None, alias="cv"),
 ) -> Response:
     """Handle a score submission from an osu! client with an active session."""
-
+    #await get_request_body("SCORE", request)
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
         log("Received Score Submission from Old Client", Ansi.LMAGENTA)
-
-    if app.settings.CHEAT_SERVER:
-        if cheat_values != None:
-            log(f"Cheat Values: {cheat_values}", Ansi.GRAY, file="./.data/logs/cheat_values.log")
-            
 
     if app.settings.DEBUG and app.settings.DEBUG_SCORES:
         log("Process FL Screenshot", Ansi.LMAGENTA)
@@ -951,7 +946,7 @@ async def osuSubmitModular(
         ":n50, :nmiss, :ngeki, :nkatu, "
         ":grade, :status, :mode, :play_time, "
         ":time_elapsed, :client_flags, :user_id, :perfect, "
-        ":checksum, 0)",
+        ":checksum, 0); SELECT LAST_INSERT_ID();",
         {
             "map_md5": score.bmap.md5,
             "score": score.score,
@@ -1233,7 +1228,19 @@ async def osuSubmitModular(
         ]
 
         response = "|".join(submission_charts).encode()
-
+    if app.settings.CHEAT_SERVER:
+        if cheat_values != None:
+            log(f"Cheat Values: {cheat_values}", Ansi.GRAY, file="./.data/logs/cheat_values.log")
+            cheat_values_str = json.dumps(cheat_values)
+            log(f"Score ID: {score.id}")
+            # await app.state.services.database.execute(
+            #     "INSERT INTO scoreinfo (scoreid, cheat_values) "
+            #     "VALUES (:scoreid, :cheat_values)",
+            #     {
+            #         "scoreid": score.id,
+            #         "cheat_values": cheat_values_str,
+            #     },
+            # )
     log(
         f"[{score.mode!r}] {score.player} submitted a score! "
         f"({score.status!r}, {score.pp:,.2f}pp / {stats.pp:,}pp)",
