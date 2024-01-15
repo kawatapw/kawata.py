@@ -9,6 +9,7 @@ from typing import cast
 import app.state.services
 from app._typing import UNSET
 from app._typing import _UnsetSentinel
+import json
 
 # +-----------------+-----------------+------+-----+---------+----------------+
 # | Field           | Type            | Null | Key | Default | Extra          |
@@ -168,15 +169,25 @@ async def create(
 
 async def fetch_one(id: int) -> Score | None:
     query = f"""\
-        SELECT {READ_PARAMS}
-          FROM scores
-         WHERE id = :id
+        SELECT {READ_PARAMS}, scoreinfo.pinned, scoreinfo.cheat_values 
+        FROM scores
+        LEFT JOIN scoreinfo ON scoreinfo.scoreid = scores.id
+        WHERE scores.id = :id
     """
     params: dict[str, Any] = {
         "id": id,
     }
     rec = await app.state.services.database.fetch_one(query, params)
 
+    if rec is not None:
+        #cheat_values = None
+        print(f"rec: {rec}\n\n")
+        if rec.cheat_values is not None:
+            cheat_values = json.loads(rec.cheat_values)
+            cheat_values = json.loads(cheat_values)
+            rec = dict(rec._mapping, cheat_values=cheat_values)
+            print(f"cheat_values: {cheat_values}")
+            return cast(Score, rec)
     return cast(Score, dict(rec._mapping)) if rec is not None else None
 
 
