@@ -93,6 +93,23 @@ server {
 server {
 	listen 80;
 	listen 443 ssl;
+	server_name storage.${DOMAIN};
+	access_log /srv/root/nginx/logs/access/storage.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/storage.${DOMAIN}.log;
+
+	ssl_certificate     ${SSL_CERT_PATH};
+	ssl_certificate_key ${SSL_KEY_PATH};
+	ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:@SECLEVEL=1";
+
+	location /get/ {
+		# default_type application/zip;
+		alias ${DATA_DIRECTORY}/storage/;
+	}
+}
+
+server {
+	listen 80;
+	listen 443 ssl;
 	server_name a.${DOMAIN};
 	access_log /srv/root/nginx/logs/access/a.${DOMAIN}.log;
 	error_log /srv/root/nginx/logs/error/a.${DOMAIN}.log;
