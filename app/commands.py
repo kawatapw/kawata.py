@@ -1101,6 +1101,7 @@ str_priv_dict = {
     "alumni": Privileges.ALUMNI,
     "tournament": Privileges.TOURNEY_MANAGER,
     "nominator": Privileges.NOMINATOR,
+    "support": Privileges.SUPPORT,
     "mod": Privileges.MODERATOR,
     "admin": Privileges.ADMINISTRATOR,
     "developer": Privileges.DEVELOPER,
