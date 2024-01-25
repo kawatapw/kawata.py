@@ -19,28 +19,28 @@ class Privileges(IntFlag):
     """Server side user privileges."""
     BANNED              = 0        # 0 Perms, Banned or Restricted, whatever you want to call it.
     UNRESTRICTED        = 1        # user is not restricted.
-    VERIFIED            = 2 << 0   # has logged in to the server in-game.
-    SUPPORTER           = 2 << 1   # user is a supporter.
-    AccessPanel         = 2 << 2   # probably wont be used much.    
-    ManageUsers         = 2 << 3   # can manage users? probably going to be used for changing passwords/email/etc
-    BanUsers            = 2 << 4   # can ban users
-    SilenceUsers        = 2 << 5   # can silence users
-    WipeUsers           = 2 << 6   # can wipe users
-    ManageBeatmaps      = 2 << 7   # able to manage maps ranked status.
-    ManageBadges        = 2 << 13  # can manage badges
-    ViewPanelLog        = 2 << 14  # can view the panel log
-    ManagePrivs         = 2 << 15  # can manage privs of users
-    SendAlerts          = 2 << 16  # can send in-game alerts? probably not going to be used much
-    ChatMod             = 2 << 17  # chat mod, no way
-    KickUsers           = 2 << 18  # can kick users
-    TOURNEY_MANAGER     = 2 << 20  # able to manage match state without host.
-    ManageClans         = 2 << 27  # can manage clans.
-    ViewSensitiveInfo   = 2 << 28  # can view ips, hwids, disk ids of users. super awesome with the new system.
-    IsBot               = 2 << 30  # BOT_USER
-    WHITELISTED         = 2 << 31  # has bypass to low-ceiling anticheat measures (trusted).
-    PREMIUM             = 2 << 32  # 'premium' donor
-    ALUMNI              = 2 << 33  # notable users, receives some extra benefits.
-    DEVELOPER           = 2 << 34  # able to manage full server app.state.
+    VERIFIED            = 2 << 0   # has logged in to the server in-game. (2)
+    SUPPORTER           = 2 << 1   # user is a supporter. (4)
+    AccessPanel         = 2 << 2   # probably wont be used much. (8)
+    ManageUsers         = 2 << 3   # can manage users? probably going to be used for changing passwords/email/etc (16)
+    BanUsers            = 2 << 4   # can ban users (32)
+    SilenceUsers        = 2 << 5   # can silence users (64)
+    WipeUsers           = 2 << 6   # can wipe users (128)
+    ManageBeatmaps      = 2 << 7   # able to manage maps ranked status. (256)
+    ManageBadges        = 2 << 13  # can manage badges (8192)
+    ViewPanelLog        = 2 << 14  # can view the panel log (16384)
+    ManagePrivs         = 2 << 15  # can manage privs of users (32768)
+    SendAlerts          = 2 << 16  # can send in-game alerts? probably not going to be used much (65536)
+    ChatMod             = 2 << 17  # chat mod, no way (131072)
+    KickUsers           = 2 << 18  # can kick users (262144)
+    TOURNEY_MANAGER     = 2 << 20  # able to manage match state without host. (1048576)
+    ManageClans         = 2 << 27  # can manage clans. (134217728)
+    ViewSensitiveInfo   = 2 << 28  # can view ips, hwids, disk ids of users. super awesome with the new system. (268435456)
+    IsBot               = 2 << 30  # BOT_USER (1073741824)
+    WHITELISTED         = 2 << 31  # has bypass to low-ceiling anticheat measures (trusted). (2147483648)
+    PREMIUM             = 2 << 32  # 'premium' donor (4294967296)
+    ALUMNI              = 2 << 33  # notable users, receives some extra benefits. (8589934592)
+    DEVELOPER           = 2 << 34  # able to manage full server app.state. (17179869184)
 
 
     # groups inherently say they "are part of" the things they contain.
@@ -54,12 +54,13 @@ class Privileges(IntFlag):
     # if user_priv & Privileges.Donator. thats it.
     
     NOMINATOR = ManageBeatmaps | AccessPanel
-    MODERATOR = BanUsers | SilenceUsers | WipeUsers | KickUsers| ManagePrivs | ChatMod | ManageUsers  # define this as a moderator
-    ADMINISTRATOR = MODERATOR | ViewSensitiveInfo # has moderator privileges, can view sensitive info and manage users
+    SUPPORT = BanUsers | SilenceUsers | WipeUsers | KickUsers | ChatMod | ViewPanelLog | SendAlerts | ManageClans | AccessPanel
+    MODERATOR = SUPPORT | ManageUsers | ViewSensitiveInfo  # define this as a moderator
+    ADMINISTRATOR = MODERATOR | ManagePrivs  # has moderator privileges, can view sensitive info and manage users
     
 
     DONATOR = SUPPORTER | PREMIUM
-    STAFF = MODERATOR | ADMINISTRATOR | DEVELOPER
+    STAFF = NOMINATOR | SUPPORT | MODERATOR | ADMINISTRATOR | DEVELOPER
 
 def GetPriv(priv: Union[int, List[Privileges]]) -> Union[int, List[Privileges]]:
     """
