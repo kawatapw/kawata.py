@@ -2230,7 +2230,7 @@ async def getScores(
 
     return Response("\n".join(response_lines).encode())
 
-# TODO: Fix Consuming Bytes on old Client
+# TODO: Fix Consuming Bytes on old Client | Disabled for now | Somehow consume request body before server consumes it on it own?
 #@router.post("/web/osu-comment.php")
 async def osuComment(
     player: Player = Depends(authenticate_player_session(Form, "u", "p")),
@@ -2315,7 +2315,7 @@ async def osuComment(
     return Response(b"")  # empty resp is fine
 
 
-@router.get("/web/osu-markasread.php")
+@router.get("/web/osu-markasread.php") # TODO: Implement into Kawata Client | Fix Unread Message Spam | Add a check for client not supporting this??? | Search `read` = 0 for other half.
 async def osuMarkAsRead(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     channel: str = Query(..., min_length=0, max_length=32),
@@ -2388,18 +2388,20 @@ async def checkAerisUpdates(
 		"bass.dll", 
 		"bass_fx.dll", 
 		"d3dcompiler_47.dll", 
+        "DiscordRPC.dll",
 		"libEGL.dll", 
 		"libGLESv2.dll", 
 		"Microsoft.Ink.dll", 
+        "Newtonsoft.Json.dll",
 		"OpenTK.dll",  #
 		"osu!common.dll", #
 		"osu!gameplay.dll", #
 		"osu!ui.dll", 
 		"osu!.exe", 
-		"SmartThreadPool.dll", #
-		"Newtonsoft.Json.dll", #
+		"osu.dll", #
 		"pthreadGC2.dll",
-		"osu.dll" #
+		"SmartThreadPool.dll", #
+        "WindowsInput.dll"
 	]
     args = {}
 
