@@ -772,7 +772,8 @@ async def handle_osu_login_request(
                     )
                     sent_to.add(msg["from_id"])
 
-                msg_time = datetime.fromtimestamp(msg["time"])
+                msg_time = datetime.datetime.fromtimestamp(msg["time"])
+
                 data += app.packets.send_message(
                     sender=msg["from_name"],
                     msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
