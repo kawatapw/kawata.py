@@ -1,4 +1,5 @@
 from pathlib import Path
+from app.constants.aeris_features import AerisFeatures
 import app.packets
 import app.settings
 import app.state
@@ -33,7 +34,9 @@ BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 BASE_DOMAIN = app.settings.DOMAIN
 
-AERIS_IDENTIFICATION = 3
+AERIS_SERVER_FEATURES = AerisFeatures.Groups
+if (app.settings.CHEAT_SERVER):
+    AERIS_SERVER_FEATURES |= AerisFeatures.Cheats
 
 # TODO: dear god
 NOW_PLAYING_RGX = re.compile(

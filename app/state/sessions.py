@@ -9,12 +9,16 @@ from app.logging import log
 from app.objects.collections import Channels
 from app.objects.collections import Matches
 from app.objects.collections import Players
+from app.objects.collections import Groups
 
 if TYPE_CHECKING:
     from app.objects.player import Player
 
 players = Players()
 channels = Channels()
+#pools = MapPools()
+#clans = Clans()
+groups = Groups()
 matches = Matches()
 
 api_keys: dict[str, int] = {}

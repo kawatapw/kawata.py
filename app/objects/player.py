@@ -12,6 +12,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import TypedDict
 from typing import cast
+from app.constants.aeris_features import AerisFeatures
 
 import databases.core
 
@@ -253,6 +254,10 @@ class Player:
         self.is_bot_client = is_bot_client
         self.is_tourney_client = is_tourney_client
         self.api_key = api_key
+        self.safe_name = self.make_safe(self.name)
+        self.aeris_client:bool = False # Identified by the Specific packet dedicated to Kawata/Aeris clients
+        self.aeris_client_features:AerisFeatures = AerisFeatures.None_ 
+        # by default the client don't take into account any Kawata/Aeris features, because it's another client
 
         # avoid enqueuing packets to bot accounts.
         if self.is_bot_client:
@@ -375,11 +380,24 @@ class Player:
                 score = s
 
         return score
+    
+    @property
+    def has_group_capability(self) -> bool:
+        """Does the server and the client has group capabilities"""
+        return self.aeris_client \
+            and app.api.domains.packets.common.AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
+                and self.aeris_client_features & AerisFeatures.Groups > 0
 
     @staticmethod
     def generate_token() -> str:
         """Generate a random uuid as a token."""
         return str(uuid.uuid4())
+
+    @staticmethod
+    def make_safe(name: str) -> str:
+        """Return a name safe for usage in sql."""
+        return make_safe_name(name)
+
 
     def logout(self) -> None:
         """Log `self` out of the server."""
@@ -389,6 +407,13 @@ class Player:
         # leave multiplayer.
         if self.match:
             self.leave_match()
+        
+        group = app.state.sessions.groups.get_group(self)
+        if group is not None:
+            if group.lead is self:
+                group.disband()
+            else:
+                group.remove_user(self)
 
         # stop spectating.
         host = self.spectating
