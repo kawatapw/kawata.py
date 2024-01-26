@@ -6,6 +6,7 @@ import re
 import struct
 import time
 import random
+from app.constants.aeris_features import AerisFeatures
 from fastapi import Response
 from fastapi.responses import JSONResponse
 from pathlib import Path
@@ -33,7 +34,9 @@ BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 BASE_DOMAIN = app.settings.DOMAIN
 
-AERIS_IDENTIFICATION = 3
+AERIS_IDENTIFICATION = AerisFeatures.Groups
+if (app.settings.CHEAT_SERVER):
+    AERIS_IDENTIFICATION |= AerisFeatures.Cheats
 
 router = APIRouter(tags=["Bancho API"])
 

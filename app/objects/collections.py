@@ -22,6 +22,7 @@ from app.objects.clan import Clan
 from app.objects.match import MapPool
 from app.objects.match import Match
 from app.objects.player import Player
+from app.objects.group import Group
 from app.repositories import achievements as achievements_repo
 from app.repositories import channels as channels_repo
 from app.repositories import clans as clans_repo
@@ -136,6 +137,60 @@ class Matches(list[Match | None]):
         if app.settings.DEBUG:
             log(f"{match} removed from matches list.")
 
+
+class Groups(list[Group]):
+    """Active groups present on the server"""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+    
+    def __iter__(self) -> Iterator[Group]:
+        return super().__iter__()
+
+    def __contains__(self, player: object) -> bool:
+        # allow us to either pass in the player
+        # obj, or the player name as a string.
+        if isinstance(player, str):
+            return player in (player.name for player in self)
+        else:
+            return super().__contains__(player)
+
+    def __repr__(self) -> str:
+        return f'[{", ".join(map(repr, self))}]'
+
+    def has_group(self, player: Player) -> bool:
+        for group in self:
+            if player in group.players:
+                return True
+        return False
+    
+    def get_group(self, player: Player) -> Group:
+        for group in self:
+            if player in group.players:
+                return group
+        return None
+    
+    def player_invites(self, player:Player) -> [Group]:
+        groups : [Group] = []
+        for group in self:
+            if player in group.invites:
+                groups.append(group)
+        return groups
+    
+    def show_invite_str(self, player:Player) -> str:
+        invites = self.player_invites(player)
+        base = "You have {} Pending invites\n".format(len(invites)) 
+        for x in invites:
+            base += f"type !accept {x.lead.safe_name} to join {x.lead.name}'s group\n"
+        if self.has_group(player):
+            base += f"Warning !!! joining another group will make you leave the one you are in"
+
+    def check_token(self, token:str) -> bool:
+        for group in self:
+            if group.token == token:
+                return False
+        return True
 
 class Players(list[Player]):
     """The currently active players on the server."""

@@ -135,6 +135,11 @@ class SendMessage(BasePacket):
                 return
 
             t_chan = player.match.chat
+        elif recipient == "#group":
+            group = app.state.sessions.groups.get_group(player)
+            if group is None:
+                return
+            t_chan = group.channel
         else:
             t_chan = app.state.sessions.channels.get_by_name(recipient)
 
