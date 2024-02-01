@@ -882,7 +882,7 @@ async def api_get_replay(
         },
     )
 # TODO: Improve this by a lot, add in timeouts, watch ws for render progress, etc.
-@router.get('/replays/rendered')
+#@router.get('/replays/rendered')
 async def replay_rendered(
     score_id: int = Query(..., alias='id', ge=0, le=9_223_372_036_854_775_807),
     ignore_game_fail: Optional[bool] = False,
