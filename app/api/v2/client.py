@@ -24,7 +24,7 @@ READ_PARAMS = textwrap.dedent(
 async def get_changelog(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    type_: int | None = Query(None, ge=0, le=2),
+    change_type: int | None = Query(None, ge=0, le=2),
     category: str | None = None,
     unix_from: str | None = 0,
 ) -> Success[list] | Failure:
@@ -36,10 +36,10 @@ async def get_changelog(
         """
     accessor = "WHERE" # used to add ANDs to the query
     
-    if (type_ is not None):
+    if (change_type is not None):
         query += accessor + " type = :type "
         accessor = "AND"
-        params["type"] = type_
+        params["type"] = change_type
 
     if (category is not None):
         query += accessor + " category = :category "
@@ -61,7 +61,7 @@ async def get_changelog(
         "total": len(data),
         "page": page,
         "page_size": page_size,
-        "type": type_,
+        "type": change_type,
         "category": category,
         "unix_from": unix_from
     }
