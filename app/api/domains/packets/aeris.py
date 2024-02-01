@@ -95,7 +95,7 @@ class kickGroup(BasePacket):
             return
         
         if self.target in group.players:
-            group.remove_user(player, true)
+            group.remove_user(player, True)
 
 @register(ClientPackets.GROUP_LEAVE)
 class leaveGroup(BasePacket):
