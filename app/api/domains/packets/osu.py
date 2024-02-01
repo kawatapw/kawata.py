@@ -753,7 +753,7 @@ async def login(
                     )
                     sent_to.add(msg["from"])
 
-                msg_time = datetime.fromtimestamp(msg["time"])
+                msg_time = datetime.datetime.fromtimestamp(msg["time"])
 
                 data += app.packets.send_message(
                     sender=msg["from"],
