@@ -23,16 +23,19 @@ from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_local_osu_file
+from app.objects.beatmap import RankedStatus
 from app.objects.clan import Clan
 from app.objects.player import Player
 from app.repositories import players as players_repo
 from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
+from app.repositories import maps as maps_repo
 from app.usecases.performance import ScoreParams
 import app.settings
 from typing import Optional
 import websockets
 from starlette.responses import Response
+from fastapi import status
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -199,6 +202,81 @@ async def api_calculate_pp(
 
 
 router = APIRouter()
+from fastapi import Request
+from fastapi import HTTPException
+
+@router.post("/update_map_status")
+async def api_update_map_status(
+    token: HTTPCredentials = Depends(oauth2_scheme),
+    map_id: int = Query(None, alias="id", ge=0, le=2_147_483_647),
+    set_id: int = Query(None, alias="sid", ge=0, le=2_147_483_647),
+    status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
+) -> Response:
+    """Update the status of a given beatmap."""
+    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+        return ORJSONResponse(
+            {"status": f"Invalid API key."},
+        )
+    if token.credentials != app.settings.BOT_API_KEY:
+        return ORJSONResponse(
+            {"status": f"This endpoint is locked down and should only be used by the server."},
+        )
+    if map_id is None and set_id is None:
+        return ORJSONResponse(
+            {"status": "Must provide either id or sid!"},
+        )
+    if status not in (0, 1, 2, 3, 4, 5):
+        return ORJSONResponse(
+            {"status": "Invalid status!"},
+        )
+    # Get the beatmap from the cache or database
+    bmap = app.state.cache.beatmap.get(map_id) or await maps_repo.fetch_one(id=map_id)
+    if not bmap:
+        raise HTTPException(status_code=404, detail="Beatmap not found")
+    new_status = RankedStatus(status)
+    # Update the beatmap status
+    async with app.state.services.database.connection() as db_conn:
+        if set_id is not None:
+            try:
+                # update all maps in the set
+                beatmap_set = await maps_repo.fetch_many(set_id=set_id)
+                for _bmap in beatmap_set:
+                    await maps_repo.update(_bmap.id, status=new_status, frozen=True)
+
+                # make sure cache and db are synced about the newest change
+                for _bmap in app.state.cache.beatmapset[set_id].maps:
+                    _bmap.status = new_status
+                    _bmap.frozen = True
+
+                # select all map ids for clearing map requests.
+                map_ids = [row["id"] for row in beatmap_set]
+            except Exception as e:
+                return ORJSONResponse(
+                    {"status": f"Failed to update maps in set: {e}"},
+                )
+        else:
+            try:
+                # update only map
+                await maps_repo.update(map_id, status=new_status, frozen=True)
+
+                # make sure cache and db are synced about the newest change
+                if bmap.md5 in app.state.cache.beatmap:
+                    app.state.cache.beatmap[bmap.md5].status = new_status
+                    app.state.cache.beatmap[bmap.md5].frozen = True
+
+                map_ids = [map_id]
+            except Exception as e:
+                return ORJSONResponse(
+                    {"status": f"Failed to update map: {e}"},
+                )
+        # deactivate rank requests for all ids
+        await db_conn.execute(
+            "UPDATE map_requests SET active = 0 WHERE map_id IN :map_ids",
+            {"map_ids": map_ids},
+        )
+
+
+    return ORJSONResponse({"status": "success"})
 
 @router.get("/search_players")
 async def api_search_players(
