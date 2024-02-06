@@ -1305,7 +1305,7 @@ def switch_tournament_server(ip: str) -> bytes:
 
 # packet id: 127
 def identify(version: int) -> bytes:
-    return write(ServerPackets.IDENTIFY, (version, osuTypes.u16))
+    return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
 
 def group_join():
     return write(ServerPackets.GROUP_JOIN)
