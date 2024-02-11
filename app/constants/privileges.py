@@ -55,7 +55,7 @@ class Privileges(IntFlag):
     
     NOMINATOR = ManageBeatmaps | AccessPanel
     SUPPORT = BanUsers | SilenceUsers | WipeUsers | KickUsers | ChatMod | ViewPanelLog | SendAlerts | ManageClans | AccessPanel
-    MODERATOR = SUPPORT | ManageUsers | ViewSensitiveInfo  # define this as a moderator
+    MODERATOR = SUPPORT | ManageUsers | ManageBadges | ViewSensitiveInfo  # define this as a moderator
     ADMINISTRATOR = MODERATOR | ManagePrivs  # has moderator privileges, can view sensitive info and manage users
     
 
