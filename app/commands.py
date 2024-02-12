@@ -719,11 +719,11 @@ async def notes(ctx: Context) -> str | None:
         return "Invalid syntax: !notes <name> <days_back>"
 
     res = await app.state.services.database.fetch_all(
-        "SELECT `action`, `msg`, `time`, `from` "
-        "FROM `logs` WHERE `to` = :to "
+        "SELECT `action`, `reason`, `time`, `mod` "
+        "FROM `logs` WHERE `target` = :target "
         "AND UNIX_TIMESTAMP(`time`) >= UNIX_TIMESTAMP(NOW()) - :seconds "
         "ORDER BY `time` ASC",
-        {"to": target.id, "seconds": days * 86400},
+        {"target": target.id, "seconds": days * 86400},
     )
 
     if not res:
@@ -731,13 +731,13 @@ async def notes(ctx: Context) -> str | None:
 
     notes = []
     for row in res:
-        logger = await app.state.sessions.players.from_cache_or_sql(id=row["from"])
+        logger = await app.state.sessions.players.from_cache_or_sql(id=row["mod"])
         if not logger:
             continue
 
         action_str = ACTION_STRINGS.get(row["action"], "Unknown action:")
         time_str = row["time"]
-        note = row["msg"]
+        note = row["reason"]
 
         notes.append(f"[{time_str}] {action_str} {note} by {logger.name}")
 
