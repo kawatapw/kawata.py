@@ -49,6 +49,7 @@ REDIS_DSN = f"redis://{REDIS_AUTH_STRING}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 OSU_API_KEY = os.environ["OSU_API_KEY"]
 ORDR_API_KEY = os.environ["ORDR_API_KEY"]
+BOT_API_KEY = os.environ["BOT_API_KEY"] # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
 
 DOMAIN = os.environ["DOMAIN"]
 MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]

@@ -13,6 +13,7 @@ from typing import Any
 from typing import cast
 from typing import TYPE_CHECKING
 from typing import TypedDict
+from app.constants.aeris_features import AerisFeatures
 
 import databases.core
 
@@ -217,6 +218,9 @@ class Player:
         self.id = id
         self.name = name
         self.safe_name = self.make_safe(self.name)
+        self.aeris_client:bool = False # Identified by the Specific packet dedicated to Kawata/Aeris clients
+        self.aeris_client_features:AerisFeatures = AerisFeatures.None_ 
+        # by default the client don't take into account any Kawata/Aeris features, because it's another client
 
         if "pw_bcrypt" in extras:
             self.pw_bcrypt: bytes | None = extras["pw_bcrypt"]
@@ -383,6 +387,13 @@ class Player:
                 score = s
 
         return score
+    
+    @property
+    def has_group_capability(self) -> bool:
+        """Does the server and the client has group capabilities"""
+        return self.aeris_client \
+            and app.api.domains.packets.common.AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
+                and self.aeris_client_features & AerisFeatures.Groups > 0
 
     @staticmethod
     def generate_token() -> str:
@@ -394,6 +405,7 @@ class Player:
         """Return a name safe for usage in sql."""
         return make_safe_name(name)
 
+
     def logout(self) -> None:
         """Log `self` out of the server."""
         # invalidate the user's token.
@@ -402,6 +414,13 @@ class Player:
         # leave multiplayer.
         if self.match:
             self.leave_match()
+        
+        group = app.state.sessions.groups.get_group(self)
+        if group is not None:
+            if group.lead is self:
+                group.disband()
+            else:
+                group.remove_user(self)
 
         # stop spectating.
         host = self.spectating
@@ -476,9 +495,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :msg, NOW())",
-            {"from": admin.id, "to": self.id, "action": "restrict", "msg": reason},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "action": "restrict", "reason": reason},
         )
 
         for mode in (0, 1, 2, 3, 4, 5, 6, 8):
@@ -510,9 +529,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :msg, NOW())",
-            {"from": admin.id, "to": self.id, "action": "unrestrict", "msg": reason},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "action": "unrestrict", "reason": reason},
         )
 
         if not self.is_online:
@@ -554,9 +573,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :msg, NOW())",
-            {"from": admin.id, "to": self.id, "action": "silence", "msg": reason},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "action": "silence", "reason": reason},
         )
 
         # inform the user's client.
@@ -582,9 +601,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :reason, NOW())",
-            {"from": admin.id, "to": self.id, "reason": reason, "action": "unsilence"},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "reason": reason, "action": "unsilence"},
         )
 
         # inform the user's client

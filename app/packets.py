@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 
 import random
 import struct
@@ -17,6 +18,9 @@ from typing import Any
 from typing import cast
 from typing import NamedTuple
 from typing import TYPE_CHECKING
+
+from app.state.sessions import groups
+from app.state.sessions import players
 
 # from app.objects.beatmap import BeatmapInfo
 
@@ -84,6 +88,18 @@ class ClientPackets(IntEnum):
     SPECTATE_FRAMES_FIX1 = 3584
     SPECTATE_FRAMES_FIX2 = 51200  
 
+    CREATE_GROUP = 110
+    DISBAND_GROUP = 111,
+    INVITE_GROUP = 112,
+    ACCEPT_GROUP = 113
+    DENY_GROUP = 114
+    GROUP_USERS = 116
+    GROUP_LEAVE = 117
+    GROUP_KICK = 118
+    GROUP_DELEGATE = 119
+    CREATE_GROUP_MATCH = 120
+    DISMOUNT_GROUP_MATCH = 121
+
     def __repr__(self) -> str:
         return f"<{self.name} ({self.value})>"
 
@@ -149,7 +165,13 @@ class ServerPackets(IntEnum):
     RTX = 105  # unused
     MATCH_ABORT = 106
     SWITCH_TOURNAMENT_SERVER = 107
+    GROUP_JOIN = 122
+    GROUP_LEAVE = 123
+    GROUP_INVITE = 124
+    GROUP_USERS= 125
+
     IDENTIFY = 127
+
     
 
     def __repr__(self) -> str:
@@ -353,6 +375,7 @@ class BanchoPacketReader:
     def _read_header(self) -> tuple[ClientPackets, int]:
         """Read the header of an osu! packet (id & length)."""
         # read type & length from the body
+        
         data = struct.unpack("<HxI", self.body_view[:7])
         self.body_view = self.body_view[7:]
         return ClientPackets(data[0]), data[1]
@@ -1279,5 +1302,32 @@ def switch_tournament_server(ip: str) -> bytes:
     # but we can send it either way xd.
     return write(ServerPackets.SWITCH_TOURNAMENT_SERVER, (ip, osuTypes.string))
 
+# packet id: 127
 def identify(version: int) -> bytes:
-    return write(ServerPackets.IDENTIFY, (version, osuTypes.u16))
+    return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
+
+def group_join():
+    return write(ServerPackets.GROUP_JOIN)
+
+def group_leave():
+    return write(ServerPackets.GROUP_LEAVE)
+
+def group_users(player:Player):
+    group = groups.get_group(player)
+    users = []
+    for user in group.players:
+        lead = 1 if user.id == group.lead.id else 0
+
+        users.append({
+            "Name": user.name,
+            "ID" : str(user.id),
+            "Lead": str(lead)
+        })
+    return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
+
+def group_invite(lead:Player):
+    invite = {
+		"From":lead.name,
+		"ID":lead.id
+	}
+    return write(ServerPackets.GROUP_INVITE, (json.dumps(invite, indent=5), osuTypes.string))

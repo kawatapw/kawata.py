@@ -11,6 +11,7 @@ from app.objects.collections import Clans
 from app.objects.collections import MapPools
 from app.objects.collections import Matches
 from app.objects.collections import Players
+from app.objects.collections import Groups
 
 if TYPE_CHECKING:
     from app.objects.achievement import Achievement
@@ -20,6 +21,7 @@ players = Players()
 channels = Channels()
 pools = MapPools()
 clans = Clans()
+groups = Groups()
 matches = Matches()
 
 api_keys: dict[str, int] = {}
