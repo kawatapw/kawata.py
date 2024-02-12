@@ -495,9 +495,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :msg, NOW())",
-            {"from": admin.id, "to": self.id, "action": "restrict", "msg": reason},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "action": "restrict", "reason": reason},
         )
 
         for mode in (0, 1, 2, 3, 4, 5, 6, 8):
@@ -529,9 +529,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :msg, NOW())",
-            {"from": admin.id, "to": self.id, "action": "unrestrict", "msg": reason},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "action": "unrestrict", "reason": reason},
         )
 
         if not self.is_online:
@@ -573,9 +573,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :msg, NOW())",
-            {"from": admin.id, "to": self.id, "action": "silence", "msg": reason},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "action": "silence", "reason": reason},
         )
 
         # inform the user's client.
@@ -601,9 +601,9 @@ class Player:
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
-            "(`from`, `to`, `action`, `msg`, `time`) "
-            "VALUES (:from, :to, :action, :reason, NOW())",
-            {"from": admin.id, "to": self.id, "reason": reason, "action": "unsilence"},
+            "(`mod`, `target`, `action`, `reason`, `time`) "
+            "VALUES (:mod, :target, :action, :reason, NOW())",
+            {"mod": admin.id, "target": self.id, "reason": reason, "action": "unsilence"},
         )
 
         # inform the user's client

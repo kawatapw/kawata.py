@@ -71,6 +71,7 @@ async def bancho_view_infos() -> Response:
     """Get server information"""
     data = {
         "version": AERIS_IDENTIFICATION,
+        "latestClientVersion": "20240206.2",
         "motd": "osu!Kawata Welcome! | " + random.choice(common.motds),
         "onlineUsers": len([player for player in app.state.sessions.players if not player.bot_client]),
         "icon": "https://kawata.pw/static/images/logo.png"
