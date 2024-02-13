@@ -37,7 +37,7 @@ services:
 
   bancho:
     image: bancho:latest
-    container_name: Kawata-Bancho
+    container_name: ${CONTAINER_NAME}
     network_mode: bridge
     restart: always
     ports:
@@ -55,6 +55,7 @@ services:
     environment:
       - APP_HOST=${APP_HOST}
       - APP_PORT=${APP_PORT}
+      - CONTAINER_NAME=${CONTAINER_NAME}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_NAME=${DB_NAME}

@@ -22,6 +22,11 @@ sed -e "s|\${APP_PORT}|$APP_PORT|g" \
 ln -f -s /etc/nginx/sites-available/bancho.conf /etc/nginx/sites-enabled/bancho.conf
 
 echo "Restarting nginx"
-service nginx restart
+if service nginx restart; then
+    echo "Nginx restarted successfully"
+else
+    echo "Failed to restart nginx. Status:"
+    nginx
+fi
 
 echo "Nginx configuration installed"
