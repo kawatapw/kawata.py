@@ -1284,12 +1284,14 @@ async def osuSubmitModularSelector(
         response = "|".join(submission_charts).encode()
     if app.settings.CHEAT_SERVER:
         if cheat_values:
-            log(f"Cheat Values: {cheat_values}", Ansi.GRAY, file="./.data/logs/cheat_values.log")
+            if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+                log(f"Cheat Values: {cheat_values}", Ansi.GRAY, file="./.data/logs/cheat_values.log")
             cheat_values_str = json.dumps(cheat_values)
-            #score.status 
-            log(f"Score ID: {score.id}, Score Status: {score.status}")
-            if score.status == 2:
-                log(f"Score ID: {score.id}")
+            if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+                log(f"Score ID: {score.id}, Score Status: {score.status}")
+            if (score.status == 2) or (score.status > 0 and score.id and score.id != 0):
+                if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+                    log(f"Score ID: {score.id}")
                 await app.state.services.database.execute(
                     "INSERT INTO scoreinfo (scoreid, cheat_values) "
                     "VALUES (:scoreid, :cheat_values)",

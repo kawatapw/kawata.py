@@ -9,6 +9,7 @@ from typing import cast
 import app.state.services
 from app._typing import UNSET
 from app._typing import _UnsetSentinel
+import app.settings
 import json
 
 # +-----------------+-----------------+------+-----+---------+----------------+
@@ -179,14 +180,15 @@ async def fetch_one(id: int) -> Score | None:
     }
     rec = await app.state.services.database.fetch_one(query, params)
 
-    if rec is not None:
-        #cheat_values = None
-        print(f"rec: {rec}\n\n")
+    if rec is not None and app.settings.CHEAT_SERVER:
+        if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+            print(f"Fetched Score: {rec}\n\n")
         if rec.cheat_values is not None:
             cheat_values = json.loads(rec.cheat_values)
             cheat_values = json.loads(cheat_values)
             rec = dict(rec._mapping, cheat_values=cheat_values)
-            print(f"cheat_values: {cheat_values}")
+            if app.settings.DEBUG and app.settings.DEBUG_SCORES:
+                print(f"cheat_values: {cheat_values}")
             return cast(Score, rec)
     return cast(Score, dict(rec._mapping)) if rec is not None else None
 
