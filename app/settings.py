@@ -52,6 +52,7 @@ ORDR_API_KEY = os.environ["ORDR_API_KEY"]
 BOT_API_KEY = os.environ["BOT_API_KEY"] # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
 
 DOMAIN = os.environ["DOMAIN"]
+USINGROOTDOMAIN = read_bool(os.environ["USINGROOTDOMAIN"]) # if true, server will accept osu.domain requests from the root domain as well as osu.domain
 MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]
 MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 
