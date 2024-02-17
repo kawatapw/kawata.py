@@ -11,6 +11,7 @@ import re
 from app.packets import ClientPackets
 from app.packets import BasePacket
 
+
 def register(
     packet: ClientPackets,
     restricted: bool = False,
