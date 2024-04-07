@@ -53,7 +53,7 @@ class Database:
         with Timer() as timer:
             row = await self._database.fetch_one(query, params)
 
-        if settings.DEBUG:
+        if settings.DEBUG_LEVEL >= 2:
             time_elapsed = timer.elapsed()
             log(
                 f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -77,7 +77,7 @@ class Database:
         with Timer() as timer:
             rows = await self._database.fetch_all(query, params)
 
-        if settings.DEBUG:
+        if settings.DEBUG_LEVEL >= 2:
             time_elapsed = timer.elapsed()
             log(
                 f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -102,7 +102,7 @@ class Database:
         with Timer() as timer:
             val = await self._database.fetch_val(query, params, column)
 
-        if settings.DEBUG:
+        if settings.DEBUG_LEVEL >= 2:
             time_elapsed = timer.elapsed()
             log(
                 f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -122,7 +122,7 @@ class Database:
         with Timer() as timer:
             rec_id = await self._database.execute(query, params)
 
-        if settings.DEBUG:
+        if settings.DEBUG_LEVEL >= 2:
             time_elapsed = timer.elapsed()
             log(
                 f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -144,7 +144,7 @@ class Database:
         with Timer() as timer:
             await self._database.execute_many(query, params)
 
-        if settings.DEBUG:
+        if settings.DEBUG_LEVEL >= 2:
             time_elapsed = timer.elapsed()
             log(
                 f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",

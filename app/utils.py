@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ctypes
 import inspect
-import os
+import os, json
 import socket
 import sys
 from collections.abc import Callable
@@ -14,6 +14,8 @@ from typing import TypeVar
 
 import httpx
 import pymysql
+
+from starlette.requests import Request
 
 import app.settings
 from app.logging import Ansi
@@ -223,8 +225,9 @@ def display_startup_dialog() -> None:
     """Print any general information or warnings to the console."""
     if app.settings.DEVELOPER_MODE:
         log("running in advanced mode", Ansi.LYELLOW)
-    if app.settings.DEBUG:
+    if app.settings.DEBUG_LEVEL >= 1:
         log("running in debug mode", Ansi.LMAGENTA)
+        log(f"current debug focus: {app.settings.DEBUG_FOCUS}", Ansi.LMAGENTA)
 
     # running on root/admin grants the software potentally dangerous and
     # unnecessary power over the operating system and is not advised.
@@ -252,3 +255,68 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8:] == b"\x49END\xae\x42\x60\x82"
     )
+
+async def get_form_data(type, request: Request):
+    try:
+        return await request.form()
+    except Exception as e:
+        # Handle the exception here
+        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
+            log(f"Request has no Form Data", Ansi.GRAY)
+        return None
+
+async def get_request_body(type, request: Request):
+    try:
+        request._body = await request.body()
+        log(f"Request Body: {request._body}", Ansi.GRAY, file="./.data/logs/request_bodies.log")
+        return request._body
+    except Exception as e:
+        # Handle the exception here
+        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
+            log(f"Request has no Body", Ansi.GRAY)
+        return None
+
+async def get_request_files(type, request: Request):
+    try:
+        return await request.files()
+    except Exception as e:
+        # Handle the exception here
+        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
+            log(f"Request Contains no Files", Ansi.GRAY)
+        return None
+
+async def write_log_file(type, file_path, request):
+    log(f"Writing Log File for Old Client Submission", Ansi.GRAY)
+    with open(file_path, 'w') as file:
+        if type == "SCORE":
+            file.write("Old Client Score Submission:\n")
+        file.write(f"Request Headers:\n")
+        for header, value in request.headers.items():
+            file.write(f"{header}: {value}\n")
+        log(f"Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
+        form_data = await get_form_data(type, request)
+        log(f"Grabbed Form Data", Ansi.GRAY)
+        if form_data != None:
+            # Extract the aliases and their values from the form data
+            aliases = {alias: str(form_data.get(alias)) for alias in form_data}
+            # Convert the aliases dictionary to JSON format
+            aliases_json = json.dumps(aliases, indent=4)
+            file.write("Request Forms: \n")
+            file.write(aliases_json)
+            log(f"Form Data Written")
+        # Read the request body as bytes and decode it
+        body = await get_request_body(type, request)
+        if body != None:
+            try:
+                body_str = body.decode()
+            except Exception as e:
+                body_str = None
+            file.write(f"\nRequest Body:\n")
+            file.write(body_str)
+        files = await get_request_files(type, request)
+        if files != None:
+            file.write(f"\nFiles:\n")
+            for field, uploaded_file in files.items():
+                file.write(f"{field}: {uploaded_file.filename}\n")
+        if type == "SCORE":
+            log(f"Log File for Old Client Submission written successfully", Ansi.GRAY)

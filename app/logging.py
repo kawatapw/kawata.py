@@ -64,6 +64,8 @@ def log(
     msg: str,
     start_color: Ansi | None = None,
     extra: Mapping[str, object] | None = None,
+    logger: str = '',
+    level: int = logging.INFO
 ) -> None:
     """\
     A thin wrapper around the stdlib logging module to handle mostly
@@ -71,14 +73,21 @@ def log(
     standard library logging module.
     """
 
+    # Get the logger
+    if logger:
+        log_obj = logging.getLogger(logger)
+    else:
+        log_obj = ROOT_LOGGER
+
     # TODO: decouple colors from the base logging function; move it to
     # be a formatter-specific concern such that we can log without color.
-    if start_color is Ansi.LYELLOW:
-        log_level = logging.WARNING
-    elif start_color is Ansi.LRED:
-        log_level = logging.ERROR
-    else:
-        log_level = logging.INFO
+    if level == logging.INFO:
+        if start_color is Ansi.LYELLOW:
+            log_level = logging.WARNING
+        elif start_color is Ansi.LRED:
+            log_level = logging.ERROR
+        else:
+            log_level = logging.INFO
 
     if settings.LOG_WITH_COLORS:
         color_prefix = f"{start_color!r}" if start_color is not None else ""
@@ -87,7 +96,7 @@ def log(
         msg = escape_ansi(msg)
         color_prefix = color_suffix = ""
 
-    ROOT_LOGGER.log(log_level, f"{color_prefix}{msg}{color_suffix}", extra=extra)
+    log_obj.log(log_level, f"{color_prefix}{msg}{color_suffix}", extra=extra)
 
 
 TIME_ORDER_SUFFIXES = ["nsec", "μsec", "msec", "sec"]

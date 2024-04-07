@@ -25,7 +25,7 @@ from app.adapters.database import Database
 from app.logging import Ansi
 from app.logging import log
 
-STRANGE_LOG_DIR = Path.cwd() / ".data/logs"
+STRANGE_LOG_DIR = Path.cwd() / ".data/logs/strange_occurrences/"
 
 VERSION_RGX = re.compile(r"^# v(?P<ver>\d+\.\d+\.\d+)$")
 SQL_UPDATES_FILE = Path.cwd() / "migrations/migrations.sql"
@@ -258,6 +258,8 @@ async def log_strange_occurrence(obj: object) -> None:
     if not uploaded:
         # log to a file locally, and prompt the user
         while True:
+            if not STRANGE_LOG_DIR.exists():
+                STRANGE_LOG_DIR.mkdir(parents=True)
             log_file = STRANGE_LOG_DIR / f"strange_{secrets.token_hex(4)}.db"
             if not log_file.exists():
                 break

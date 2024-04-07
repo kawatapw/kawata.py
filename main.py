@@ -16,7 +16,7 @@ def main() -> int:
     app.utils.display_startup_dialog()
     uvicorn.run(
         "app.api.init_api:asgi_app",
-        reload=app.settings.DEBUG,
+        reload=app.settings.DEBUG_LEVEL,
         log_level=logging.WARNING,
         server_header=False,
         date_header=False,

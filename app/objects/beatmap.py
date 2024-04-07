@@ -47,7 +47,7 @@ async def api_get_beatmaps(**params: Any) -> BeatmapApiResponse:
 
     Optionally use osu.direct's API if the user has not provided an osu! api key.
     """
-    if app.settings.DEBUG:
+    if app.settings.DEBUG_LEVEL >= 1:
         log(f"Doing api (getbeatmaps) request {params}", Ansi.LMAGENTA)
 
     if app.settings.OSU_API_KEY:
@@ -609,6 +609,8 @@ class BeatmapSet:
     @property
     def url(self) -> str:
         """The online url for this beatmap set."""
+        if app.settings.USINGROOTDOMAIN:
+            return f"https://{app.settings.DOMAIN}/s/{self.id}"
         return f"https://osu.{app.settings.DOMAIN}/s/{self.id}"
 
     def any_beatmaps_have_official_leaderboards(self) -> bool:

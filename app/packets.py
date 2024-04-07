@@ -93,6 +93,10 @@ class ClientPackets(IntEnum):
     TOGGLE_BLOCK_NON_FRIEND_DMS = 99
     TOURNAMENT_JOIN_MATCH_CHANNEL = 108
     TOURNAMENT_LEAVE_MATCH_CHANNEL = 109
+    IDENTIFY = 126
+    SPECTATE_FRAMES_FIX = 1176  # These fix packets that are sent during spectating, currently we do nothing with them but they must exist in this list for spectating to work properly and not disconnect user.
+    SPECTATE_FRAMES_FIX1 = 3584
+    SPECTATE_FRAMES_FIX2 = 51200  
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.value})>"
@@ -159,6 +163,7 @@ class ServerPackets(IntEnum):
     RTX = 105  # unused
     MATCH_ABORT = 106
     SWITCH_TOURNAMENT_SERVER = 107
+    IDENTIFY = 127
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.value})>"
@@ -1287,3 +1292,7 @@ def switch_tournament_server(ip: str) -> bytes:
     # not on the client's normal endpoints,
     # but we can send it either way xd.
     return write(ServerPackets.SWITCH_TOURNAMENT_SERVER, (ip, osuTypes.string))
+
+# packet id: 127
+def identify(version: int) -> bytes:
+    return write(ServerPackets.IDENTIFY, (version, osuTypes.u16))

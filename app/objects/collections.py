@@ -55,21 +55,21 @@ class Channels(list[Channel]):
         """Append `channel` to the list."""
         super().append(channel)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channel} added to channels list.")
 
     def extend(self, channels: Iterable[Channel]) -> None:
         """Extend the list with `channels`."""
         super().extend(channels)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channels} added to channels list.")
 
     def remove(self, channel: Channel) -> None:
         """Remove `channel` from the list."""
         super().remove(channel)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channel} removed from channels list.")
 
     async def prepare(self) -> None:
@@ -115,7 +115,7 @@ class Matches(list[Match | None]):
                 self[i] = None
                 break
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{match} removed from matches list.")
 
 
@@ -219,7 +219,7 @@ class Players(list[Player]):
                 "longitude": 0.0,
                 "country": {
                     "acronym": player["country"],
-                    "numeric": app.state.services.country_codes[player["country"]],
+                    "numeric": app.state.services.country_codes[player["country"].lower()], # Fix API erroring due to uppercase country codes with .lower()
                 },
             },
             silence_end=player["silence_end"],
@@ -268,7 +268,7 @@ class Players(list[Player]):
     def append(self, player: Player) -> None:
         """Append `p` to the list."""
         if player in self:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} double-added to global player list?")
             return
 
@@ -277,7 +277,7 @@ class Players(list[Player]):
     def remove(self, player: Player) -> None:
         """Remove `p` from the list."""
         if player not in self:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} removed from player list when not online?")
             return
 

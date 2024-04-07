@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import struct
+import orjson
 from pathlib import Path as SystemPath
 from typing import Literal
 
@@ -154,6 +155,7 @@ async def api_calculate_pp(
 @router.get("/search_players")
 async def api_search_players(
     search: str | None = Query(None, alias="q", min=2, max=32),
+    limit: int = Query(25, alias="limit", ge=1, le=50),
 ) -> Response:
     """Search for users on the server by name."""
     rows = await app.state.services.database.fetch_all(
@@ -161,15 +163,21 @@ async def api_search_players(
         "FROM users "
         "WHERE name LIKE COALESCE(:name, name) "
         "AND priv & 3 = 3 "
-        "ORDER BY id ASC",
-        {"name": f"%{search}%" if search is not None else None},
+        "ORDER BY id ASC"
+        "LIMIT :limit",
+        {"name": f"%{search}%" if search is not None else None, "limit": limit},
     )
+    players =  []
+    for row in rows:
+        request_response = await api_get_player_info(scope='all', user_id=row['id'])
+        player_info = orjson.loads(request_response.body)
+        players.append(player_info['player'])
 
     return ORJSONResponse(
         {
             "status": "success",
-            "results": len(rows),
-            "result": [dict(row) for row in rows],
+            "results": len(players),
+            "result": [dict(row) for row in players],
         },
     )
 
@@ -196,6 +204,8 @@ async def api_get_player_info(
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ) -> Response:
     """Return information about a given player."""
+    if user_id:
+        username = None
     if not (username or user_id) or (username and user_id):
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
@@ -215,13 +225,26 @@ async def api_get_player_info(
         )
 
     resolved_user_id: int = user_info["id"]
+    resolved_clan_id: int | None = user_info["clan_id"]
     resolved_country: str = user_info["country"]
 
+    # Call api_get_clan() and attach the response to the api_data dict
     api_data = {}
 
     # fetch user's info if requested
     if scope in ("info", "all"):
         api_data["info"] = dict(user_info)
+        info = api_data["info"]
+        if resolved_clan_id != 0:
+            # Fetch Clan Info
+            clan_response = await api_get_clan(clan_id=resolved_clan_id)
+            clan_data = orjson.loads(clan_response.body)
+            info["clan"] = clan_data
+        # Fetch badges
+        badges_response = await api_get_badges(user_id=resolved_user_id)
+        badges_data = orjson.loads(badges_response.body)
+        if "badges" in badges_data and badges_data["badges"]:
+            info["badges"] = badges_data["badges"]
 
     # fetch user's stats if requested
     if scope in ("stats", "all"):
@@ -470,6 +493,12 @@ async def api_get_player_scores(
             else None
         ),
     }
+    
+    # Add mods_readable to each score
+    for row in rows:
+        mods = Mods(row["mods"])
+        mods_readable = app.constants.mods.get_mods_string(mods)
+        row["mods_readable"] = mods_readable
 
     return ORJSONResponse(
         {
@@ -680,6 +709,7 @@ async def api_get_map_scores(
 @router.get("/get_score_info")
 async def api_get_score_info(
     score_id: int = Query(..., alias="id", ge=0, le=9_223_372_036_854_775_807),
+    b: int = Query(0, alias="b", ge=0, le=1),
 ) -> Response:
     """Return information about a given score."""
     score = await scores_repo.fetch_one(score_id)
@@ -689,8 +719,11 @@ async def api_get_score_info(
             {"status": "Score not found."},
             status_code=status.HTTP_404_NOT_FOUND,
         )
-
-    return ORJSONResponse({"status": "success", "score": score})
+    if b == 1:
+        beatmap_info = await Beatmap.from_md5(score["map_md5"])  # Access md5 as a key in the score dictionary
+        return ORJSONResponse({"status": "success", "score": score, "beatmap_info": beatmap_info.as_dict})
+    else:
+        return ORJSONResponse({"status": "success", "score": score})
 
 
 @router.get("/get_replay")
@@ -897,6 +930,13 @@ async def api_get_global_leaderboard(
         f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",
         query_parameters | {"offset": offset, "limit": limit},
     )
+    for i, row in enumerate(rows): # Grab Badges for every player TODO: Optimize
+        player = dict(row)
+        badges_response = await api_get_badges(user_id=player["player_id"])
+        badges_data = orjson.loads(badges_response.body)
+        if "badges" in badges_data and badges_data["badges"]:
+            player["badges"] = badges_data["badges"]
+        rows[i] = player
 
     return ORJSONResponse(
         {"status": "success", "leaderboard": [dict(row) for row in rows]},
@@ -1030,6 +1070,111 @@ async def api_get_pool(
             },
         },
     )
+
+@router.get("/get_friends")
+async def api_get_friends(
+    scope: Literal["friends", "mutuals", "all"],
+    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
+):
+    """Returns Relaionships of a given user."""
+    if not (username or user_id) or (username and user_id):
+        return ORJSONResponse(
+            {"status": "Must provide either id OR name."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # get user info from username or id
+    if username: 
+        user_info = await app.state.sessions.players.get(name=username)
+    else: # if userid
+        user_info = await app.state.sessions.players.get(id=user_id)
+    if user_info is None:
+        return ORJSONResponse(
+            {"status": "Player not found."},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    resolved_user_id: int = user_info["id"]
+
+    if scope == "friends":
+        # Query for all friends of the resolved user_id
+        friends = await app.state.services.database.fetch_all(
+            "SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'",
+            {"user_id": resolved_user_id}
+        )
+
+        friends = [friends[0] for friend in friends]
+        return ORJSONResponse({"status": "success", "friends": friends})
+
+    elif scope == "mutuals":
+        # Query for all mutual friends of the resolved user_id
+        mutuals = await app.state.services.database.fetch_all("""
+        SELECT r1.user2
+            FROM relationships r1
+            INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2
+            WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
+            """,
+            {"user_id": resolved_user_id})
+
+        mutuals = [mutual[0] for mutual in mutuals]
+        return ORJSONResponse({"status": "success", "mutuals": mutuals})
+
+    elif scope == "all":
+        # Query for both friends and mutual friends of the resolved user_id
+        friends = await app.state.services.database.fetch_all("""
+            SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'
+            """,
+            {"user_id": resolved_user_id}
+        )
+        friends = [friend[0] for friend in friends]
+
+        mutuals = await app.state.services.database.fetch_all("""
+            SELECT r1.user2
+            FROM relationships r1
+            INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2
+            WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
+            """,
+            {"user_id": resolved_user_id})
+
+        mutuals = [mutual[0] for mutual in mutuals]
+        return ORJSONResponse({"status": "success", "friends": friends, "mutuals": mutuals})
+
+
+@router.get("/get_badges")
+async def api_get_badges(
+    user_id: int = Query(..., alias="id", ge=1, le=2_147_483_647),
+) -> ORJSONResponse:
+    badges = []
+    
+    # Select badge_id from user_badges where userid = user_id
+    user_badges = await app.state.services.database.fetch_all(
+        "SELECT badge_id FROM user_badges WHERE userid = :user_id",
+        {"user_id": user_id}
+    )
+    
+    for user_badge in user_badges:
+        badge_id = user_badge["badge_id"]
+        
+        badge = await app.state.services.database.fetch_one(
+            "SELECT * FROM badges WHERE id = :badge_id",
+            {"badge_id": badge_id}
+        )
+        
+        badge_styles = await app.state.services.database.fetch_all(
+            "SELECT * FROM badge_styles WHERE badge_id = :badge_id",
+            {"badge_id": badge_id}
+        )
+        
+        badge = dict(badge)
+        badge["styles"] = {style["type"]: style["value"] for style in badge_styles}
+        
+        badges.append(badge)
+        
+        # Sort the badges based on priority
+        badges.sort(key=lambda x: x['priority'], reverse=True)
+    
+    return ORJSONResponse(content={"badges": badges})
 
 
 # def requires_api_key(f: Callable) -> Callable:

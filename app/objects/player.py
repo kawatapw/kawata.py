@@ -122,6 +122,7 @@ class OsuStream(StrEnum):
     CUTTINGEDGE = "cuttingedge"
     TOURNEY = "tourney"
     DEV = "dev"
+    AERIS = "Aeris"
 
 
 class OsuVersion:
@@ -629,7 +630,7 @@ class Player:
     def leave_match(self) -> None:
         """Attempt to remove `self` from their match."""
         if not self.match:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{self} tried leaving a match they're not in?", Ansi.LYELLOW)
             return
 
@@ -717,7 +718,7 @@ class Player:
                 if channel.can_read(player.priv):
                     player.enqueue(chan_info_packet)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{self} joined {channel}.")
 
         return True
@@ -752,7 +753,7 @@ class Player:
                 if channel.can_read(player.priv):
                     player.enqueue(chan_info_packet)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{self} left {channel}.")
 
     def add_spectator(self, player: Player) -> None:

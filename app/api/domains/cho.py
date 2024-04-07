@@ -80,7 +80,13 @@ BASE_DOMAIN = app.settings.DOMAIN
 # TODO: dear god
 NOW_PLAYING_RGX = re.compile(
     r"^\x01ACTION is (?:playing|editing|watching|listening to) "
-    rf"\[https://osu\.(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
+    rf"\[https://(?:osu\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
+    r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
+    r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
+)
+OLD_NOW_PLAYING_RGX = re.compile(
+    r"^\x01ACTION is (?:playing|editing|watching|listening to) "
+    rf"\[(?:https?://)?(?:osu\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/b/(?P<bid>\d{{1,10}}) .+\]"
     r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
     r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
 )
@@ -191,9 +197,11 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
+        request._body = await request.body() # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
+        log(f"Login request from {ip}.\nRequest Body: {request._body}", Ansi.LCYAN)
         login_data = await handle_osu_login_request(
             request.headers,
-            await request.body(),
+            request._body,
             ip,
         )
 
@@ -395,10 +403,20 @@ class SendMessage(BasePacket):
             # even though this is a public channel,
             # we'll update the player's last np stored.
             r_match = NOW_PLAYING_RGX.match(msg)
+            or_match = OLD_NOW_PLAYING_RGX.match(msg)
+            if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                log(f"self.msg object: {self.msg}")
+            if or_match:
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                    log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
+                # TODO: convert link to new format, grab mode from new link.
+                r_match = or_match
             if r_match:
                 # the player is /np'ing a map.
                 # save it to their player instance
                 # so we can use this elsewhere owo..
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                    log(f"NP Regex Matched: {r_match}", Ansi.LMAGENTA)
                 bmap = await Beatmap.from_bid(int(r_match["bid"]))
 
                 if bmap:
@@ -467,7 +485,7 @@ WELCOME_MSG = "\n".join(
     (
         f"Welcome to {BASE_DOMAIN}.",
         "To see a list of commands, use !help.",
-        "We have a public (Discord)[https://discord.gg/ShEQgUx]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_LINK}]!",
         "Enjoy the server!",
     ),
 )
@@ -1145,7 +1163,7 @@ class SendPrivateMessage(BasePacket):
 
     async def handle(self, player: Player) -> None:
         if player.silenced:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to send a dm while silenced.", Ansi.LYELLOW)
             return
 
@@ -1161,7 +1179,7 @@ class SendPrivateMessage(BasePacket):
         # messages offline, due to the mail system. B)
         target = await app.state.sessions.players.from_cache_or_sql(name=target_name)
         if not target:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(
                     f"{player} tried to write to non-existent user {target_name}.",
                     Ansi.LYELLOW,
@@ -1171,14 +1189,14 @@ class SendPrivateMessage(BasePacket):
         if player.id in target.blocks:
             player.enqueue(app.packets.user_dm_blocked(target_name))
 
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to message {target}, but they have them blocked.")
             return
 
         if target.pm_private and player.id not in target.friends:
             player.enqueue(app.packets.user_dm_blocked(target_name))
 
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to message {target}, but they are blocking dms.")
             return
 
@@ -1186,7 +1204,7 @@ class SendPrivateMessage(BasePacket):
             # if target is silenced, inform player.
             player.enqueue(app.packets.target_silenced(target_name))
 
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to message {target}, but they are silenced.")
             return
 
@@ -1238,6 +1256,14 @@ class SendPrivateMessage(BasePacket):
             else:
                 # no commands triggered.
                 r_match = NOW_PLAYING_RGX.match(msg)
+                or_match = OLD_NOW_PLAYING_RGX.match(msg)
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                    log(f"self.msg object: {self.msg}")
+                if or_match:
+                    if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                        log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
+                    # TODO: convert link to new format, grab mode from new link.
+                    r_match = or_match
                 if r_match:
                     # user is /np'ing a map.
                     # save it to their player instance

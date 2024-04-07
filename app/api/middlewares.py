@@ -10,6 +10,7 @@ from starlette.responses import Response
 from app.logging import Ansi
 from app.logging import log
 from app.logging import magnitude_fmt_time
+import app.settings
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
@@ -19,7 +20,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         call_next: RequestResponseEndpoint,
     ) -> Response:
         start_time = time.perf_counter_ns()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except TypeError as e:
+            # Handle any non JSON serializable requests
+            log(f"Bad Request | URL: {request.url} | Error: {e} | Query Parameters: {request.query_params}", Ansi.YELLOW)
+            response = Response(content="Internal Server Error: Bad Request", status_code=500) 
         end_time = time.perf_counter_ns()
 
         time_elapsed = end_time - start_time
@@ -32,6 +38,17 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             f"[{request.method}] {response.status_code} {url}{Ansi.RESET!r} | {Ansi.LBLUE!r}Request took: {magnitude_fmt_time(time_elapsed)}",
             col,
         )
+        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
+            log(
+                f"Request Information | Client IP: {request.headers['cf-connecting-ip']} | Client Country: {request.headers['cf-ipcountry']} | Client User Agent: {request.headers['user-agent']} | Query Parameters: {request.query_params}",
+                Ansi.YELLOW, extra={
+                    "Client-IP": request.headers["cf-connecting-ip"],
+                    "Client-Country": request.headers["cf-ipcountry"],
+                    "User-Agent": request.headers["user-agent"],
+                    "Query-Parameters": request.query_params
+                },
+                logger="console"
+                )
 
         response.headers["process-time"] = str(round(time_elapsed) / 1e6)
         return response

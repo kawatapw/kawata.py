@@ -12,6 +12,7 @@ load_dotenv()
 
 APP_HOST = os.environ["APP_HOST"]
 APP_PORT = int(os.environ["APP_PORT"])
+CHEAT_SERVER = os.environ["CHEAT_SERVER"]
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ["DB_PORT"])
@@ -30,12 +31,15 @@ REDIS_AUTH_STRING = f"{REDIS_USER}:{REDIS_PASS}@" if REDIS_USER and REDIS_PASS e
 REDIS_DSN = f"redis://{REDIS_AUTH_STRING}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 OSU_API_KEY = os.environ.get("OSU_API_KEY") or None
+BOT_API_KEY = os.environ.get("BOT_API_KEY") or None
 
 DOMAIN = os.environ["DOMAIN"]
+USINGROOTDOMAIN = read_bool(os.environ["USINGROOTDOMAIN"]) # if true, server will accept osu.domain requests from the root domain as well as osu.domain
 MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]
 MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 
 COMMAND_PREFIX = os.environ["COMMAND_PREFIX"]
+REQUEST_PENDING_ONLY = read_bool(os.environ["REQUEST_PENDING_ONLY"])
 
 SEASONAL_BGS = read_list(os.environ["SEASONAL_BGS"])
 
@@ -45,7 +49,8 @@ MENU_ONCLICK_URL = os.environ["MENU_ONCLICK_URL"]
 DATADOG_API_KEY = os.environ["DATADOG_API_KEY"]
 DATADOG_APP_KEY = os.environ["DATADOG_APP_KEY"]
 
-DEBUG = read_bool(os.environ["DEBUG"])
+DEBUG_LEVEL = int(os.environ["DEBUG_LEVEL"])
+DEBUG_FOCUS = os.environ["DEBUG_FOCUS"] or "all"
 REDIRECT_OSU_URLS = read_bool(os.environ["REDIRECT_OSU_URLS"])
 
 PP_CACHED_ACCURACIES = [int(acc) for acc in read_list(os.environ["PP_CACHED_ACCS"])]
@@ -67,6 +72,8 @@ LOG_WITH_COLORS = read_bool(os.environ["LOG_WITH_COLORS"])
 ##          read through what it enables.
 ##          you could put your server at risk.
 DEVELOPER_MODE = read_bool(os.environ["DEVELOPER_MODE"])
+
+DISCORD_LINK = os.environ["DISCORD_LINK"]
 
 with open("pyproject.toml", "rb") as f:
     VERSION = tomllib.load(f)["tool"]["poetry"]["version"]

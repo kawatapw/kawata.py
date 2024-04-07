@@ -531,7 +531,7 @@ async def request(ctx: Context) -> str | None:
 
     bmap = ctx.player.last_np["bmap"]
 
-    if bmap.status != RankedStatus.Pending:
+    if bmap.status != RankedStatus.Pending and app.settings.REQUEST_PENDING_ONLY:
         return "Only pending maps may be requested for status change."
 
     map_requests = await map_requests_repo.fetch_all(
@@ -629,6 +629,8 @@ async def _map(ctx: Context) -> str | None:
         return "Invalid syntax: !map <rank/unrank/love> <map/set>"
 
     if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
+        if app.settings.DEBUG_LEVEL >= 2:
+            log(f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}", Ansi.LBLUE)
         return "Please /np a map first!"
 
     bmap = ctx.player.last_np["bmap"]
@@ -1049,9 +1051,19 @@ async def recalc(ctx: Context) -> str | None:
 
 @command(Privileges.DEVELOPER, hidden=True)
 async def debug(ctx: Context) -> str | None:
-    """Toggle the console's debug setting."""
-    app.settings.DEBUG = not app.settings.DEBUG
-    return f"Toggled {'on' if app.settings.DEBUG else 'off'}."
+    """Set the console's debug level."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !debug <0-3>"
+    app.settings.DEBUG_LEVEL = int(ctx.args[0])
+    return f"Set Debug Level to {int(ctx.args[0])}."
+
+@command(Privileges.DEVELOPER, hidden=True)
+async def debug_focus(ctx: Context) -> str | None:
+    """Set the console's debug focus."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !debugFocus <all/scores/leaderboards/messages/requests/client>"
+    app.settings.DEBUG_FOCUS = ctx.args[0]
+    return f"Set Debug Focus to {ctx.args[0]}."
 
 
 # NOTE: these commands will likely be removed

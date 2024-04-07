@@ -19,3 +19,8 @@ poetry.toml
 .coverage
 logging.yaml
 logs.log
+/kawata.py/
+/.data/
+/nginx/
+*.fuse*
+*.log

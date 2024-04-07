@@ -3,13 +3,16 @@
 # a.ppy.sh is used for osu! avatars
 
 upstream bancho {
-    server 127.0.0.1:${APP_PORT};
+    server 0.0.0.0:${APP_PORT};
 }
 
 server {
+	listen 80;
 	listen 443 ssl;
-	server_name c.${DOMAIN} ce.${DOMAIN} c4.${DOMAIN} osu.${DOMAIN} b.${DOMAIN} api.${DOMAIN};
+	server_name c.${DOMAIN} ce.${DOMAIN} c4.${DOMAIN} b.${DOMAIN};
 	client_max_body_size 20M;
+	access_log /srv/root/nginx/logs/access/bancho.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/bancho.${DOMAIN}.log;
 
 	ssl_certificate     ${SSL_CERT_PATH};
 	ssl_certificate_key ${SSL_KEY_PATH};
@@ -26,8 +29,57 @@ server {
 }
 
 server {
+	listen 80;
+	listen 443 ssl;
+	server_name osu.${DOMAIN};
+	client_max_body_size 128M;
+	access_log /srv/root/nginx/logs/access/osu.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/osu.${DOMAIN}.log;
+
+	location / {
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Real-IP  $remote_addr;
+		proxy_set_header Host $http_host;
+		add_header Access-Control-Allow-Origin *;
+		proxy_redirect off;
+		client_max_body_size 128M;
+		proxy_pass http://bancho;
+	}
+
+	location /u {
+    return 301 $scheme://web.${DOMAIN}$request_uri;
+  }
+}
+
+server {
+	listen 80;
+	listen 443 ssl;
+	server_name api.${DOMAIN};
+	client_max_body_size 20M;
+	access_log /srv/root/nginx/logs/access/api.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/api.${DOMAIN}.log;
+
+	ssl_certificate     ${SSL_CERT_PATH};
+	ssl_certificate_key ${SSL_KEY_PATH};
+	ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:@SECLEVEL=1";
+
+	location / {
+		add_header 'Access-Control-Allow-Origin' 'https://${DOMAIN}' always;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Real-IP  $remote_addr;
+		proxy_set_header Host $http_host;
+		proxy_redirect off;
+		client_max_body_size 128M;
+		proxy_pass http://bancho;
+	}
+}
+
+server {
+	listen 80;
 	listen 443 ssl;
 	server_name assets.${DOMAIN};
+	access_log /srv/root/nginx/logs/access/assets.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/assets.${DOMAIN}.log;
 
 	ssl_certificate     ${SSL_CERT_PATH};
 	ssl_certificate_key ${SSL_KEY_PATH};
@@ -40,8 +92,11 @@ server {
 }
 
 server {
+	listen 80;
 	listen 443 ssl;
 	server_name a.${DOMAIN};
+	access_log /srv/root/nginx/logs/access/a.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/a.${DOMAIN}.log;
 
 	ssl_certificate     ${SSL_CERT_PATH};
 	ssl_certificate_key ${SSL_KEY_PATH};
