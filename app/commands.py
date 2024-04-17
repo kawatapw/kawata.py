@@ -629,8 +629,12 @@ async def _map(ctx: Context) -> str | None:
         return "Invalid syntax: !map <rank/unrank/love> <map/set>"
 
     if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
-        if app.settings.DEBUG_LEVEL >= 2:
-            log(f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}", Ansi.LBLUE)
+        log(f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}", Ansi.LBLUE,
+            extra={
+            "filter": {
+                "debugLevel": 2,
+            },
+        }, level=10, logger="console.debug",)
         return "Please /np a map first!"
 
     bmap = ctx.player.last_np["bmap"]
@@ -847,7 +851,7 @@ async def user(ctx: Context) -> str | None:
     priv_list = [
         priv.name
         for priv in Privileges
-        if player.priv & priv and bin(priv).count("1") == 1
+        if priv.value != 0 and player.priv & priv.value == priv.value
     ][::-1]
     if player.last_np is not None and time.time() < player.last_np["timeout"]:
         last_np = player.last_np["bmap"].embed

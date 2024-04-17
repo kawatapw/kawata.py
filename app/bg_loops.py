@@ -34,8 +34,12 @@ async def initialize_housekeeping_tasks() -> None:
 async def _remove_expired_donation_privileges(interval: int) -> None:
     """Remove donation privileges from users with expired sessions."""
     while True:
-        if app.settings.DEBUG_LEVEL >= 1:
-            log("Removing expired donation privileges.", Ansi.LMAGENTA)
+        log("Removing expired donation privileges.", Ansi.LMAGENTA, level=10,
+            extra={
+                "filter": {
+                    "debugLevel": 1,
+                },
+            })
 
         expired_donors = await app.state.services.database.fetch_all(
             "SELECT id FROM users "

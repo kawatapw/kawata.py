@@ -53,16 +53,19 @@ class Database:
         with Timer() as timer:
             row = await self._database.fetch_one(query, params)
 
-        if settings.DEBUG_LEVEL >= 2:
-            time_elapsed = timer.elapsed()
-            log(
-                f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
-                extra={
-                    "query": query,
-                    "params": params,
-                    "time_elapsed": time_elapsed,
+        time_elapsed = timer.elapsed()
+        log(
+            f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
+            extra={
+                "filter": {
+                    "debugLevel": 2,
+                    "debugFocus": "db"
                 },
-            )
+                "query": query,
+                "params": params,
+                "time_elapsed": time_elapsed,
+            }, level=10
+        )
 
         return dict(row._mapping) if row is not None else None
 
@@ -77,16 +80,19 @@ class Database:
         with Timer() as timer:
             rows = await self._database.fetch_all(query, params)
 
-        if settings.DEBUG_LEVEL >= 2:
-            time_elapsed = timer.elapsed()
-            log(
-                f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
-                extra={
-                    "query": query,
-                    "params": params,
-                    "time_elapsed": time_elapsed,
+        time_elapsed = timer.elapsed()
+        log(
+            f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
+            extra={
+                "filter": {
+                    "debugLevel": 2,
+                    "debugFocus": "db"
                 },
-            )
+                "query": query,
+                "params": params,
+                "time_elapsed": time_elapsed,
+            }, level=10
+        )
 
         return [dict(row._mapping) for row in rows]
 
@@ -102,16 +108,19 @@ class Database:
         with Timer() as timer:
             val = await self._database.fetch_val(query, params, column)
 
-        if settings.DEBUG_LEVEL >= 2:
-            time_elapsed = timer.elapsed()
-            log(
-                f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
-                extra={
-                    "query": query,
-                    "params": params,
-                    "time_elapsed": time_elapsed,
+        time_elapsed = timer.elapsed()
+        log(
+            f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
+            extra={
+                "filter": {
+                    "debugLevel": 2,
+                    "debugFocus": "db"
                 },
-            )
+                "query": query,
+                "params": params,
+                "time_elapsed": time_elapsed,
+            }, level=10
+        )
 
         return val
 
@@ -122,16 +131,19 @@ class Database:
         with Timer() as timer:
             rec_id = await self._database.execute(query, params)
 
-        if settings.DEBUG_LEVEL >= 2:
-            time_elapsed = timer.elapsed()
-            log(
-                f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
-                extra={
-                    "query": query,
-                    "params": params,
-                    "time_elapsed": time_elapsed,
+        time_elapsed = timer.elapsed()
+        log(
+            f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
+            extra={
+                "filter": {
+                    "debugLevel": 2,
+                    "debugFocus": "db"
                 },
-            )
+                "query": query,
+                "params": params,
+                "time_elapsed": time_elapsed,
+            }, level=10
+        )
 
         return cast(int, rec_id)
 
@@ -144,16 +156,19 @@ class Database:
         with Timer() as timer:
             await self._database.execute_many(query, params)
 
-        if settings.DEBUG_LEVEL >= 2:
-            time_elapsed = timer.elapsed()
-            log(
-                f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
-                extra={
-                    "query": query,
-                    "params": params,
-                    "time_elapsed": time_elapsed,
+        time_elapsed = timer.elapsed()
+        log(
+            f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
+            extra={
+                "filter": {
+                    "debugLevel": 2,
+                    "debugFocus": "db"
                 },
-            )
+                "query": query,
+                "params": params,
+                "time_elapsed": time_elapsed,
+            }, level=10
+        )
 
     def transaction(
         self,

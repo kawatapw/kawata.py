@@ -97,6 +97,18 @@ class ClientPackets(IntEnum):
     SPECTATE_FRAMES_FIX = 1176  # These fix packets that are sent during spectating, currently we do nothing with them but they must exist in this list for spectating to work properly and not disconnect user.
     SPECTATE_FRAMES_FIX1 = 3584
     SPECTATE_FRAMES_FIX2 = 51200  
+    
+    CREATE_GROUP = 110
+    DISBAND_GROUP = 111,
+    INVITE_GROUP = 112,
+    ACCEPT_GROUP = 113
+    DENY_GROUP = 114
+    GROUP_USERS = 116
+    GROUP_LEAVE = 117
+    GROUP_KICK = 118
+    GROUP_DELEGATE = 119
+    CREATE_GROUP_MATCH = 120
+    DISMOUNT_GROUP_MATCH = 121
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.value})>"
@@ -163,6 +175,11 @@ class ServerPackets(IntEnum):
     RTX = 105  # unused
     MATCH_ABORT = 106
     SWITCH_TOURNAMENT_SERVER = 107
+    
+    GROUP_JOIN = 122
+    GROUP_LEAVE = 123
+    GROUP_INVITE = 124
+    GROUP_USERS= 125
     IDENTIFY = 127
 
     def __repr__(self) -> str:

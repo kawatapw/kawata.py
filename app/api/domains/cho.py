@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import logging
+import logging, random
 import re
 import struct
 import time
@@ -23,7 +23,7 @@ from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 import app.packets
 import app.settings
@@ -69,6 +69,7 @@ from app.repositories import mail as mail_repo
 from app.repositories import users as users_repo
 from app.state import services
 from app.usecases.performance import ScoreParams
+from .packets import aeris
 
 OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 
@@ -93,8 +94,29 @@ OLD_NOW_PLAYING_RGX = re.compile(
 
 FIRST_USER_ID = 3
 
+motds = [
+    "PANIGE Lazy Boi", 
+    "This Server Is sponsored by Raid Sh- oh... it's sponsored by nothing", 
+    "Winners don't do drugs, unless it's steroids... In which case, DO LOTS OF DRUGS",
+    "Inherited Flame Cancer",
+    "Hug ?", 
+    "PP when?", 
+    ":thinking:"
+]
+
 router = APIRouter(tags=["Bancho API"])
 
+@router.get("/infos")
+async def bancho_view_infos() -> Response:
+    """Get server information"""
+    data = {
+        "version": aeris.AERIS_SERVER_FEATURES,
+        "motd": "osu!Kawata Welcome! | " + random.choice(motds),
+        "onlineUsers": len([player for player in app.state.sessions.players if not player.is_bot_client]),
+        "icon": "https://kawata.pw/static/images/logo.png"
+    }
+
+    return JSONResponse(data)
 
 @router.get("/")
 async def bancho_http_handler() -> Response:
@@ -198,7 +220,12 @@ async def bancho_handler(
     if osu_token is None:
         # the client is performing a login
         request._body = await request.body() # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
-        log(f"Login request from {ip}.\nRequest Body: {request._body}", Ansi.LCYAN)
+        log(f"Login request from {ip}.\nRequest Body: {request._body}", Ansi.LCYAN, 
+            extra={
+                "Client-IP": ip,
+                "Request-Headers": request.headers,
+                "Request": request,
+            })
         login_data = await handle_osu_login_request(
             request.headers,
             request._body,

@@ -225,9 +225,16 @@ def display_startup_dialog() -> None:
     """Print any general information or warnings to the console."""
     if app.settings.DEVELOPER_MODE:
         log("running in advanced mode", Ansi.LYELLOW)
-    if app.settings.DEBUG_LEVEL >= 1:
-        log("running in debug mode", Ansi.LMAGENTA)
-        log(f"current debug focus: {app.settings.DEBUG_FOCUS}", Ansi.LMAGENTA)
+    log("running in debug mode", Ansi.LMAGENTA, extra={
+            "filter": {
+                "debugLevel": 1,
+            },
+        })
+    log(f"current debug focus: {app.settings.DEBUG_FOCUS}", Ansi.LMAGENTA, extra={
+            "filter": {
+                "debugLevel": 1,
+            },
+        })
 
     # running on root/admin grants the software potentally dangerous and
     # unnecessary power over the operating system and is not advised.
@@ -261,19 +268,35 @@ async def get_form_data(type, request: Request):
         return await request.form()
     except Exception as e:
         # Handle the exception here
-        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
-            log(f"Request has no Form Data", Ansi.GRAY)
+        log(f"Request has no Form Data", Ansi.GRAY, extra={
+            "filter": {
+                "debugLevel": 2,
+                "debugFocus": "requests"
+            },
+        }, level=10, logger="console.debug",)
         return None
 
 async def get_request_body(type, request: Request):
     try:
         request._body = await request.body()
-        log(f"Request Body: {request._body}", Ansi.GRAY, file="./.data/logs/request_bodies.log")
+        log(f"Request Body: {request._body}", Ansi.GRAY, level=10, logger="console.debug.requests",
+            extra={
+                "filter": {
+                    "debugLevel": 1,
+                    "debugFocus": "requests"
+                },
+            })
         return request._body
     except Exception as e:
         # Handle the exception here
-        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
-            log(f"Request has no Body", Ansi.GRAY)
+        log(f"Request has no Body", Ansi.GRAY, extra={
+            "filter": {
+                "debugLevel": 2,
+                "debugFocus": "requests"
+            },
+            "Error": e,
+            "Request": request,
+        }, level=30, logger="console.debug.requests")
         return None
 
 async def get_request_files(type, request: Request):
@@ -281,12 +304,19 @@ async def get_request_files(type, request: Request):
         return await request.files()
     except Exception as e:
         # Handle the exception here
-        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "requests"]:
-            log(f"Request Contains no Files", Ansi.GRAY)
+        log(f"Request Contains no Files", Ansi.GRAY, level=40,
+            extra={
+                "filter": {
+                    "debugLevel": 2,
+                    "debugFocus": "requests"
+                },
+                "Error": e,
+                "Request": request,
+            })
         return None
 
 async def write_log_file(type, file_path, request):
-    log(f"Writing Log File for Old Client Submission", Ansi.GRAY)
+    log(f"Writing Log File for Old Client Submission", Ansi.GRAY, level=10, logger="console.debug")
     with open(file_path, 'w') as file:
         if type == "SCORE":
             file.write("Old Client Score Submission:\n")

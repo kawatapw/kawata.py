@@ -3,23 +3,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TypedDict
 from typing import cast
+from typing import Optional
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import Column, DateTime, Index, Integer, String, func, insert, select, update, outerjoin
 from sqlalchemy.dialects.mysql import FLOAT
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
+import app.settings
+from app.logging import Ansi, log, logLevel
 from app._typing import UNSET
 from app._typing import _UnsetSentinel
 from app.repositories import Base
+import json
 
 
 class ScoresTable(Base):
@@ -58,6 +54,17 @@ class ScoresTable(Base):
         Index("scores_play_time_index", play_time),
         Index("scores_userid_index", userid),
         Index("scores_online_checksum_index", online_checksum),
+    )
+
+class ScoreInfoTable(Base):
+    __tablename__ = "scoreinfo"
+    
+    scoreid = Column("scoreid", Integer, nullable=False, primary_key=True, autoincrement=False)
+    pinned = Column("pinned", TINYINT, nullable=False)
+    cheat_values = Column("cheat_values", String(1024, collation="utf8mb4_general_ci"), nullable=True)
+    
+    __table_args__ = (
+        Index("scoreinfo_scoreid_index", scoreid),
     )
 
 
@@ -110,6 +117,8 @@ class Score(TypedDict):
     userid: int
     perfect: int
     online_checksum: str
+    pinned: int
+    cheat_values: Optional[str]
 
 
 async def create(
@@ -167,9 +176,35 @@ async def create(
 
 
 async def fetch_one(id: int) -> Score | None:
-    select_stmt = select(*READ_PARAMS).where(ScoresTable.id == id)
-    _score = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Score | None, _score)
+    try:
+        joined = outerjoin(ScoresTable, ScoreInfoTable, ScoresTable.id == ScoreInfoTable.scoreid)
+        select_stmt = select(*READ_PARAMS, ScoreInfoTable.pinned, ScoreInfoTable.cheat_values).select_from(joined).where(ScoresTable.id == id)
+        _score = await app.state.services.database.fetch_one(select_stmt)
+
+        if _score is not None and 'cheat_values' in _score and _score['cheat_values'] is not None:
+            cheat_values = json.loads(_score['cheat_values'])
+            cheat_values = json.loads(cheat_values)
+            _score = dict(_score, cheat_values=cheat_values)
+            log(
+                f"Fetched Score: {_score['id']}", Ansi.LYELLOW, 
+                extra={
+                    "filter": {
+                        "debugLevel": 2,
+                        "debugFocus": "scores",
+                    },
+                    "Score": _score
+                    },
+                logger="console.debug",
+                level=logLevel.DEBUG)
+        return cast(Score | None, _score)
+    except Exception as e:
+        log(
+            f"An error occurred while fetching a score with id {id} | Error: {e}.",
+            Ansi.LRED,
+            extra={"Exception": str(e)},
+            logger="console.error",
+            level=logLevel.ERROR,
+        )
 
 
 async def fetch_count(

@@ -17,6 +17,8 @@ from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
+from app.logging import Ansi
+from app.logging import log, logLevel
 import app.packets
 import app.state
 import app.usecases.performance
@@ -712,8 +714,19 @@ async def api_get_score_info(
     b: int = Query(0, alias="b", ge=0, le=1),
 ) -> Response:
     """Return information about a given score."""
-    score = await scores_repo.fetch_one(score_id)
-
+    try:
+        score = await scores_repo.fetch_one(score_id)
+    except Exception as e:
+        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
+            log(
+                f"Failed to grab Score Info",
+                logger="console.error",
+                level=logLevel.ERROR,
+                extra={
+                    "score": score,
+                    "error": e,
+                }
+            )
     if score is None:
         return ORJSONResponse(
             {"status": "Score not found."},
