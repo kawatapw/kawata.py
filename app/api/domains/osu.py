@@ -80,6 +80,8 @@ from app.usecases import user_achievements as user_achievements_usecases
 from app.utils import escape_enum
 from app.utils import pymysql_encode
 
+import time, shutil, zipfile
+
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
 REPLAYS_PATH = SystemPath.cwd() / ".data/osr"
 SCREENSHOTS_PATH = SystemPath.cwd() / ".data/ss"
@@ -2208,8 +2210,123 @@ async def checkUpdates(
     return Response(b"")
 
 
-""" Misc handlers """
+@router.get("/web/check-aeris-updates.php")
+async def checkAerisUpdates(
+    request: Request,
+    action: Literal["check", "path", "error"],
+    stream: Literal["cuttingedge", "stable40", "beta40", "stable"],
+) -> Response:
+    neededFiles = [
+		"avcodec-51.dll", 
+		"avformat-52.dll", 
+		"avutil-49.dll", 
+		"bass.dll", 
+		"bass_fx.dll", 
+		"d3dcompiler_47.dll", 
+        "DiscordRPC.dll",
+		"libEGL.dll", 
+		"libGLESv2.dll", 
+		"Microsoft.Ink.dll", 
+        "Newtonsoft.Json.dll",
+		"OpenTK.dll",  #
+		"osu!common.dll", #
+		"osu!gameplay.dll", #
+		"osu!ui.dll", 
+		"osu!.exe", 
+		"osu.dll", #
+		"pthreadGC2.dll",
+		"SmartThreadPool.dll", #
+        "WindowsInput.dll"
+	]
+    args = {}
 
+    for key, _ in request.query_params.items():
+        args[key] = request.query_params[key].lower()
+
+    if args["action"].lower() == "put":
+        return Response(b"nope")
+
+    if args["stream"].lower() == "cuttingedge":
+        args["stream"] = "stable40"
+
+    if args["stream"].lower() == "stable":
+        neededFiles.append("oppai.exe")
+
+    if args["stream"].lower() == "stable40":
+        neededFiles.append("DiscordRPC.dll")
+    
+    if args["action"].lower() == "check" or args["action"].lower() == "path":
+        try:
+            updaterCache = ".data/storage/updater/{}/{}".format(args["stream"], "updater.json")
+            if not os.path.exists(updaterCache):
+                needUpdate = True
+            result = []
+            log("[Aeris updater]: requested Update for : {}".format(args["stream"]))
+            try:
+                data = json.loads(open(updaterCache, "r").read())
+                needUpdate = len(data) < len(neededFiles)
+                index = 0
+                if not needUpdate:
+                    for x in neededFiles:
+                        timestamp = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))))
+
+                        if data[index]["timestamp"] != timestamp:
+                            needUpdate = True
+                        index += 1
+            except Exception as e:
+                needUpdate = True
+            if needUpdate:
+                if os.path.exists(".data/storage/updater/{}/{}".format(args["stream"], "updating")):
+                    log("Still updating, sending cache")
+                    return Response(json.dumps(data))
+                f = open(".data/storage/updater/{}/{}".format(args["stream"], "updating"), 'w')
+                try:
+                    log("[Aeris updater] New files detected, updating Downloadable files")
+                    log("[AU] Clearing zip cache")
+                except:
+                    pass
+                path = ".data/storage/updater/{}/zip".format(args["stream"])
+                shutil.rmtree(path)
+                os.mkdir(path)
+                for x in neededFiles:
+                    index = len(result)
+                    result.append({})
+                    file = ".data/storage/updater/{}/{}".format(args["stream"], x)
+
+                    result[index]["filesize"] = os.stat(file).st_size
+                    result[index]["file_version"] = str(index + 1)
+                    result[index]["file_hash"] = fileMd5(file)
+                    result[index]["url_full"] = "https://storage.kawata.pw/get/updater/{}/zip/{}".format(args["stream"], result[index]["file_hash"])
+                    result[index]["patch_id"] = None
+                    timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
+                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(timestamp))
+                    result[index]["filename"] = x
+                    zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], result[index]["file_hash"]), mode='w')
+                    zf.write(file, arcname=x)
+                    f = open(updaterCache, "w")
+                    f.write(json.dumps(result))
+
+                os.remove(".data/storage/updater/{}/{}".format(args["stream"], "updating"))
+                log("[Aeris updater] Downloadable files updated")
+
+            else:
+                result = data
+
+            return Response(json.dumps(result))
+        except Exception as e:
+            log(f"Error: {e}", Ansi.LRED, file="./.data/logs/updater.log")
+            return Response("")
+    else:
+        log("[Aeris updater] unknown action type : {}".format(args["action"]), Ansi.YELLOW)
+    return Response(b"")
+
+""" Misc handlers """
+def fileMd5(file_path: str) -> str:
+    with open(file_path, "rb") as file:
+        md5_hash = hashlib.md5()
+        for chunk in iter(lambda: file.read(4096), b""):
+            md5_hash.update(chunk)
+    return md5_hash.hexdigest()
 
 if app.settings.REDIRECT_OSU_URLS:
     # NOTE: this will likely be removed with the addition of a frontend.
