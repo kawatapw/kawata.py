@@ -18,8 +18,9 @@ import pymysql
 from starlette.requests import Request
 
 import app.settings
-from app.logging import Ansi
-from app.logging import log
+import logging
+import asyncio
+from app.logging import Ansi, log, logLevel
 
 if TYPE_CHECKING:
     from app.repositories.users import User
@@ -225,7 +226,7 @@ def display_startup_dialog() -> None:
     """Print any general information or warnings to the console."""
     if app.settings.DEVELOPER_MODE:
         log("running in advanced mode", Ansi.LYELLOW)
-    log("running in debug mode", Ansi.LMAGENTA, extra={
+    log(f"running in debug mode at level {app.settings.DEBUG_LEVEL}", Ansi.LMAGENTA, extra={
             "filter": {
                 "debugLevel": 1,
             },
@@ -273,13 +274,13 @@ async def get_form_data(type, request: Request):
                 "debugLevel": 2,
                 "debugFocus": "requests"
             },
-        }, level=10, logger="console.debug",)
+        }, level=14, logger="console.debug",)
         return None
 
 async def get_request_body(type, request: Request):
     try:
         request._body = await request.body()
-        log(f"Request Body: {request._body}", Ansi.GRAY, level=10, logger="console.debug.requests",
+        log(f"Request Body: {request._body}", Ansi.GRAY, level=16, logger="console.debug.requests",
             extra={
                 "filter": {
                     "debugLevel": 1,
@@ -316,7 +317,7 @@ async def get_request_files(type, request: Request):
         return None
 
 async def write_log_file(type, file_path, request):
-    log(f"Writing Log File for Old Client Submission", Ansi.GRAY, level=10, logger="console.debug")
+    log(f"Writing Log File for Old Client Submission", Ansi.GRAY, level=16, logger="console.debug")
     with open(file_path, 'w') as file:
         if type == "SCORE":
             file.write("Old Client Score Submission:\n")
@@ -350,3 +351,46 @@ async def write_log_file(type, file_path, request):
                 file.write(f"{field}: {uploaded_file.filename}\n")
         if type == "SCORE":
             log(f"Log File for Old Client Submission written successfully", Ansi.GRAY)
+
+class DebugLevelWatcher:
+    @staticmethod
+    async def watch(interval: int) -> None:
+        """Watch app.settings.DEBUG_LEVEL for changes and execute something on change."""
+        current_debug_level = app.settings.DEBUG_LEVEL
+        DebugLevelWatcher.set()
+
+        while True:
+            if app.settings.DEBUG_LEVEL != current_debug_level:
+                # DEBUG_LEVEL has changed, execute something
+                DebugLevelWatcher.set()
+
+                # Update current_debug_level
+                current_debug_level = app.settings.DEBUG_LEVEL
+
+            # Sleep for a short interval before checking again
+            await asyncio.sleep(interval)
+
+    class set:
+        def __init__(self):
+            """Set debug level stuff."""
+            self.loggerLevel()
+            pass
+        def loggerLevel(self):
+            """Set debug level stuff."""
+
+            console_logger = logging.getLogger('console')
+            console_logger.info("Setting Console Logger Level")
+            console_handlers = console_logger.handlers
+            for handler in console_handlers:
+                # Sets Console Logger Level based on current DebugLevel
+                if app.settings.DEBUG_LEVEL == 3:
+                    handler.setLevel(logLevel.VERBOSE)
+                elif app.settings.DEBUG_LEVEL == 2:
+                    handler.setLevel(logLevel.DBGLV2)
+                elif app.settings.DEBUG_LEVEL == 1:
+                    handler.setLevel(logLevel.DBGLV1)
+                elif app.settings.DEBUG_LEVEL == 0:
+                    handler.setLevel(logLevel.INFO)
+                else:
+                    handler.setLevel(logLevel.DEBUG)
+            pass

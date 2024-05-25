@@ -13,6 +13,7 @@ load_dotenv()
 APP_HOST = os.environ["APP_HOST"]
 APP_PORT = int(os.environ["APP_PORT"])
 CHEAT_SERVER = os.environ["CHEAT_SERVER"]
+CLIENT_VERSION = os.environ.get("CLIENT_VERSION") or None
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ["DB_PORT"])
@@ -31,7 +32,7 @@ REDIS_AUTH_STRING = f"{REDIS_USER}:{REDIS_PASS}@" if REDIS_USER and REDIS_PASS e
 REDIS_DSN = f"redis://{REDIS_AUTH_STRING}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 OSU_API_KEY = os.environ.get("OSU_API_KEY") or None
-BOT_API_KEY = os.environ.get("BOT_API_KEY") or None
+BOT_API_KEY = os.environ.get("BOT_API_KEY") or None # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
 
 DOMAIN = os.environ["DOMAIN"]
 USINGROOTDOMAIN = read_bool(os.environ["USINGROOTDOMAIN"]) # if true, server will accept osu.domain requests from the root domain as well as osu.domain

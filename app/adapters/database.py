@@ -64,7 +64,7 @@ class Database:
                 "query": query,
                 "params": params,
                 "time_elapsed": time_elapsed,
-            }, level=10
+            }, level=14
         )
 
         return dict(row._mapping) if row is not None else None
@@ -91,7 +91,7 @@ class Database:
                 "query": query,
                 "params": params,
                 "time_elapsed": time_elapsed,
-            }, level=10
+            }, level=14
         )
 
         return [dict(row._mapping) for row in rows]
@@ -119,7 +119,7 @@ class Database:
                 "query": query,
                 "params": params,
                 "time_elapsed": time_elapsed,
-            }, level=10
+            }, level=14
         )
 
         return val
@@ -142,7 +142,7 @@ class Database:
                 "query": query,
                 "params": params,
                 "time_elapsed": time_elapsed,
-            }, level=10
+            }, level=14
         )
 
         return cast(int, rec_id)
@@ -167,7 +167,7 @@ class Database:
                 "query": query,
                 "params": params,
                 "time_elapsed": time_elapsed,
-            }, level=10
+            }, level=14
         )
 
     def transaction(

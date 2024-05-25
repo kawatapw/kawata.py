@@ -21,6 +21,9 @@ def configure_logging() -> None:
         config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
 
+console_logger = logging.getLogger('console')
+console_handlers = console_logger.handlers
+
 def get_timestamp(full: bool = False, tz: ZoneInfo | None = None) -> str:
     fmt = "%d/%m/%Y %I:%M:%S%p" if full else "%I:%M:%S%p"
     return f"{datetime.datetime.now(tz=tz):{fmt}}"
@@ -60,6 +63,7 @@ class logLevel(IntEnum):
     Represents the log levels for Pythons Built in logger.
 
     DEBUG (10): Detailed information, typically useful only for diagnosing problems.
+    VERBOSE (11): Detailed information, typically useful only for diagnosing problems.
     INFO (20): General information about the execution of the program.
     WARNING (30): Indicates a potential issue or something that should be brought to attention.
     ERROR (40): Indicates a more serious problem that prevented the program from functioning.
@@ -68,6 +72,9 @@ class logLevel(IntEnum):
     """
 
     DEBUG = 10
+    VERBOSE = 11
+    DBGLV2 = 14
+    DBGLV1 = 16
     INFO = 20
     WARNING = 30
     ERROR = 40
@@ -75,20 +82,28 @@ class logLevel(IntEnum):
 
     def __repr__(self) -> str:
         return f"\x1b[{self.value}m"
+    
+    @classmethod
+    def add_Log_Levels(cls):
+        logging.addLevelName(cls.VERBOSE, 'VERBOSE')
+        logging.addLevelName(cls.DBGLV2, 'DBGLV2')
+        logging.addLevelName(cls.DBGLV1, 'DBGLV1')
+logLevel.add_Log_Levels()
 
 class DebugFilter(logging.Filter):
     def filter(self, record):
         # Get the 'filter' field from the 'extra' dictionary
         filter_field = record.__dict__.get('filter')
-        # Get the debug level and focus
-        debug_level = filter_field.get('debugLevel', 0)
-        debug_focus = filter_field.get('debugFocus', 'all')
-        logging.getLogger('console').debug(f"settings.DEBUG_FOCUS: {settings.DEBUG_FOCUS}")
-        logging.getLogger('console').debug(f"debug_focus: {debug_focus}")
-
         # If the 'filter' field is not present, don't filter the record
         if filter_field is None:
             return True
+
+        # Get the debug level and focus
+        debug_level = filter_field.get('debugLevel', 0)
+        debug_focus = filter_field.get('debugFocus', 'all')
+        logging.getLogger('console').debug(f"settings.DEBUG_FOCUS: {settings.DEBUG_FOCUS}", extra={'CodeRegion': 'Logging', "Func": "DebugFilter.filter"})
+        logging.getLogger('console').debug(f"debug_focus: {debug_focus}", extra={'CodeRegion': 'Logging', "Func": "DebugFilter.filter"})
+
 
         # Check if the debug level is sufficient
         if debug_level > settings.DEBUG_LEVEL:
@@ -100,6 +115,22 @@ class DebugFilter(logging.Filter):
 
         return True
 
+debug_filter = DebugFilter()
+console_logger.addFilter(debug_filter)
+# Add filter to each handler
+for handler in console_handlers:
+    handler.addFilter(debug_filter)
+    # Sets Console Logger Level based on current DebugLevel
+    if settings.DEBUG_LEVEL == 3:
+        handler.setLevel(logLevel.VERBOSE)
+    elif settings.DEBUG_LEVEL == 2:
+        handler.setLevel(logLevel.DBGLV2)
+    elif settings.DEBUG_LEVEL == 1:
+        handler.setLevel(logLevel.DBGLV1)
+    elif settings.DEBUG_LEVEL == 0:
+        handler.setLevel(logLevel.INFO)
+    else:
+        handler.setLevel(logLevel.DEBUG)
 
 def getHandlerByName(name, logger):
     for handler in logger.handlers:
@@ -109,6 +140,7 @@ def getHandlerByName(name, logger):
 
 
 ROOT_LOGGER = logging.getLogger()
+
 
 def log(
     msg: str,

@@ -12,6 +12,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import TypedDict
 from typing import cast
+from app.constants.aeris_features import AerisFeatures
 
 import databases.core
 
@@ -237,6 +238,8 @@ class Player:
 
         self.id = id
         self.name = name
+        self.aeris_client:bool = False # Identified by the Specific packet dedicated to Kawata/Aeris clients
+        self.aeris_client_features:AerisFeatures = AerisFeatures.None_ # by default the client don't take into account any Kawata/Aeris features, because it's another client
         self.priv = priv
         self.pw_bcrypt = pw_bcrypt
         self.token = token
@@ -370,6 +373,13 @@ class Player:
                 score = s
 
         return score
+    
+    @property
+    def has_group_capability(self) -> bool:
+        """Does the server and the client has group capabilities"""
+        return self.aeris_client \
+            and app.api.domains.packets.aeris.AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
+                and self.aeris_client_features & AerisFeatures.Groups > 0
 
     @staticmethod
     def generate_token() -> str:
@@ -384,6 +394,13 @@ class Player:
         # leave multiplayer.
         if self.match:
             self.leave_match()
+
+        group = app.state.sessions.groups.get_group(self)
+        if group is not None:
+            if group.lead is self:
+                group.disband()
+            else:
+                group.remove_user(self)
 
         # stop spectating.
         host = self.spectating

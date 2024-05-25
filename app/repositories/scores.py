@@ -195,7 +195,7 @@ async def fetch_one(id: int) -> Score | None:
                     "Score": _score
                     },
                 logger="console.debug",
-                level=logLevel.DEBUG)
+                level=logLevel.DBGLV2)
         return cast(Score | None, _score)
     except Exception as e:
         log(

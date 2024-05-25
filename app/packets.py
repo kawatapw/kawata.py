@@ -17,6 +17,10 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 from typing import cast
+from app import logging
+
+import json
+from app.state.sessions import groups, players
 
 # from app.objects.beatmap import BeatmapInfo
 
@@ -358,6 +362,9 @@ class BanchoPacketReader:
         # do not break until we've read the
         # header of a packet we can handle.
         while self.body_view:  # len(self.view) < 7?
+            if len(self.body_view) < 7:
+                logging.log(f"Packet too short to read header, skipping. {self.body_view}")
+                continue
             p_type, p_len = self._read_header()
 
             if p_type not in self.packet_map:
@@ -753,6 +760,8 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
         if p_type == osuTypes.raw:
             ret += p_args
         elif p_type in _noexpand_types:
+            if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
+                logging.log(f"Integer value {p_args} out of range for 'i' format code")
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:
             ret += _expand_types[p_type](*p_args)
@@ -1312,4 +1321,30 @@ def switch_tournament_server(ip: str) -> bytes:
 
 # packet id: 127
 def identify(version: int) -> bytes:
-    return write(ServerPackets.IDENTIFY, (version, osuTypes.u16))
+    return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
+
+def group_join():
+    return write(ServerPackets.GROUP_JOIN)
+
+def group_leave():
+    return write(ServerPackets.GROUP_LEAVE)
+
+def group_users(player:Player):
+    group = groups.get_group(player)
+    users = []
+    for user in group.players:
+        lead = 1 if user.id == group.lead.id else 0
+
+        users.append({
+            "Name": user.name,
+            "ID" : str(user.id),
+            "Lead": str(lead)
+        })
+    return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
+
+def group_invite(lead:Player):
+    invite = {
+		"From":lead.name,
+		"ID":lead.id
+	}
+    return write(ServerPackets.GROUP_INVITE, (json.dumps(invite, indent=5), osuTypes.string))

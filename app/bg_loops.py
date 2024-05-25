@@ -9,6 +9,7 @@ import app.state
 from app.constants.privileges import Privileges
 from app.logging import Ansi
 from app.logging import log
+from app.utils import DebugLevelWatcher
 
 OSU_CLIENT_MIN_PING_INTERVAL = 300000 // 1000  # defined by osu!
 
@@ -26,6 +27,7 @@ async def initialize_housekeeping_tasks() -> None:
                 _remove_expired_donation_privileges(interval=30 * 60),
                 _update_bot_status(interval=5 * 60),
                 _disconnect_ghosts(interval=OSU_CLIENT_MIN_PING_INTERVAL // 3),
+                DebugLevelWatcher.watch(interval=1),
             )
         },
     )
@@ -34,7 +36,7 @@ async def initialize_housekeeping_tasks() -> None:
 async def _remove_expired_donation_privileges(interval: int) -> None:
     """Remove donation privileges from users with expired sessions."""
     while True:
-        log("Removing expired donation privileges.", Ansi.LMAGENTA, level=10,
+        log("Removing expired donation privileges.", Ansi.LMAGENTA, level=16,
             extra={
                 "filter": {
                     "debugLevel": 1,

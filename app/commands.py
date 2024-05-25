@@ -634,7 +634,7 @@ async def _map(ctx: Context) -> str | None:
             "filter": {
                 "debugLevel": 2,
             },
-        }, level=10, logger="console.debug",)
+        }, level=14, logger="console.debug",)
         return "Please /np a map first!"
 
     bmap = ctx.player.last_np["bmap"]
