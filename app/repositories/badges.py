@@ -8,7 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from kawaweb.gulag.app.objects import badge
+from app.objects import badge
 
 READ_PARAMS = textwrap.dedent(
     """\
