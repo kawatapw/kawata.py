@@ -16,55 +16,68 @@ import app.state.services
 from app.repositories import Base
 
 
+from sqlalchemy import SmallInteger as TinyInt
+from sqlalchemy import Text
+
 class LogTable(Base):
     __tablename__ = "logs"
 
-    id = Column("id", Integer, nullable=False, primary_key=True, autoincrement=True)
-    _from = Column("from", Integer, nullable=False)
-    to = Column("to", Integer, nullable=False)
+    id = Column("id", Text, nullable=False, primary_key=True)
+    mod = Column("mod", Integer, nullable=False)
+    target = Column("target", Integer, nullable=False)
     action = Column("action", String(32), nullable=False)
-    msg = Column("msg", String(2048, collation="utf8"), nullable=True)
+    reason = Column("reason", String(2048, collation="utf8"), nullable=True)
     time = Column("time", DateTime, nullable=False, onupdate=func.now())
-
+    type = Column("type", TinyInt, nullable=False, default=False)
 
 READ_PARAMS = (
     LogTable.id,
-    LogTable._from.label("from"),
-    LogTable.to,
+    LogTable.mod.label("from"),
+    LogTable.target.label("to"),
     LogTable.action,
-    LogTable.msg,
+    LogTable.reason.label("msg"),
     LogTable.time,
+    LogTable.type,
 )
 
-
 class Log(TypedDict):
-    id: int
+    id: str
     _from: int
     to: int
     action: str
     msg: str | None
     time: datetime
+    type: bool
 
+import hashlib
 
 async def create(
     _from: int,
     to: int,
     action: str,
     msg: str,
+    type: int = 0,
 ) -> Log:
     """Create a new log entry in the database."""
+    
+    # Generate a unique hash for the log entry
+    log_content = f"{_from}{to}{action}{msg}{type}"
+    log_hash = hashlib.sha256(log_content.encode()).hexdigest()
+
     insert_stmt = insert(LogTable).values(
         {
-            "from": _from,
-            "to": to,
+            "id": log_hash,
+            "mod": _from,
+            "target": to,
             "action": action,
-            "msg": msg,
+            "reason": msg,
             "time": func.now(),
+            "type": type,
         },
     )
-    rec_id = await app.state.services.database.execute(insert_stmt)
+    await app.state.services.database.execute(insert_stmt)
 
-    select_stmt = select(*READ_PARAMS).where(LogTable.id == rec_id)
+    select_stmt = select(*READ_PARAMS).where(LogTable.id == log_hash)
     log = await app.state.services.database.fetch_one(select_stmt)
     assert log is not None
     return cast(Log, log)
