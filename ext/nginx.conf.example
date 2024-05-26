@@ -4,6 +4,8 @@
 
 upstream bancho {
     server 0.0.0.0:${APP_PORT};
+    # NOTE: if you wish to use unix sockets,
+    # server unix:/tmp/bancho.sock fail_timeout=0;
 }
 
 server {
@@ -28,6 +30,7 @@ server {
 	}
 }
 
+
 server {
 	listen 80;
 	listen 443 ssl;
@@ -47,21 +50,17 @@ server {
 	}
 
 	location /u {
-    return 301 $scheme://web.${DOMAIN}$request_uri;
+    return 301 $scheme://${DOMAIN}$request_uri;
   }
 }
 
 server {
 	listen 80;
 	listen 443 ssl;
-	server_name api.${DOMAIN};
-	client_max_body_size 20M;
+	server_name api.${DOMAIN}; 
+	client_max_body_size 128M;
 	access_log /srv/root/nginx/logs/access/api.${DOMAIN}.log;
 	error_log /srv/root/nginx/logs/error/api.${DOMAIN}.log;
-
-	ssl_certificate     ${SSL_CERT_PATH};
-	ssl_certificate_key ${SSL_KEY_PATH};
-	ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:@SECLEVEL=1";
 
 	location / {
 		add_header 'Access-Control-Allow-Origin' 'https://${DOMAIN}' always;
@@ -88,6 +87,23 @@ server {
 	location / {
 		default_type image/png;
 		root ${DATA_DIRECTORY}/assets;
+	}
+}
+
+server {
+	listen 80;
+	listen 443 ssl;
+	server_name storage.${DOMAIN};
+	access_log /srv/root/nginx/logs/access/storage.${DOMAIN}.log;
+	error_log /srv/root/nginx/logs/error/storage.${DOMAIN}.log;
+
+	ssl_certificate     ${SSL_CERT_PATH};
+	ssl_certificate_key ${SSL_KEY_PATH};
+	ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:@SECLEVEL=1";
+
+	location /get/ {
+		# default_type application/zip;
+		alias ${DATA_DIRECTORY}/storage/;
 	}
 }
 
