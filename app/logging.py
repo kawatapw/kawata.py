@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging.config
+from logging.handlers import HTTPHandler
 import re
 from collections.abc import Mapping
 from enum import IntEnum
@@ -14,6 +15,22 @@ import structlog
 import importlib
 import datetime
 import inspect
+from pythonjsonlogger import jsonlogger
+from elasticsearch import Elasticsearch
+from logging import Handler
+
+class ElasticsearchHandler(Handler):
+    def __init__(self, hosts, index, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.es = Elasticsearch(hosts)
+        self.index = index
+
+    def emit(self, record):
+        self.es.index(index=self.index, body=record.__dict__)
+class BytesJsonFormatter(jsonlogger.JsonFormatter):
+    def format(self, record):
+        string_record = super().format(record)
+        return string_record.encode('utf-8') + b'\n'
 
 logconfig = yaml.safe_load(open("logging.yaml").read())
 def configure_logging() -> None:
@@ -227,10 +244,6 @@ def log(
 class StructlogFormatter(logging.Formatter):
     def __init__(self, processors=None, exclude=None, *args, **kwargs):
         super().__init__('', *args, **kwargs)  # Pass an empty string as the format string
-        # Add debugging code here
-        print(f"Structlog:")
-        print(f"Processors: {processors}")
-        print(f"Exclude: {exclude}")
         if processors is None:
             processors = []
         self.processors = [
@@ -264,6 +277,7 @@ class StructlogFormatter(logging.Formatter):
         for processor in self.processors:
             event_dict = processor(None, None, event_dict)
         
+        # Convert the dictionary to a JSON string
         return json.dumps(event_dict, cls=LogEncoder, indent=2)
 
 
