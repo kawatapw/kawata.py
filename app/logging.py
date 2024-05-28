@@ -360,7 +360,7 @@ def log(
     extra = extra or {}
     
     extra['@timestamp'] = datetime.datetime.now().isoformat()
-    extra['message'] = msg
+    extra['Message'] = escape_ansi(msg)
     
     # Check if the message contains any placeholders
     if not re.search(r'%\(.+?\)s', msg) and args:
@@ -404,8 +404,10 @@ def log(
         extra['locals'] = arg_info.locals
         extra['func'] = info.function
         # Add stack trace to the 'extra' fields
+        stack_info = inspect.stack()
+        serializable_stack = [{'filename': frame.filename, 'lineno': frame.lineno, 'function': frame.function, 'code_context': frame.code_context, 'index': frame.index} for frame in stack_info]
         extra['stack_trace'] = traceback.format_stack()
-        extra['stack'] = inspect.stack()
+        extra['stack'] = serializable_stack
         
         if log_level >= 40:
             # Add the 'exc_info' to the 'extra' fields
@@ -416,25 +418,27 @@ def log(
             extra['verbose_stacktrace']['exc_info'] = exc_info
             extra['verbose_stacktrace']['exc_info'] = traceback.format_exc()
             extra['verbose_stacktrace']['exc_text'] = traceback.format_exc()
-            extra['verbose_stacktrace']['exc_type'] = sys.exc_info()[0]
-            extra['verbose_stacktrace']['exc_value'] = sys.exc_info()[1]
-            extra['verbose_stacktrace']['exception'] = traceback.format_exception(*sys.exc_info())
-            extra['verbose_stacktrace']['exception_only'] = traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1])
-            extra['verbose_stacktrace']['exception_info'] = traceback.format_exception(*sys.exc_info())
-            extra['verbose_stacktrace']['exception_text'] = traceback.format_exception(*sys.exc_info())
-            extra['verbose_stacktrace']['error'] = sys.exc_info()[1]
-            extra['verbose_stacktrace']['error_info'] = traceback.format_exception(*sys.exc_info())
-            extra['verbose_stacktrace']['error_text'] = traceback.format_exception(*sys.exc_info())
-            extra['verbose_stacktrace']['error_message'] = sys.exc_info()[1]
-            extra['verbose_stacktrace']['error_type'] = sys.exc_info()[0]
-            extra['verbose_stacktrace']['error_traceback'] = traceback.format_exc()
-            extra['verbose_stacktrace']['error_stack'] = inspect.stack()
-            extra['verbose_stacktrace']['error_locals'] = arg_info.locals
-            extra['verbose_stacktrace']['error_args'] = arg_info.args
-            extra['verbose_stacktrace']['error_varargs'] = arg_info.varargs
-            extra['verbose_stacktrace']['error_keywords'] = arg_info.keywords
+            extra['verbose_stacktrace']['exc_type'] = str(sys.exc_info()[0])
+            extra['verbose_stacktrace']['exc_value'] = str(sys.exc_info()[1])
+            extra['verbose_stacktrace']['exception'] = str(traceback.format_exception(*sys.exc_info()))
+            extra['verbose_stacktrace']['exception_only'] = str(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1]))
+            extra['verbose_stacktrace']['exception_info'] = str(traceback.format_exception(*sys.exc_info()))
+            extra['verbose_stacktrace']['exception_text'] = str(traceback.format_exception(*sys.exc_info()))
+            extra['verbose_stacktrace']['error'] = str(sys.exc_info()[1])
+            extra['verbose_stacktrace']['error_info'] = str(traceback.format_exception(*sys.exc_info()))
+            extra['verbose_stacktrace']['error_text'] = str(traceback.format_exception(*sys.exc_info()))
+            extra['verbose_stacktrace']['error_message'] = str(sys.exc_info()[1])
+            extra['verbose_stacktrace']['error_type'] = str(sys.exc_info()[0])
+            extra['verbose_stacktrace']['error_traceback'] = str(traceback.format_exc())
+            extra['verbose_stacktrace']['error_stack'] = serializable_stack
+            extra['verbose_stacktrace']['error_locals'] = str(arg_info.locals)
+            extra['verbose_stacktrace']['error_args'] = str(arg_info.args)
+            extra['verbose_stacktrace']['error_varargs'] = str(arg_info.varargs)
+            extra['verbose_stacktrace']['error_keywords'] = str(arg_info.keywords)
             extra['verbose_stacktrace']['error_message'] = msg
             extra['verbose_stacktrace']['error_level'] = log_level
+            
+            extra['verbose_stacktrace'] = json.dumps(extra['verbose_stacktrace'], indent=2)
     
     # Add the 'extra' fields to the '__dict__' attribute of the 'LogRecord' object
     for key, value in extra.items():

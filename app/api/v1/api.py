@@ -167,7 +167,7 @@ async def api_search_players(
         "FROM users "
         "WHERE name LIKE COALESCE(:name, name) "
         "AND priv & 3 = 3 "
-        "ORDER BY id ASC"
+        "ORDER BY id ASC "
         "LIMIT :limit",
         {"name": f"%{search}%" if search is not None else None, "limit": limit},
     )

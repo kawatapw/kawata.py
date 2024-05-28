@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 from typing import cast
+import json
 
 from databases import Database as _Database
 from databases.core import Transaction
 from sqlalchemy.dialects.mysql.mysqldb import MySQLDialect_mysqldb
 from sqlalchemy.sql.compiler import Compiled
 from sqlalchemy.sql.expression import ClauseElement
+from pymysql import MySQLError
 
 from app import settings
-from app.logging import log
+from app.logging import log, Ansi
 from app.timer import Timer
 
 
@@ -50,9 +52,24 @@ class Database:
         if isinstance(query, ClauseElement):
             query, params = self._compile(query)
 
-        with Timer() as timer:
-            row = await self._database.fetch_one(query, params)
-
+        try:
+            with Timer() as timer:
+                row = await self._database.fetch_one(query, params)
+        except MySQLError as e:
+            log(
+                f"Failed to execute SQL query: {e}", Ansi.RED,
+                extra={
+                    "query": query,
+                    "params": params,
+                    "error": {
+                        "exception": str(e),
+                        "type": str(type(e)),
+                        "args": str(e.args)
+                    }
+                }, level=40
+            )
+            return None
+        
         time_elapsed = timer.elapsed()
         log(
             f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -76,10 +93,24 @@ class Database:
     ) -> list[MySQLRow]:
         if isinstance(query, ClauseElement):
             query, params = self._compile(query)
-
-        with Timer() as timer:
-            rows = await self._database.fetch_all(query, params)
-
+        try:
+            with Timer() as timer:
+                rows = await self._database.fetch_all(query, params)
+        except MySQLError as e:
+            log(
+                f"Failed to execute SQL query: {e}", Ansi.RED,
+                extra={
+                    "query": query,
+                    "params": params,
+                    "error": {
+                        "exception": str(e),
+                        "type": str(type(e)),
+                        "args": str(e.args)
+                    }
+                }, level=40
+            )
+            return None
+        
         time_elapsed = timer.elapsed()
         log(
             f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -105,9 +136,24 @@ class Database:
         if isinstance(query, ClauseElement):
             query, params = self._compile(query)
 
-        with Timer() as timer:
-            val = await self._database.fetch_val(query, params, column)
-
+        try:
+            with Timer() as timer:
+                val = await self._database.fetch_val(query, params, column)
+        except MySQLError as e:
+            log(
+                f"Failed to execute SQL query: {e}", Ansi.RED,
+                extra={
+                    "query": query,
+                    "params": params,
+                    "error": {
+                        "exception": str(e),
+                        "type": str(type(e)),
+                        "args": str(e.args)
+                    }
+                }, level=40
+            )
+            return None
+        
         time_elapsed = timer.elapsed()
         log(
             f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -128,9 +174,24 @@ class Database:
         if isinstance(query, ClauseElement):
             query, params = self._compile(query)
 
-        with Timer() as timer:
-            rec_id = await self._database.execute(query, params)
-
+        try:
+            with Timer() as timer:
+                rec_id = await self._database.execute(query, params)
+        except MySQLError as e:
+            log(
+                f"Failed to execute SQL query: {e}", Ansi.RED,
+                extra={
+                    "query": query,
+                    "params": params,
+                    "error": {
+                        "exception": str(e),
+                        "type": str(type(e)),
+                        "args": str(e.args)
+                    }
+                }, level=40
+            )
+            return None
+        
         time_elapsed = timer.elapsed()
         log(
             f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
@@ -153,9 +214,24 @@ class Database:
         if isinstance(query, ClauseElement):
             query, _ = self._compile(query)
 
-        with Timer() as timer:
-            await self._database.execute_many(query, params)
-
+        try:
+            with Timer() as timer:
+                await self._database.execute_many(query, params)
+        except MySQLError as e:
+            log(
+                f"Failed to execute SQL query: {e}", Ansi.RED,
+                extra={
+                    "query": query,
+                    "params": params,
+                    "error": {
+                        "exception": str(e),
+                        "type": str(type(e)),
+                        "args": str(e.args)
+                    }
+                }, level=40
+            )
+            return None
+        
         time_elapsed = timer.elapsed()
         log(
             f"Executed SQL query: {query} {params} in {time_elapsed * 1000:.2f} msec.",
