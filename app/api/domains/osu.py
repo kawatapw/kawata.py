@@ -1111,7 +1111,32 @@ if app.settings.CHEAT_SERVER:
         log(
             f"[{score.mode!r}] {score.player} submitted a score! "
             f"({score.status!r}, {score.pp:,.2f}pp / {stats.pp:,}pp)",
-            Ansi.LGREEN,
+            Ansi.LGREEN, extra={
+                "Score": json.dumps({
+                    "score_id": score.id,
+                    "map_md5": score.bmap.md5,
+                    "score": score.score,
+                    "pp": score.pp,
+                    "acc": score.acc,
+                    "max_combo": score.max_combo,
+                    "mods": score.mods,
+                    "n300": score.n300,
+                    "n100": score.n100,
+                    "n50": score.n50,
+                    "nmiss": score.nmiss,
+                    "ngeki": score.ngeki,
+                    "nkatu": score.nkatu,
+                    "grade": score.grade.name,
+                    "status": score.status,
+                    "mode": score.mode,
+                    "client_flags": score.client_flags,
+                    "cheat_values": cheat_values,
+                }),
+                "Player": json.dumps({
+                    "id": score.player.id,
+                    "name": score.player.name,
+                }),
+            }
         )
         
         # TODO: execute write log in a way that is non blocking
@@ -1873,6 +1898,7 @@ SCORE_LISTING_FMTSTR = (
 
 @router.get("/web/osu-osz2-getscores.php")
 async def getScores(
+    request: Request,
     player: Player = Depends(authenticate_player_session(Query, "us", "ha")),
     requesting_from_editor_song_select: bool = Query(..., alias="s"),
     leaderboard_version: int = Query(..., alias="vv"),
@@ -2063,6 +2089,33 @@ async def getScores(
         ],
     )
 
+    # Add Requested Score and other information to request.state.func_info
+    request.state.req_info = {}
+    try:
+        request.state.req_info = {
+            "request_type": "Leaderboard",
+            "player_requesting": f"<{player.id}> {player.name}",
+            "requested_leaderboard": {
+                "map_name": bmap.full_name,
+                "map_md5": map_md5,
+                "map_set_id": bmap.set_id,
+                "map_id": bmap.id,
+                "map_status": bmap.status,
+                "map_avg_rating": map_avg_rating,
+                "leaderboard_type": leaderboard_type,
+                "leaderboard_version": leaderboard_version,
+                "leaderboard_score_count": len(score_rows),
+                "leaderboard": score_rows,
+            }
+        }
+    except Exception as e:
+        request.state.req_info = {
+            "error": f"Error in setting request.state.req_info: {e}",
+            "function": "getScores",
+            "file": "/app/api/domains/osu.py"
+        }
+        pass
+    
     return Response("\n".join(response_lines).encode())
 
 #TODO: Investigate Byte Consumption in End State from Old Clients

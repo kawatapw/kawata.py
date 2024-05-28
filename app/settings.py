@@ -13,6 +13,11 @@ load_dotenv()
 
 APP_HOST = os.environ["APP_HOST"]
 APP_PORT = int(os.environ["APP_PORT"])
+
+SERVICE_NAME = os.getenv("SERVICE_NAME", "osu_server")
+CONTAINER_NAME = os.environ["CONTAINER_NAME"] or "bancho"
+
+
 CHEAT_SERVER = os.environ["CHEAT_SERVER"]
 CLIENT_VERSION = os.environ.get("CLIENT_VERSION") or None
 

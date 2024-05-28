@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime
+from datetime import datetime
 import logging.config
 from logging.handlers import HTTPHandler
 import re
@@ -8,35 +8,170 @@ from collections.abc import Mapping
 from enum import IntEnum
 from zoneinfo import ZoneInfo
 
-import yaml
-import json
+import yaml, os
+import json, jsons
+import orjson, rapidjson
 from app import settings
 import structlog
+from structlog.stdlib import NAME_TO_LEVEL
 import importlib
 import datetime
 import inspect
 from pythonjsonlogger import jsonlogger
 from elasticsearch import Elasticsearch
+from elasticsearch.exceptions import SerializationError
 from logging import Handler
+import traceback, sys
+import time
+
+# Stupid Dumb Fucking Json Serialization BS IMPORTS OMFG I'M LOSING MY MIND
+import decimal
+from ipaddress import IPv4Network, IPv4Address
+
+def ipv4network_serializer(obj: IPv4Network, **kwargs):
+    return str(obj)
+
+def ipv4address_serializer(obj: IPv4Address, **kwargs):
+    return str(obj)
+
+jsons.set_serializer(ipv4network_serializer, IPv4Network)
+jsons.set_serializer(ipv4address_serializer, IPv4Address)
+
+def setup_logging(default_path='logging.yaml', default_level=logging.INFO, env_key='LOG_CFG'):
+    """Setup logging configuration"""
+    path = default_path
+    value = os.getenv(env_key, None)
+    if value:
+        path = value
+    if os.path.exists(path):
+        with open(path, 'rt') as f:
+            config = yaml.safe_load(f.read())
+        logging.config.dictConfig(config)
+    else:
+        logging.basicConfig(level=default_level)
+
+def setup_structlog():
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+            structlog.stdlib.render_to_log_kwargs,
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+def configure_logging():
+    setup_logging()
+    setup_structlog()
 
 class ElasticsearchHandler(Handler):
     def __init__(self, hosts, index, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.es = Elasticsearch(hosts)
+        logging.getLogger('elasticsearch').setLevel(logging.WARNING)
         self.index = index
 
     def emit(self, record):
-        self.es.index(index=self.index, body=record.__dict__)
+        # Remove the logger key
+        record_dict = record.__dict__
+        if 'logger' in record_dict:
+            del record_dict['logger']
+        
+        try:
+            serializable_record = serialize_record(record)
+        except Exception as e:
+            log(f"Failed to serialize record: {e}", start_color=Ansi.LRED, level=logging.WARNING, extra={
+                'CodeRegion': 'Logging', "Func": "ElasticsearchHandler.emit",
+                "message": f"Failed to serialize record: {e}",
+                "error": f"{e}",
+                "traceback": traceback.format_exc(),
+                "record": str(record_dict),
+                })
+            serializable_record = {
+                "message": f"Failed to serialize record: {e}",
+                "error": f"{e}",
+                "traceback": traceback.format_exc(),
+                "record": str(record_dict),
+                }
+        self.es.index(index=self.index, body=serializable_record)
+
+
+def serialize_record(record, seen=None):
+    if seen is None:
+        seen = set()
+    seen.add(id(record))
+
+    def serialize(value):
+        try:
+            if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+                return value.isoformat()
+            elif isinstance(value, decimal.Decimal):
+                return float(value)
+            elif isinstance(value, bytes):
+                return value.decode('utf-8')
+            elif isinstance(value, (list, set, tuple)):
+                return [serialize(item) for item in value]
+            elif isinstance(value, dict):
+                return {key: serialize(val) for key, val in value.items()}
+            elif hasattr(value, '__dict__'):
+                if id(value) in seen:
+                    return f"<Circular Reference: {type(value).__name__} id={id(value)}>"
+                else:
+                    return serialize_record(value, seen)
+        except:
+            pass
+        try:
+            json_record = json.dumps(value)
+            return json_record
+        except:
+            try:
+                # Try to serialize with orjson
+                serialized_record = orjson.dumps(value).decode()
+                return serialized_record
+            except:
+                try:
+                    # Try to serialize with jsons
+                    serialized_record = jsons.dumps(value)
+                    return serialized_record
+                except:
+                    try:
+                        # Try to serialize with rapidjson
+                        serialized_record = rapidjson.dumps(value)
+                        return serialized_record
+                    except:
+                        return str(value)
+
+    serializable_record = {}
+    for key, value in record.__dict__.items():
+        serializable_record[key] = serialize(value)
+
+    return serializable_record
+
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
     def format(self, record):
+        # Convert only keys and values that are not of type str, int, float, bool, or None
+        record.__dict__ = {
+            str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k:
+            str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            for k, v in record.__dict__.items()
+        }
+
+        # Check if the message contains any placeholders as this throws an error when formatting on string_record
+        if not re.search(r'%\(.+?\)s', record.msg) and record.args:
+            record.args = None
+
         string_record = super().format(record)
         return string_record.encode('utf-8') + b'\n'
 
-logconfig = yaml.safe_load(open("logging.yaml").read())
-def configure_logging() -> None:
-    with open("logging.yaml") as f:
-        config = yaml.safe_load(f.read())
-        logging.config.dictConfig(config)
 
 console_logger = logging.getLogger('console')
 console_handlers = console_logger.handlers
@@ -44,6 +179,9 @@ console_handlers = console_logger.handlers
 def get_timestamp(full: bool = False, tz: ZoneInfo | None = None) -> str:
     fmt = "%d/%m/%Y %I:%M:%S%p" if full else "%I:%M:%S%p"
     return f"{datetime.datetime.now(tz=tz):{fmt}}"
+
+def fromtimestamp(timestamp):
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
 
 ANSI_ESCAPE_REGEX = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]")
 def escape_ansi(line: str) -> str:
@@ -105,6 +243,10 @@ class logLevel(IntEnum):
         logging.addLevelName(cls.VERBOSE, 'VERBOSE')
         logging.addLevelName(cls.DBGLV2, 'DBGLV2')
         logging.addLevelName(cls.DBGLV1, 'DBGLV1')
+        # Add the custom log levels to the NAME_TO_LEVEL dictionary in structlog
+        NAME_TO_LEVEL['verbose'] = cls.VERBOSE
+        NAME_TO_LEVEL['dbglv2'] = cls.DBGLV2
+        NAME_TO_LEVEL['dbglv1'] = cls.DBGLV1
 logLevel.add_Log_Levels()
 
 class DebugFilter(logging.Filter):
@@ -165,7 +307,8 @@ def log(
     extra: Mapping[str, object] | None = None,
     logger: str = '',
     level: int = logging.INFO,
-    exc_info: bool = False
+    exc_info: bool = False,
+    *args
 ) -> None:
     """\
     A thin wrapper around the stdlib logging module to handle mostly
@@ -175,20 +318,20 @@ def log(
 
     # Get the logger
     if logger:
-        log_obj = logging.getLogger(logger)
+        log_obj = structlog.get_logger(logger)
     else:
         if start_color is Ansi.LYELLOW:
-            log_obj = logging.getLogger('console.warn')
+            log_obj = structlog.get_logger('console.warn')
         elif start_color is Ansi.LRED:
-            log_obj = logging.getLogger('console.error')
+            log_obj = structlog.get_logger('console.error')
         else:
             if level:
                 if level <= 19:
-                    log_obj = logging.getLogger('console.debug')
+                    log_obj = structlog.get_logger('console.debug')
                 else:
-                    log_obj = logging.getLogger('console.info')
+                    log_obj = structlog.get_logger('console.info')
             else:
-                log_obj = logging.getLogger('console.info')
+                log_obj = structlog.get_logger('console.info')
 
     if level == logging.INFO:
         if start_color is Ansi.LYELLOW:
@@ -212,28 +355,97 @@ def log(
     # Get the frame that called this function
     frame = inspect.currentframe().f_back
     info = inspect.getframeinfo(frame)
+    
+    # Add Timestamp and Message to the 'extra' fields
+    extra = extra or {}
+    
+    extra['@timestamp'] = datetime.datetime.now().isoformat()
+    extra['message'] = msg
+    
+    # Check if the message contains any placeholders
+    if not re.search(r'%\(.+?\)s', msg) and args:
+        # If it doesn't, and there are arguments, store the arguments in the 'extra' dict
+        if extra is not None:
+            extra.update({'extra_args': args})
+        else:
+            extra = {'extra_args': args}
+        args = ()
 
+    # Get the arguments of the calling function
+    arg_info = inspect.getargvalues(frame)
+    
+    msg = f"{color_prefix}{msg}{color_suffix}"
+
+    
     # Create a LogRecord with the correct information
     record = logging.LogRecord(
         name=log_obj.name,
         level=log_level,
         pathname=info.filename,
         lineno=info.lineno,
-        msg=f"{color_prefix}{msg}{color_suffix}",
-        args=None,
+        msg=f"{msg}",
+        args=args or None,
         exc_info=exc_info,
         func=info.function
     )
     
+    # Add the logger and methodname to the 'extra' fields
+    extra['logger'] = log_obj
+    extra['method_name'] = logging.getLevelName(record.levelno).lower()
+    extra['service.name'] = settings.SERVICE_NAME
+    extra['container.name'] = settings.CONTAINER_NAME
+    
+    
+    if log_level >= 21:
+        # Add calling function's arguments to the 'extra' fields
+        extra['args'] = arg_info.args
+        extra['varargs'] = arg_info.varargs
+        extra['keywords'] = arg_info.keywords
+        extra['locals'] = arg_info.locals
+        extra['func'] = info.function
+        # Add stack trace to the 'extra' fields
+        extra['stack_trace'] = traceback.format_stack()
+        extra['stack'] = inspect.stack()
+        
+        if log_level >= 40:
+            # Add the 'exc_info' to the 'extra' fields
+            extra['verbose_stacktrace'] = {}
+            if info.function in frame.f_globals:
+                extra['verbose_stacktrace']['func_signature'] = str(inspect.signature(frame.f_globals[info.function]))
+                extra['verbose_stacktrace']['func_source'] = inspect.getsource(frame.f_globals[info.function])
+            extra['verbose_stacktrace']['exc_info'] = exc_info
+            extra['verbose_stacktrace']['exc_info'] = traceback.format_exc()
+            extra['verbose_stacktrace']['exc_text'] = traceback.format_exc()
+            extra['verbose_stacktrace']['exc_type'] = sys.exc_info()[0]
+            extra['verbose_stacktrace']['exc_value'] = sys.exc_info()[1]
+            extra['verbose_stacktrace']['exception'] = traceback.format_exception(*sys.exc_info())
+            extra['verbose_stacktrace']['exception_only'] = traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1])
+            extra['verbose_stacktrace']['exception_info'] = traceback.format_exception(*sys.exc_info())
+            extra['verbose_stacktrace']['exception_text'] = traceback.format_exception(*sys.exc_info())
+            extra['verbose_stacktrace']['error'] = sys.exc_info()[1]
+            extra['verbose_stacktrace']['error_info'] = traceback.format_exception(*sys.exc_info())
+            extra['verbose_stacktrace']['error_text'] = traceback.format_exception(*sys.exc_info())
+            extra['verbose_stacktrace']['error_message'] = sys.exc_info()[1]
+            extra['verbose_stacktrace']['error_type'] = sys.exc_info()[0]
+            extra['verbose_stacktrace']['error_traceback'] = traceback.format_exc()
+            extra['verbose_stacktrace']['error_stack'] = inspect.stack()
+            extra['verbose_stacktrace']['error_locals'] = arg_info.locals
+            extra['verbose_stacktrace']['error_args'] = arg_info.args
+            extra['verbose_stacktrace']['error_varargs'] = arg_info.varargs
+            extra['verbose_stacktrace']['error_keywords'] = arg_info.keywords
+            extra['verbose_stacktrace']['error_message'] = msg
+            extra['verbose_stacktrace']['error_level'] = log_level
+    
     # Add the 'extra' fields to the '__dict__' attribute of the 'LogRecord' object
-    if extra is not None:
-        for key, value in extra.items():
-            record.__dict__[key] = value
+    for key, value in extra.items():
+        record.__dict__[key] = value
+
     # Create the filter
     debug_filter = DebugFilter()
 
     # Get the console handlers
     console_handler = getHandlerByName('console', log_obj)
+
     # Add the filter to the handlers
     if console_handler is not None:
         console_handler.addFilter(debug_filter)

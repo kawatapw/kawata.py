@@ -378,19 +378,27 @@ class DebugLevelWatcher:
         def loggerLevel(self):
             """Set debug level stuff."""
 
-            console_logger = logging.getLogger('console')
-            console_logger.info("Setting Console Logger Level")
-            console_handlers = console_logger.handlers
-            for handler in console_handlers:
-                # Sets Console Logger Level based on current DebugLevel
-                if app.settings.DEBUG_LEVEL == 3:
-                    handler.setLevel(logLevel.VERBOSE)
-                elif app.settings.DEBUG_LEVEL == 2:
-                    handler.setLevel(logLevel.DBGLV2)
-                elif app.settings.DEBUG_LEVEL == 1:
-                    handler.setLevel(logLevel.DBGLV1)
-                elif app.settings.DEBUG_LEVEL == 0:
-                    handler.setLevel(logLevel.INFO)
-                else:
-                    handler.setLevel(logLevel.DEBUG)
-            pass
+            try:
+                console_logger = logging.getLogger('console')
+                console_handlers = console_logger.handlers
+                for handler in console_handlers:
+                    # Sets Console Logger Level based on current DebugLevel
+                    if app.settings.DEBUG_LEVEL == 3:
+                        handler.setLevel(logLevel.VERBOSE)
+                    elif app.settings.DEBUG_LEVEL == 2:
+                        handler.setLevel(logLevel.DBGLV2)
+                    elif app.settings.DEBUG_LEVEL == 1:
+                        handler.setLevel(logLevel.DBGLV1)
+                    elif app.settings.DEBUG_LEVEL == 0:
+                        handler.setLevel(logLevel.INFO)
+                    else:
+                        handler.setLevel(logLevel.DEBUG)
+                pass
+            except Exception as e:
+                log(f"Failed to set logger level: {e}", Ansi.LRED, extra={
+                    "message": "Failed to set logger level. Check the error message for more information.",
+                    "error": str(e),
+                    "traceback": f"{e.__traceback__}",
+                })
+                pass
+                

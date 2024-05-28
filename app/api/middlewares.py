@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+import time, json
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
@@ -46,17 +46,21 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             f"[{request.method}] {response.status_code} {url}{Ansi.RESET!r} | {Ansi.LBLUE!r}Request took: {magnitude_fmt_time(time_elapsed)}",
             col,
             extra={
-                "Client-IP": request.headers["cf-connecting-ip"],
-                "Client-Country": request.headers["cf-ipcountry"],
-                "User-Agent": request.headers.get("user-agent", "Unknown"),
-                "Request-Method": request.method,
-                "Response-Status-Code": response.status_code,
-                "Request-URL": url,
-                "Request-Time": magnitude_fmt_time(time_elapsed),
-                "Request-Query-Parameters": dict(request.query_params),
-                "Request-Headers": dict(request.headers),
-                "Request": dict(request),
-                "Response": response,
+                "Request": json.dumps({
+                    "Method": str(request.method),
+                    "URL": str(url),
+                    "Request-Time": str(magnitude_fmt_time(time_elapsed)),
+                    "Query-Parameters": dict(request.query_params),
+                    "Headers": {k: str(v) for k, v in dict(request.headers).items()},
+                    "Client-IP": str(request.headers.get("cf-connecting-ip", "")),
+                    "Client-Country": str(request.headers.get("cf-ipcountry", "")),
+                    "User-Agent": str(request.headers.get("user-agent", "Unknown")),
+                    "Req-Info": getattr(request.state, "req_info", {}),
+                }),
+                "Response": json.dumps({
+                    "Status-Code": str(response.status_code),
+                    "Headers": {k: str(v) for k, v in dict(response.headers).items()},
+                })
             }
         )
 
