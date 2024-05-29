@@ -307,7 +307,6 @@ def log(
     extra: Mapping[str, object] | None = None,
     logger: str = '',
     level: int = logging.INFO,
-    exc_info: bool = False,
     *args
 ) -> None:
     """\
@@ -342,6 +341,7 @@ def log(
             log_level = logging.INFO
     else:
         log_level = level
+    
 
     # TODO: decouple colors from the base logging function; move it to
     # be a formatter-specific concern such that we can log without color.
@@ -385,7 +385,7 @@ def log(
         lineno=info.lineno,
         msg=f"{msg}",
         args=args or None,
-        exc_info=exc_info,
+        exc_info=None,
         func=info.function
     )
     
@@ -406,8 +406,8 @@ def log(
         # Add stack trace to the 'extra' fields
         stack_info = inspect.stack()
         serializable_stack = [{'filename': frame.filename, 'lineno': frame.lineno, 'function': frame.function, 'code_context': frame.code_context, 'index': frame.index} for frame in stack_info]
-        extra['stack_trace'] = traceback.format_stack()
-        extra['stack'] = serializable_stack
+        extra['stack_trace'] = json.dumps(traceback.format_stack())
+        extra['stack'] = json.dumps(serializable_stack)
         
         if log_level >= 40:
             # Add the 'exc_info' to the 'extra' fields
@@ -415,7 +415,6 @@ def log(
             if info.function in frame.f_globals:
                 extra['verbose_stacktrace']['func_signature'] = str(inspect.signature(frame.f_globals[info.function]))
                 extra['verbose_stacktrace']['func_source'] = inspect.getsource(frame.f_globals[info.function])
-            extra['verbose_stacktrace']['exc_info'] = exc_info
             extra['verbose_stacktrace']['exc_info'] = traceback.format_exc()
             extra['verbose_stacktrace']['exc_text'] = traceback.format_exc()
             extra['verbose_stacktrace']['exc_type'] = str(sys.exc_info()[0])
