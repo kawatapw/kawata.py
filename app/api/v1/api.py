@@ -1221,45 +1221,40 @@ async def api_update_map_status(
         raise HTTPException(status_code=404, detail="Beatmap not found")
     new_status = RankedStatus(status)
     # Update the beatmap status
-    async with app.state.services.database.connection() as db_conn:
-        if set_id is not None:
-            try:
-                # update all maps in the set
-                beatmap_set = await maps_repo.fetch_many(set_id=set_id)
-                for _bmap in beatmap_set:
-                    await maps_repo.update(_bmap.id, status=new_status, frozen=True)
-
-                # make sure cache and db are synced about the newest change
-                for _bmap in app.state.cache.beatmapset[set_id].maps:
-                    _bmap.status = new_status
-                    _bmap.frozen = True
-
-                # select all map ids for clearing map requests.
-                map_ids = [row["id"] for row in beatmap_set]
-            except Exception as e:
-                return ORJSONResponse(
-                    {"status": f"Failed to update maps in set: {e}"},
-                )
-        else:
-            try:
-                # update only map
-                await maps_repo.update(map_id, status=new_status, frozen=True)
-
-                # make sure cache and db are synced about the newest change
-                if bmap.md5 in app.state.cache.beatmap:
-                    app.state.cache.beatmap[bmap.md5].status = new_status
-                    app.state.cache.beatmap[bmap.md5].frozen = True
-
-                map_ids = [map_id]
-            except Exception as e:
-                return ORJSONResponse(
-                    {"status": f"Failed to update map: {e}"},
-                )
-        # deactivate rank requests for all ids
-        await db_conn.execute(
-            "UPDATE map_requests SET active = 0 WHERE map_id IN :map_ids",
-            {"map_ids": map_ids},
-        )
+    if set_id is not None:
+        try:
+            # update all maps in the set
+            beatmap_set = await maps_repo.fetch_many(set_id=set_id)
+            for _bmap in beatmap_set:
+                await maps_repo.partial_update(_bmap.id, status=new_status, frozen=True)
+            # make sure cache and db are synced about the newest change
+            for _bmap in app.state.cache.beatmapset[set_id].maps:
+                _bmap.status = new_status
+                _bmap.frozen = True
+            # select all map ids for clearing map requests.
+            map_ids = [row["id"] for row in beatmap_set]
+        except Exception as e:
+            return ORJSONResponse(
+                {"status": f"Failed to update maps in set: {e}"},
+            )
+    else:
+        try:
+            # update only map
+            await maps_repo.partial_update(map_id, status=new_status, frozen=True)
+            # make sure cache and db are synced about the newest change
+            if bmap.md5 in app.state.cache.beatmap:
+                app.state.cache.beatmap[bmap.md5].status = new_status
+                app.state.cache.beatmap[bmap.md5].frozen = True
+            map_ids = [map_id]
+        except Exception as e:
+            return ORJSONResponse(
+                {"status": f"Failed to update map: {e}"},
+            )
+    # deactivate rank requests for all ids
+    await app.state.services.database.execute(
+        "UPDATE map_requests SET active = 0 WHERE map_id IN :map_ids",
+        {"map_ids": map_ids},
+    )
 
 
     return ORJSONResponse({"status": "success"})
