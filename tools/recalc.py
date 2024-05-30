@@ -37,7 +37,7 @@ except ModuleNotFoundError:
 T = TypeVar("T")
 
 
-DEBUG = False
+DEBUG = True
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 
@@ -60,7 +60,11 @@ async def recalculate_score(
 ) -> None:
     beatmap = ctx.beatmaps.get(score["map_id"])
     if beatmap is None:
-        beatmap = Beatmap(path=str(beatmap_path))
+        try:
+            beatmap = Beatmap(path=str(beatmap_path))
+        except Exception as e:
+            print(f"Failed to load beatmap {beatmap_path}: {e}")
+            return
         ctx.beatmaps[score["map_id"]] = beatmap
 
     calculator = Calculator(
@@ -193,7 +197,7 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
 
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
     scores = [
-        dict(row)
+        row._asdict()
         for row in await ctx.database.fetch_all(
             """\
             SELECT scores.id, scores.mode, scores.mods, scores.map_md5,
