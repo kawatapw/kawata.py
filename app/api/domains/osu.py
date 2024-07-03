@@ -670,11 +670,20 @@ if app.settings.CHEAT_SERVER:
                     f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
                 )
 
-        except (ValueError, AssertionError):
+        except (ValueError, AssertionError) as e:
             # NOTE: this is undergoing a temporary trial period,
             # after which, it will be enabled & perform restrictions.
             stacktrace = app.utils.get_appropriate_stacktrace()
-            await app.state.services.log_strange_occurrence(stacktrace)
+            if app.settings.CHEAT_SERVER:
+                log(f"{player} submitted a strange score, {e}", Ansi.LYELLOW, extra={
+                    "strange_score": json.dumps({
+                        "player": str(player.name),
+                        "bmap_md5": str(bmap_md5),
+                        "error": str(e),
+                        })
+                })
+            else:
+                await app.state.services.log_strange_occurrence(stacktrace)
 
             # await player.restrict(
             #     admin=app.state.sessions.bot,
@@ -1133,7 +1142,7 @@ if app.settings.CHEAT_SERVER:
                     "pp": score.pp,
                     "acc": score.acc,
                     "max_combo": score.max_combo,
-                    "mods": score.mods,
+                    "mods": f"{score.mods!r}",
                     "n300": score.n300,
                     "n100": score.n100,
                     "n50": score.n50,
@@ -1141,8 +1150,8 @@ if app.settings.CHEAT_SERVER:
                     "ngeki": score.ngeki,
                     "nkatu": score.nkatu,
                     "grade": score.grade.name,
-                    "status": score.status,
-                    "mode": score.mode,
+                    "status": f"{score.status!r}",
+                    "mode": f"{score.mode!r}",
                     "client_flags": score.client_flags,
                     "cheat_values": cheat_values,
                 }),
