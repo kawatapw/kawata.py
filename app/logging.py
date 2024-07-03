@@ -26,6 +26,28 @@ import time
 import asyncio
 import functools
 
+# Incredibly Stupid Required Imports for Error_Catcher
+from fastapi import status
+from fastapi.datastructures import FormData
+from fastapi.datastructures import UploadFile
+from fastapi.exceptions import HTTPException
+from fastapi.param_functions import Depends
+from fastapi.param_functions import File
+from fastapi.param_functions import Form
+from fastapi.param_functions import Header
+from fastapi.param_functions import Path
+from fastapi.param_functions import Query
+from fastapi.requests import Request
+from fastapi.responses import FileResponse
+from fastapi.responses import ORJSONResponse
+from fastapi.responses import RedirectResponse
+from fastapi.responses import Response
+from fastapi.routing import APIRouter
+from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
+from starlette import status
+
 # Stupid Dumb Fucking Json Serialization BS IMPORTS OMFG I'M LOSING MY MIND
 import decimal
 from ipaddress import IPv4Network, IPv4Address
@@ -545,7 +567,6 @@ def error_catcher(func):
     if asyncio.iscoroutinefunction(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            print(f"Running Error Catcher for {func.__name__}")
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
@@ -556,7 +577,6 @@ def error_catcher(func):
     else:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            print(f"Running Error Catcher for {func.__name__}")
             try:
                 return func(*args, **kwargs)
             except Exception as e:

@@ -196,3 +196,7 @@ def init_api() -> BanchoAPI:
 
 
 asgi_app = init_api()
+
+asgi_app.include_router(domains.osu.router)
+asgi_app.include_router(domains.cho.router)
+asgi_app.include_router(domains.map.router)

@@ -133,6 +133,7 @@ def authenticate_player_session(
 
 
 @router.post("/web/osu-screenshot.php")
+@error_catcher
 async def osuScreenshot(
     player: Player = Depends(authenticate_player_session(Form, "u", "p")),
     endpoint_version: int = Form(..., alias="v"),
@@ -175,6 +176,7 @@ async def osuScreenshot(
 
 
 @router.get("/web/osu-getfriends.php")
+@error_catcher
 async def osuGetFriends(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
 ) -> Response:
@@ -243,6 +245,7 @@ async def osuGetBeatmapInfo(
 
 
 @router.get("/web/osu-getfavourites.php")
+@error_catcher
 async def osuGetFavourites(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
 ) -> Response:
@@ -254,6 +257,7 @@ async def osuGetFavourites(
 
 
 @router.get("/web/osu-addfavourite.php")
+@error_catcher
 async def osuAddFavourite(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     map_set_id: int = Query(..., alias="a"),
@@ -272,6 +276,7 @@ async def osuAddFavourite(
 
 
 @router.get("/web/lastfm.php")
+@error_catcher
 async def lastFM(
     action: Literal["scrobble", "np"],
     beatmap_id_or_hidden_flag: str = Query(
@@ -374,6 +379,7 @@ DIRECT_MAP_INFO_FMTSTR = (
 
 
 @router.get("/web/osu-search.php")
+@error_catcher
 async def osuSearchHandler(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     ranked_status: int = Query(..., alias="r", ge=0, le=8),
@@ -460,6 +466,7 @@ async def osuSearchHandler(
 
 # TODO: video support (needs db change)
 @router.get("/web/osu-search-set.php")
+@error_catcher
 async def osuSearchSetHandler(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     map_set_id: int | None = Query(None, alias="s"),
@@ -534,9 +541,9 @@ def parse_form_data_score_params(
         )
 
 if app.settings.CHEAT_SERVER:
-    @error_catcher
     @router.post("/web/osu-submit-modular.php")
     @router.post("/web/osu-submit-modular-selector.php")
+    @error_catcher
     async def osuSubmitModularSelector(
         request: Request,
         # TODO: should token be allowed
@@ -1167,6 +1174,7 @@ if app.settings.CHEAT_SERVER:
         return Response(response)
 else:
     @router.post("/web/osu-submit-modular-selector.php")
+    @error_catcher
     async def osuSubmitModularSelector(
         request: Request,
         # TODO: should token be allowed
@@ -1745,6 +1753,7 @@ else:
 
 
 @router.get("/web/osu-getreplay.php")
+@error_catcher
 async def getReplay(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     mode: int = Query(..., alias="m", ge=0, le=3),
@@ -1766,6 +1775,7 @@ async def getReplay(
 
 
 @router.get("/web/osu-rate.php")
+@error_catcher
 async def osuRate(
     player: Player = Depends(
         authenticate_player_session(Query, "u", "p", err=b"auth fail"),
@@ -1904,6 +1914,7 @@ SCORE_LISTING_FMTSTR = (
 
 
 @router.get("/web/osu-osz2-getscores.php")
+@error_catcher
 async def getScores(
     request: Request,
     player: Player = Depends(authenticate_player_session(Query, "us", "ha")),
@@ -2127,6 +2138,7 @@ async def getScores(
 
 #TODO: Investigate Byte Consumption in End State from Old Clients
 @router.post("/web/osu-comment.php")
+@error_catcher
 async def osuComment(
     player: Player = Depends(authenticate_player_session(Form, "u", "p")),
     map_id: int = Form(..., alias="b"),
@@ -2211,6 +2223,7 @@ async def osuComment(
 
 
 @router.get("/web/osu-markasread.php")
+@error_catcher
 async def osuMarkAsRead(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     channel: str = Query(..., min_length=0, max_length=32),
@@ -2235,11 +2248,13 @@ async def osuMarkAsRead(
 
 
 @router.get("/web/osu-getseasonal.php")
+@error_catcher
 async def osuSeasonal() -> Response:
     return ORJSONResponse(app.settings.SEASONAL_BGS)
 
 #TODO: Investigate and Fix byte consumption in End State from Old Clients
 @router.get("/web/bancho_connect.php")
+@error_catcher
 async def banchoConnect(
     # NOTE: this is disabled as this endpoint can be called
     #       before a player has been granted a session
@@ -2262,6 +2277,7 @@ _checkupdates_cache = {  # default timeout is 1h, set on request.
 
 
 @router.get("/web/check-updates.php")
+@error_catcher
 async def checkUpdates(
     request: Request,
     action: Literal["check", "path", "error"],
@@ -2271,6 +2287,7 @@ async def checkUpdates(
 
 
 @router.get("/web/check-aeris-updates.php")
+@error_catcher
 async def checkAerisUpdates(
     request: Request,
     action: Literal["check", "path", "error"],
@@ -2406,6 +2423,7 @@ if app.settings.REDIRECT_OSU_URLS:
 
 
 @router.get("/ss/{screenshot_id}.{extension}")
+@error_catcher
 async def get_screenshot(
     screenshot_id: str = Path(..., pattern=r"[a-zA-Z0-9-_]{8}"),
     extension: Literal["jpg", "jpeg", "png"] = Path(...),
@@ -2433,6 +2451,7 @@ async def get_screenshot(
 
 
 @router.get("/d/{map_set_id}")
+@error_catcher
 async def get_osz(
     map_set_id: str = Path(...),
 ) -> Response:
@@ -2450,6 +2469,7 @@ async def get_osz(
 
 
 @router.get("/web/maps/{map_filename}")
+@error_catcher
 async def get_updated_beatmap(
     request: Request,
     map_filename: str,
@@ -2466,6 +2486,7 @@ async def get_updated_beatmap(
 
 
 @router.get("/p/doyoureallywanttoaskpeppy")
+@error_catcher
 async def peppyDMHandler() -> Response:
     return Response(
         content=(
@@ -2489,6 +2510,7 @@ INGAME_REGISTRATION_DISALLOWED_ERROR = {
 
 
 @router.post("/users")
+@error_catcher
 async def register_account(
     request: Request,
     username: str = Form(..., alias="user[username]"),
@@ -2600,6 +2622,7 @@ async def register_account(
 
 
 @router.post("/difficulty-rating")
+@error_catcher
 async def difficultyRatingHandler(request: Request) -> Response:
     if app.settings.DEBUG_LEVEL >= 3 and app.settings.DEBUG_FOCUS in ["all", "leaderboards"]:
         # Print the request body

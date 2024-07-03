@@ -18,7 +18,7 @@ from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 from app.logging import Ansi
-from app.logging import log, logLevel
+from app.logging import log, logLevel, error_catcher
 import app.packets
 import app.state
 import app.usecases.performance
@@ -75,6 +75,7 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 
 
 @router.get("/calculate_pp")
+@error_catcher
 async def api_calculate_pp(
     token: HTTPCredentials = Depends(oauth2_scheme),
     beatmap_id: int = Query(None, alias="id", min=0, max=2_147_483_647),
@@ -157,6 +158,7 @@ async def api_calculate_pp(
 
 
 @router.get("/search_players")
+@error_catcher
 async def api_search_players(
     search: str | None = Query(None, alias="q", min=2, max=32),
     limit: int = Query(25, alias="limit", ge=1, le=50),
@@ -187,6 +189,7 @@ async def api_search_players(
 
 
 @router.get("/get_player_count")
+@error_catcher
 async def api_get_player_count() -> Response:
     """Get the current amount of online players."""
     return ORJSONResponse(
@@ -202,6 +205,7 @@ async def api_get_player_count() -> Response:
 
 
 @router.get("/get_player_info")
+@error_catcher
 async def api_get_player_info(
     scope: Literal["stats", "info", "all"],
     user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
@@ -296,6 +300,7 @@ async def api_get_player_info(
 
 
 @router.get("/get_player_status")
+@error_catcher
 async def api_get_player_status(
     user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
@@ -365,6 +370,7 @@ async def api_get_player_status(
 
 
 @router.get("/get_player_scores")
+@error_catcher
 async def api_get_player_scores(
     scope: Literal["recent", "best"],
     user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
@@ -514,6 +520,7 @@ async def api_get_player_scores(
 
 
 @router.get("/get_player_most_played")
+@error_catcher
 async def api_get_player_most_played(
     user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
@@ -576,6 +583,7 @@ async def api_get_player_most_played(
 
 
 @router.get("/get_map_info")
+@error_catcher
 async def api_get_map_info(
     map_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
     md5: str | None = Query(None, alias="md5", min_length=32, max_length=32),
@@ -606,6 +614,7 @@ async def api_get_map_info(
 
 
 @router.get("/get_map_scores")
+@error_catcher
 async def api_get_map_scores(
     scope: Literal["recent", "best"],
     map_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
@@ -711,6 +720,7 @@ async def api_get_map_scores(
 
 
 @router.get("/get_score_info")
+@error_catcher
 async def api_get_score_info(
     score_id: int = Query(..., alias="id", ge=0, le=9_223_372_036_854_775_807),
     b: int = Query(0, alias="b", ge=0, le=1),
@@ -742,6 +752,7 @@ async def api_get_score_info(
 
 
 @router.get("/get_replay")
+@error_catcher
 async def api_get_replay(
     score_id: int = Query(..., alias="id", ge=0, le=9_223_372_036_854_775_807),
     include_headers: bool = True,
@@ -858,6 +869,7 @@ async def api_get_replay(
 
 
 @router.get("/get_match")
+@error_catcher
 async def api_get_match(
     match_id: int = Query(..., alias="id", ge=1, le=64),
 ) -> Response:
@@ -906,6 +918,7 @@ async def api_get_match(
 
 
 @router.get("/get_leaderboard")
+@error_catcher
 async def api_get_global_leaderboard(
     sort: Literal["tscore", "rscore", "pp", "acc", "plays", "playtime"] = "pp",
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
@@ -957,8 +970,52 @@ async def api_get_global_leaderboard(
         {"status": "success", "leaderboard": [dict(row) for row in rows]},
     )
 
+@router.get("/get_top_players")
+@error_catcher
+async def api_get_top_players() -> Response:
+    leaderboard = {}
+    for mode_arg in range(12):  # Assuming there are 12 game modes
+        if mode_arg in (
+            GameMode.RELAX_MANIA,
+            GameMode.AUTOPILOT_CATCH,
+            GameMode.AUTOPILOT_TAIKO,
+            GameMode.AUTOPILOT_MANIA,
+        ):
+            continue
+
+        mode = GameMode(mode_arg)
+
+        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0"]
+        query_parameters: dict[str, object] = {"mode": mode}
+
+        rows = await app.state.services.database.fetch_all(
+            "SELECT u.id as player_id, u.name, u.country, s.tscore, s.rscore, "
+            "s.pp, s.plays, s.playtime, s.acc, s.max_combo, "
+            "s.xh_count, s.x_count, s.sh_count, s.s_count, s.a_count, "
+            "c.id as clan_id, c.name as clan_name, c.tag as clan_tag "
+            "FROM stats s "
+            "LEFT JOIN users u USING (id) "
+            "LEFT JOIN clans c ON u.clan_id = c.id "
+            f"WHERE {' AND '.join(query_conditions)} "
+            f"ORDER BY s.pp DESC LIMIT 3",
+            query_parameters,
+        )
+        for i, row in enumerate(rows):  # Grab Badges for every player TODO: Optimize
+            player = dict(row)
+            badges_response = await api_get_badges(user_id=player["player_id"])
+            badges_data = orjson.loads(badges_response.body)
+            if "badges" in badges_data and badges_data["badges"]:
+                player["badges"] = badges_data["badges"]
+            rows[i] = player
+
+        leaderboard[mode.name] = [dict(row) for row in rows]
+
+    return ORJSONResponse(
+        {"status": "success", "leaderboard": leaderboard},
+    )
 
 @router.get("/get_clan")
+@error_catcher
 async def api_get_clan(
     clan_id: int = Query(..., alias="id", ge=1, le=2_147_483_647),
 ) -> Response:
@@ -1000,6 +1057,7 @@ async def api_get_clan(
 
 
 @router.get("/get_mappool")
+@error_catcher
 async def api_get_pool(
     pool_id: int = Query(..., alias="id", ge=1, le=2_147_483_647),
 ) -> Response:
@@ -1087,6 +1145,7 @@ async def api_get_pool(
     )
 
 @router.get("/get_friends")
+@error_catcher
 async def api_get_friends(
     scope: Literal["friends", "mutuals", "all"],
     user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
@@ -1157,6 +1216,7 @@ async def api_get_friends(
 
 
 @router.get("/get_badges")
+@error_catcher
 async def api_get_badges(
     user_id: int = Query(..., alias="id", ge=1, le=2_147_483_647),
 ) -> ORJSONResponse:
@@ -1192,6 +1252,7 @@ async def api_get_badges(
     return ORJSONResponse(content={"badges": badges})
 
 @router.post("/update_map_status")
+@error_catcher
 async def api_update_map_status(
     token: HTTPCredentials = Depends(oauth2_scheme),
     map_id: int = Query(None, alias="id", ge=0, le=2_147_483_647),

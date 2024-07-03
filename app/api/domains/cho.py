@@ -43,6 +43,7 @@ from app.logging import Ansi
 from app.logging import get_timestamp
 from app.logging import log
 from app.logging import magnitude_fmt_time
+from app.logging import error_catcher
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.channel import Channel
@@ -107,6 +108,7 @@ motds = [
 router = APIRouter(tags=["Bancho API"])
 
 @router.get("/infos")
+@error_catcher
 async def bancho_view_infos() -> Response:
     """Get server information"""
     data = {
@@ -122,6 +124,7 @@ async def bancho_view_infos() -> Response:
     return JSONResponse(data)
 
 @router.get("/")
+@error_catcher
 async def bancho_http_handler() -> Response:
     """Handle a request from a web browser."""
     new_line = "\n"
@@ -148,6 +151,7 @@ async def bancho_http_handler() -> Response:
 
 
 @router.get("/online")
+@error_catcher
 async def bancho_view_online_users() -> Response:
     """see who's online"""
     new_line = "\n"
@@ -176,6 +180,7 @@ bots:
 
 
 @router.get("/matches")
+@error_catcher
 async def bancho_view_matches() -> Response:
     """ongoing matches"""
     new_line = "\n"
@@ -213,6 +218,7 @@ matches:
 
 
 @router.post("/")
+@error_catcher
 async def bancho_handler(
     request: Request,
     osu_token: str | None = Header(None),
