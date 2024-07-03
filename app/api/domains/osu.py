@@ -81,6 +81,7 @@ from app.utils import escape_enum
 from app.utils import pymysql_encode
 
 import time, shutil, zipfile
+from app.logging import error_catcher
 
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
 REPLAYS_PATH = SystemPath.cwd() / ".data/osr"
@@ -533,6 +534,7 @@ def parse_form_data_score_params(
         )
 
 if app.settings.CHEAT_SERVER:
+    @error_catcher
     @router.post("/web/osu-submit-modular.php")
     @router.post("/web/osu-submit-modular-selector.php")
     async def osuSubmitModularSelector(

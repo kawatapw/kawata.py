@@ -23,6 +23,8 @@ from elasticsearch.exceptions import SerializationError
 from logging import Handler
 import traceback, sys
 import time
+import asyncio
+import functools
 
 # Stupid Dumb Fucking Json Serialization BS IMPORTS OMFG I'M LOSING MY MIND
 import decimal
@@ -538,3 +540,28 @@ class LogEncoder(json.JSONEncoder):
                 v = self.default(v)
             new_dict[k] = v
         return new_dict
+
+def error_catcher(func):
+    if asyncio.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            print(f"Running Error Catcher for {func.__name__}")
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                log(f"Error in {func.__name__}: {e}", start_color=Ansi.LRED, level=logging.ERROR, extra={
+                    "error": f"{e}",
+                    })
+                pass
+    else:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            print(f"Running Error Catcher for {func.__name__}")
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                log(f"Error in {func.__name__}: {e}", start_color=Ansi.LRED, level=logging.ERROR, extra={
+                    "error": f"{e}",
+                    })
+                pass
+    return wrapper
