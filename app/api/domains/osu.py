@@ -1100,6 +1100,8 @@ if app.settings.CHEAT_SERVER:
                 if (score.status == 2) or (score.status > 0 and score.id and score.id != 0):
                     if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
                         log(f"Score ID: {score.id}")
+                    try:
+                        print(f"Inserting Cheat Values")
                         await app.state.services.database.execute(
                         "INSERT INTO scoreinfo (scoreid, cheat_values) "
                         "VALUES (:scoreid, :cheat_values)",
@@ -1107,7 +1109,10 @@ if app.settings.CHEAT_SERVER:
                             "scoreid": score.id,
                             "cheat_values": cheat_values_str,
                         },
-                    )
+                        )
+                    except Exception as e:
+                        log(f"Error Inserting Cheat Values: {e}", Ansi.LRED)
+                        pass
         log(
             f"[{score.mode!r}] {score.player} submitted a score! "
             f"({score.status!r}, {score.pp:,.2f}pp / {stats.pp:,}pp)",
