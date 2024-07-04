@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import struct
 import orjson
+import json
 from pathlib import Path as SystemPath
 from typing import Literal
 
@@ -439,9 +440,10 @@ async def api_get_player_scores(
     query = [
         "SELECT t.id, t.map_md5, t.score, t.pp, t.acc, t.max_combo, "
         "t.mods, t.n300, t.n100, t.n50, t.nmiss, t.ngeki, t.nkatu, t.grade, "
-        "t.status, t.mode, t.play_time, t.time_elapsed, t.perfect "
+        "t.status, t.mode, t.play_time, t.time_elapsed, t.perfect, s.cheat_values "
         "FROM scores t "
         "INNER JOIN maps b ON t.map_md5 = b.md5 "
+        "LEFT JOIN scoreinfo s ON t.id = s.scoreid "
         "WHERE t.userid = :user_id AND t.mode = :mode",
     ]
 
@@ -509,6 +511,14 @@ async def api_get_player_scores(
         mods = Mods(row["mods"])
         mods_readable = app.constants.mods.get_mods_string(mods)
         row["mods_readable"] = mods_readable
+    
+    # load cheat values back into json
+    for row in rows:
+        if row["cheat_values"]:  # Check if cheat_values is not None or empty
+            row["cheat_values"] = json.loads(json.loads(row["cheat_values"])) # Yes, this is indeed correct...
+        else:
+            row["cheat_values"] = {}  # Set to an empty dict if there's no data
+
 
     return ORJSONResponse(
         {
