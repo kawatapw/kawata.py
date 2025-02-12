@@ -11,6 +11,7 @@ from app.api.v2.common.responses import Failure
 from app.api.v2.common.responses import success
 from app.api.v2.common.responses import Success
 from app.state.services import database
+from app.logging import log
 
 router = APIRouter()
 
@@ -28,51 +29,63 @@ async def get_changelog(
     category: str | None = None,
     unix_from: str | None = 0,
 ) -> Success[list] | Failure:
+    try:
+        params = {}
+        query = f"""\
+            SELECT {READ_PARAMS}
+              FROM changelog
+            """
+        accessor = "WHERE" # used to add ANDs to the query
 
-    params = {}
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM changelog
-        """
-    accessor = "WHERE" # used to add ANDs to the query
+        if (change_type is not None):
+            query += accessor + " type = :type "
+            accessor = "AND"
+            params["type"] = change_type
 
-    if (change_type is not None):
-        query += accessor + " type = :type "
-        accessor = "AND"
-        params["type"] = change_type
+        if (category is not None):
+            query += accessor + " category = :category "
+            accessor = "AND"
+            params["category"] = category
 
-    if (category is not None):
-        query += accessor + " category = :category "
-        accessor = "AND"
-        params["category"] = category
+        query += accessor + " UNIX_TIMESTAMP(time) >= :unix_from "
 
-    query += accessor + " UNIX_TIMESTAMP(time) >= :unix_from "
+        query += """
+                LIMIT :limit
+                OFFSET :offset
+            """
+        params["limit"] = page_size
+        params["offset"] = (page - 1) * page_size
+        params["unix_from"] = unix_from
 
-    query += """
-            LIMIT :limit
-            OFFSET :offset
-        """
-    params["limit"] = page_size
-    params["offset"] = (page - 1) * page_size
-    params["unix_from"] = unix_from
-
-    data = await database.fetch_all(query, params)
-    meta = {
-        "total": len(data),
-        "page": page,
-        "page_size": page_size,
-        "type": change_type,
-        "category": category,
-        "unix_from": unix_from
-    }
-    res = []
-    for row in data:
-        res.append({
-            "type": row[0],
-            "category": row[1],
-            "poster": row[2],
-            "content": row[3],
-            "time": row[4].strftime("%Y-%m-%d %H:%M:%S"),
-            "version": row[5]
-        })
-    return responses.success(content=res, meta=meta)
+        data = await database.fetch_all(query, params)
+        meta = {
+            "total": len(data),
+            "page": page,
+            "page_size": page_size,
+            "type": change_type,
+            "category": category,
+            "unix_from": unix_from
+        }
+        res = []
+        for row in data:
+            try:
+                res.append({
+                    "type": row["type"],
+                    "category": row["category"], 
+                    "poster": row["poster"],
+                    "content": row["content"],
+                    "time": row["time"].strftime("%Y-%m-%d %H:%M:%S"),
+                    "version": row["version"]
+                })
+            except:
+                res.append({
+                    "type": row[0],
+                    "category": row[1],
+                    "poster": row[2],
+                    "content": row[3],
+                    "time": row[4].strftime("%Y-%m-%d %H:%M:%S"),
+                    "version": row[5]
+                })
+        return responses.success(content=res, meta=meta)
+    except Exception as e:
+        log(f"Error in get_changelog: {e}")

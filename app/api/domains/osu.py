@@ -55,7 +55,7 @@ from app.constants.clientflags import LastFMFlags
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
-from app.logging import Ansi
+from app.logging import Ansi, logLevel
 from app.logging import log
 from app.objects import models
 from app.objects.beatmap import Beatmap
@@ -2294,118 +2294,6 @@ async def checkUpdates(
 ) -> Response:
     return Response(b"")
 
-
-@router.get("/web/check-aeris-updates.php")
-@error_catcher
-async def checkAerisUpdates(
-    request: Request,
-    action: Literal["check", "path", "error"],
-    stream: Literal["cuttingedge", "stable40", "beta40", "stable"],
-) -> Response:
-    neededFiles = [
-		"avcodec-51.dll", 
-		"avformat-52.dll", 
-		"avutil-49.dll", 
-		"bass.dll", 
-		"bass_fx.dll", 
-		"d3dcompiler_47.dll", 
-        "DiscordRPC.dll",
-		"libEGL.dll", 
-		"libGLESv2.dll", 
-		"Microsoft.Ink.dll", 
-        "Newtonsoft.Json.dll",
-		"OpenTK.dll",  #
-		"osu!common.dll", #
-		"osu!gameplay.dll", #
-		"osu!ui.dll", 
-		"osu!.exe", 
-		"osu.dll", #
-		"pthreadGC2.dll",
-		"SmartThreadPool.dll", #
-        "WindowsInput.dll"
-	]
-    args = {}
-
-    for key, _ in request.query_params.items():
-        args[key] = request.query_params[key].lower()
-
-    if args["action"].lower() == "put":
-        return Response(b"nope")
-
-    if args["stream"].lower() == "cuttingedge":
-        args["stream"] = "stable40"
-
-    if args["stream"].lower() == "stable":
-        neededFiles.append("oppai.exe")
-
-    if args["stream"].lower() == "stable40":
-        neededFiles.append("DiscordRPC.dll")
-    
-    if args["action"].lower() == "check" or args["action"].lower() == "path":
-        try:
-            updaterCache = ".data/storage/updater/{}/{}".format(args["stream"], "updater.json")
-            if not os.path.exists(updaterCache):
-                needUpdate = True
-            result = []
-            log("[Aeris updater]: requested Update for : {}".format(args["stream"]))
-            try:
-                data = json.loads(open(updaterCache, "r").read())
-                needUpdate = len(data) < len(neededFiles)
-                index = 0
-                if not needUpdate:
-                    for x in neededFiles:
-                        timestamp = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))))
-
-                        if data[index]["timestamp"] != timestamp:
-                            needUpdate = True
-                        index += 1
-            except Exception as e:
-                needUpdate = True
-            if needUpdate:
-                if os.path.exists(".data/storage/updater/{}/{}".format(args["stream"], "updating")):
-                    log("Still updating, sending cache")
-                    return Response(json.dumps(data))
-                f = open(".data/storage/updater/{}/{}".format(args["stream"], "updating"), 'w')
-                try:
-                    log("[Aeris updater] New files detected, updating Downloadable files")
-                    log("[AU] Clearing zip cache")
-                except:
-                    pass
-                path = ".data/storage/updater/{}/zip".format(args["stream"])
-                shutil.rmtree(path)
-                os.mkdir(path)
-                for x in neededFiles:
-                    index = len(result)
-                    result.append({})
-                    file = ".data/storage/updater/{}/{}".format(args["stream"], x)
-
-                    result[index]["filesize"] = os.stat(file).st_size
-                    result[index]["file_version"] = str(index + 1)
-                    result[index]["file_hash"] = fileMd5(file)
-                    result[index]["url_full"] = "https://storage.kawata.pw/get/updater/{}/zip/{}".format(args["stream"], result[index]["file_hash"])
-                    result[index]["patch_id"] = None
-                    timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
-                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(timestamp))
-                    result[index]["filename"] = x
-                    zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], result[index]["file_hash"]), mode='w')
-                    zf.write(file, arcname=x)
-                    f = open(updaterCache, "w")
-                    f.write(json.dumps(result))
-
-                os.remove(".data/storage/updater/{}/{}".format(args["stream"], "updating"))
-                log("[Aeris updater] Downloadable files updated")
-
-            else:
-                result = data
-
-            return Response(json.dumps(result))
-        except Exception as e:
-            log(f"Error: {e}", Ansi.LRED, file="./.data/logs/updater.log")
-            return Response("")
-    else:
-        log("[Aeris updater] unknown action type : {}".format(args["action"]), Ansi.YELLOW)
-    return Response(b"")
-
 """ Misc handlers """
 def fileMd5(file_path: str) -> str:
     with open(file_path, "rb") as file:
@@ -2646,3 +2534,288 @@ async def difficultyRatingHandler(request: Request) -> Response:
         url=f"https://osu.ppy.sh{request['path']}",
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
+
+@router.get("/web/check-aeris-updates.php")
+@router.post("/web/check-aeris-updates.php")
+@error_catcher
+async def checkAerisUpdates(
+    request: Request,
+    action: Literal["check", "path", "error", "request-put", "put"] = None,
+    stream: Literal["cuttingedge", "stable40", "beta40", "stable"] = None,
+    fileinfo:  str   = None,
+    buildname: str   = None,
+    ufile: UploadFile = None
+) -> Response:
+    neededFiles = [
+		"avcodec-51.dll", 
+		"avformat-52.dll", 
+		"avutil-49.dll", 
+		"bass.dll", 
+		"bass_fx.dll", 
+		"d3dcompiler_47.dll", 
+        "DiscordRPC.dll",
+		"libEGL.dll", 
+		"libGLESv2.dll", 
+		"Microsoft.Ink.dll", 
+        "Newtonsoft.Json.dll",
+		"OpenTK.dll",  #
+		"osu!common.dll", #
+		"osu!gameplay.dll", #
+		"osu!ui.dll", 
+		"osu!.exe", 
+		"osu.dll", #
+		"pthreadGC2.dll",
+		"SmartThreadPool.dll", #
+        "WindowsInput.dll"
+	]
+    args = {}
+
+    for key, _ in request.query_params.items():
+        args[key] = request.query_params[key].lower()
+    log(f"[Aeris Updater Debug] Args: {args}")
+
+    if action == "request-put":
+        try:
+            # Parse the incoming file info
+            new_file = json.loads(fileinfo)
+
+            # Check if we have a previous version to create patch from
+            current_file = get_current_file_version(stream, new_file["filename"])
+            if current_file:
+                if "build_name" not in current_file:
+                    current_file["build_name"] = ""
+                return Response(json.dumps({
+                    "response": "patch",
+                    "filename": current_file["filename"],
+                    "file_hash": current_file["file_hash"],
+                    "build_name": current_file["build_name"],
+                    "url_full": f"https://storage.kawata.pw/get/updater/{stream}/zip/{current_file['file_hash']}.zip"
+                }))
+
+            return Response(json.dumps({"response": "ok"}))
+        except Exception as e:
+            log(f"Error in Aeris Updater Request-Put Action: {e}", level=logLevel.ERROR)
+            return Response(json.dumps({"response": f"Error: {e}"}))
+    elif action == "put":
+        try:
+            # Handle file upload
+            file_data = json.loads(fileinfo)
+            file_type = request.query_params.get("type", "full")
+            
+            if file_type == "patch":
+                base_path = f".data/storage/updater/{stream}/patches"
+                url_base = f"https://storage.kawata.pw/get/updater/{stream}/patches"
+            else:
+                base_path = f".data/storage/updater/{stream}"
+                url_base = f"https://storage.kawata.pw/get/updater/{stream}"
+            #upload_path = f".data/storage/updater/{stream}/{file_data['filename']}"
+            os.makedirs(base_path, exist_ok=True)
+            if file_type == "patch":
+                # Patches use hash as filename
+                file_path = f"{base_path}/{file_data['file_hash']}_patch"
+            else:
+                # Full files keep original name
+                file_path = f"{base_path}/{file_data['filename']}"
+
+            # Save uploaded file
+            with open(file_path, "wb") as f:
+                f.write(await ufile.read())
+                log(f"[Aeris Updater Upload] {file_data['build_name']} | {file_data['filename']}", extra={})
+            
+            if file_type == "patch":
+                file_data["url_patch"] = f"{url_base}/{file_data['file_hash']}"
+            else:
+                file_data["url_full"] = f"{url_base}/{file_data['file_hash']}"
+
+            # Update version database
+            update_file_version(stream, file_data, file_data['build_name'], request)
+
+            return Response(json.dumps({"response": "ok"}))
+        except Exception as e:
+            log(f"Error in Aeris Updater Put Action: {e}", level=logLevel.ERROR)
+            return Response(json.dumps({"response": f"Error: {e}"}))
+
+    #if args["stream"].lower() == "cuttingedge":
+    #    args["stream"] = "stable40"
+
+    if args["stream"].lower() == "stable":
+        neededFiles.append("oppai.exe")
+
+    if args["stream"].lower() == "stable40":
+        neededFiles.append("DiscordRPC.dll")
+    
+    if args["action"].lower() == "check" or args["action"].lower() == "path":
+        try:
+            updaterCache = ".data/storage/updater/{}/{}".format(args["stream"], "updater.json")
+            if not os.path.exists(updaterCache):
+                needUpdate = True
+            result = []
+            log("[Aeris updater]: requested Update for : {}".format(args["stream"]))
+            try:
+                data = json.loads(open(updaterCache, "r").read())
+                needUpdate = len(data) < len(neededFiles)
+                index = 0
+                # Add build_name field if missing, Prevents error in upload portion.
+                for entry in data:
+                    if "build_name" not in entry:
+                        entry["build_name"] = ""
+                        needUpdate = True
+                if needUpdate:
+                    # Write back the modified data
+                    with open(updaterCache, "w") as f:
+                        f.write(json.dumps(data))
+                if not needUpdate:
+                    for x in neededFiles:
+                        timestamp = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))))
+
+                        if data[index]["timestamp"] != timestamp:
+                            needUpdate = True
+                        index += 1
+            except Exception as e:
+                needUpdate = True
+            if needUpdate:
+                if os.path.exists(".data/storage/updater/{}/{}".format(args["stream"], "updating")):
+                    log("Still updating, sending cache")
+                    return Response(json.dumps(data))
+                f = open(".data/storage/updater/{}/{}".format(args["stream"], "updating"), 'w')
+                try:
+                    log("[Aeris updater] New files detected, updating Downloadable files")
+                    log("[AU] Clearing zip cache")
+                except:
+                    pass
+                path = ".data/storage/updater/{}/zip".format(args["stream"])
+                shutil.rmtree(path)
+                os.mkdir(path)
+                for x in neededFiles:
+                    index = len(result)
+                    result.append({})
+                    file = ".data/storage/updater/{}/{}".format(args["stream"], x)
+
+                    result[index]["filesize"] = os.stat(file).st_size
+                    result[index]["file_version"] = str(index + 1)
+                    result[index]["file_hash"] = fileMd5(file)
+                    result[index]["url_full"] = "https://storage.kawata.pw/get/updater/{}/zip/{}".format(args["stream"], result[index]["file_hash"])
+                    result[index]["patch_id"] = None
+                    timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
+                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(timestamp))
+                    result[index]["filename"] = x
+                    zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], result[index]["file_hash"]), mode='w')
+                    zf.write(file, arcname=x)
+                    f = open(updaterCache, "w")
+                    f.write(json.dumps(result))
+
+                os.remove(".data/storage/updater/{}/{}".format(args["stream"], "updating"))
+                log("[Aeris updater] Downloadable files updated")
+
+            else:
+                result = data
+
+            return Response(json.dumps(result))
+        except Exception as e:
+            log(f"Error: {e}", Ansi.LRED)
+            return Response("")
+    else:
+        log("[Aeris updater] unknown action type : {}".format(args["action"]), Ansi.YELLOW)
+    return Response(b"")
+
+@router.get("/web/get-internal-version.php")
+async def getInternalVersion(v: int):
+    # Generate an incremental build number
+    # Could store this in a database to persist across restarts
+    current = get_current_internal_version(v)
+    new_version = current + 1
+    save_internal_version(v, new_version)
+    
+    return Response(str(new_version))
+
+
+def get_current_file_version(stream: str, filename: str) -> dict:
+    """Get the current version info for a file in a stream"""
+    try:
+        updater_cache = f".data/storage/updater/{stream}/updater.json"
+        if os.path.exists(updater_cache):
+            with open(updater_cache, 'r') as f:
+                data = json.loads(f.read())
+                for file_info in data:
+                    if file_info["filename"] == filename:
+                        return file_info
+    except Exception as e:
+        log(f"Error getting current file version: {e}", Ansi.LRED)
+    return None
+
+def get_base_filename(filename: str) -> str:
+    # If filename contains underscores and hash-like strings, it's a patch
+    if filename.count('_') == 2 and len(filename.split('_')[1]) == 32:
+        return filename.split('_')[0]
+    return filename
+
+def update_file_version(stream: str, file_data: dict, build_name: str, request: Request):
+    """Update version info after successful upload"""
+    try:
+        updater_cache = f".data/storage/updater/{stream}/updater.json"
+        data = []
+        if os.path.exists(updater_cache):
+            with open(updater_cache, 'r') as f:
+                data = json.loads(f.read())
+        
+        is_patch = "patch" in request.query_params.get("type", "")
+        
+        # Update or add new file info
+        updated = False
+        for i, file_info in enumerate(data):
+            if file_info["filename"] == file_data["filename"]:
+                if "url_full" not in file_data and "url_full" in file_info:
+                    file_data["url_full"] = file_info["url_full"]
+                if "url_patch" not in file_data and "url_patch" in file_info:
+                    file_data["url_patch"] = file_info["url_patch"]
+                data[i] = file_data
+                data[i]["build_name"] = build_name
+                updated = True
+                break
+                
+        if not updated:
+            file_data["build_name"] = build_name
+            data.append(file_data)
+            
+        with open(updater_cache, 'w') as f:
+            json.dump(data, f)
+            
+    except Exception as e:
+        log(f"Error updating file version: {e}", Ansi.LRED)
+
+def get_current_internal_version(version: int) -> int:
+    """Get current internal version number for main version"""
+    try:
+        version_file = f".data/storage/internal_versions/{version}.txt"
+        if os.path.exists(version_file):
+            with open(version_file, 'r') as f:
+                return int(f.read().strip())
+    except Exception as e:
+        log(f"Error getting internal version: {e}", Ansi.LRED)
+    return 0
+
+def save_internal_version(version: int, internal: int):
+    """Save new internal version number"""
+    try:
+        os.makedirs(".data/storage/internal_versions", exist_ok=True)
+        version_file = f".data/storage/internal_versions/{version}.txt"
+        with open(version_file, 'w') as f:
+            f.write(str(internal))
+    except Exception as e:
+        log(f"Error saving internal version: {e}", Ansi.LRED)
+
+@router.post("/aeris/osu-error.php")
+@error_catcher
+async def aerisErrorHandler(request: Request, data: str = Form(..., alias="error")):
+    error_data = json.loads(data)
+    
+    # Process based on error type
+    submission_types = error_data.get("SubmissionTypes", [])
+    if "ES" in submission_types:
+        log(f"[Aeris Error] {error_data.get('Username')} encountered an error in their client.",
+            Ansi.LYELLOW, extra={"osu-error": json.dumps(error_data)}, levelow=True)
+    else:
+        log(f"[Aeris Error] {error_data.get('Username')} encountered frame drops.",
+            Ansi.LYELLOW, extra={"osu-error": json.dumps(error_data)}, levelow=True)
+    
+    return Response(content=b"Successfully Uploaded Error")

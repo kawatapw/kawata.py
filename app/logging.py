@@ -331,6 +331,7 @@ def log(
     extra: Mapping[str, object] | None = None,
     logger: str = '',
     level: int = logging.INFO,
+    levelow: bool = False,
     *args
 ) -> None:
     """\
@@ -356,7 +357,7 @@ def log(
             else:
                 log_obj = structlog.get_logger('console.info')
 
-    if level == logging.INFO:
+    if level == logging.INFO and levelow != True:
         if start_color is Ansi.LYELLOW:
             log_level = logging.WARNING
         elif start_color is Ansi.LRED:
