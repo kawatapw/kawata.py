@@ -2540,8 +2540,8 @@ async def difficultyRatingHandler(request: Request) -> Response:
 @error_catcher
 async def checkAerisUpdates(
     request: Request,
-    action: Literal["check", "path", "error", "request-put", "put"] = None,
-    stream: Literal["cuttingedge", "stable40", "beta40", "stable"] = None,
+    action: Literal["check", "path", "error", "get-manifest", "request-put", "put"] = None,
+    stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] = None,
     fileinfo:  str   = None,
     buildname: str   = None,
     ufile: UploadFile = None
@@ -2574,7 +2574,29 @@ async def checkAerisUpdates(
         args[key] = request.query_params[key].lower()
     log(f"[Aeris Updater Debug] Args: {args}")
 
-    if action == "request-put":
+    if action == "get-manifest":
+        try:
+            manifest = {}
+            updater_cache = f".data/storage/updater/{stream}/updater.json"
+
+            # Load existing manifest if it exists
+            if os.path.exists(updater_cache):
+                with open(updater_cache, "r") as f:
+                    manifest = json.loads(f.read())
+
+            # Convert list to dictionary format for easier lookup
+            manifest_dict = {
+                "files": {entry["filename"]: entry for entry in manifest},
+                "timestamp": time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()),
+                "stream": stream
+            }
+
+            return Response(json.dumps(manifest_dict))
+        except Exception as e:
+            log(f"Error in Aeris Updater Get-Manifest Action: {e}", level=logLevel.ERROR)
+            return Response(json.dumps({"error": str(e)}))
+
+    elif action == "request-put":
         try:
             # Parse the incoming file info
             new_file = json.loads(fileinfo)
@@ -2596,6 +2618,7 @@ async def checkAerisUpdates(
         except Exception as e:
             log(f"Error in Aeris Updater Request-Put Action: {e}", level=logLevel.ERROR)
             return Response(json.dumps({"response": f"Error: {e}"}))
+    
     elif action == "put":
         try:
             # Handle file upload
@@ -2612,7 +2635,7 @@ async def checkAerisUpdates(
             os.makedirs(base_path, exist_ok=True)
             if file_type == "patch":
                 # Patches use hash as filename
-                file_path = f"{base_path}/{file_data['file_hash']}_patch"
+                file_path = f"{base_path}/{file_data['file_hash']}"
             else:
                 # Full files keep original name
                 file_path = f"{base_path}/{file_data['filename']}"
@@ -2626,6 +2649,9 @@ async def checkAerisUpdates(
                 file_data["url_patch"] = f"{url_base}/{file_data['file_hash']}"
             else:
                 file_data["url_full"] = f"{url_base}/{file_data['file_hash']}"
+                zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], file_data["file_hash"]), mode='w')
+                file = ".data/storage/updater/{}/{}".format(args["stream"], file_data['filename'])
+                zf.write(file, arcname=file_data['filename'])
 
             # Update version database
             update_file_version(stream, file_data, file_data['build_name'], request)
@@ -2678,6 +2704,13 @@ async def checkAerisUpdates(
                     log("Still updating, sending cache")
                     return Response(json.dumps(data))
                 f = open(".data/storage/updater/{}/{}".format(args["stream"], "updating"), 'w')
+                existing_data = {}
+                if os.path.exists(updaterCache):
+                    try:
+                        with open(updaterCache, "r") as f:
+                            existing_data = {entry["filename"]: entry for entry in json.loads(f.read())}
+                    except:
+                        pass
                 try:
                     log("[Aeris updater] New files detected, updating Downloadable files")
                     log("[AU] Clearing zip cache")
@@ -2688,17 +2721,18 @@ async def checkAerisUpdates(
                 os.mkdir(path)
                 for x in neededFiles:
                     index = len(result)
-                    result.append({})
+                    # Start with existing entry if available
+                    result.append(existing_data.get(x, {}))
                     file = ".data/storage/updater/{}/{}".format(args["stream"], x)
 
                     result[index]["filesize"] = os.stat(file).st_size
-                    result[index]["file_version"] = str(index + 1)
                     result[index]["file_hash"] = fileMd5(file)
                     result[index]["url_full"] = "https://storage.kawata.pw/get/updater/{}/zip/{}".format(args["stream"], result[index]["file_hash"])
-                    result[index]["patch_id"] = None
                     timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
                     result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(timestamp))
                     result[index]["filename"] = x
+                    if "patch_id" not in result[index]:
+                        result[index]["patch_id"] = None
                     zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], result[index]["file_hash"]), mode='w')
                     zf.write(file, arcname=x)
                     f = open(updaterCache, "w")
@@ -2762,6 +2796,14 @@ def update_file_version(stream: str, file_data: dict, build_name: str, request: 
         
         # Update or add new file info
         updated = False
+        if is_patch:
+            base_filename = get_base_filename(file_data['filename'])
+            # Find and update entry using base filename
+            for i, file_info in enumerate(data):
+                if file_info["filename"] == base_filename:
+                    data[i]["url_patch"] = file_data["url_patch"]
+                    data[i]["patch_id"] = file_data.get("patch_id")
+                    data[i]["patch_from"] = file_data.get("patch_from")
         for i, file_info in enumerate(data):
             if file_info["filename"] == file_data["filename"]:
                 if "url_full" not in file_data and "url_full" in file_info:
