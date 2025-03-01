@@ -4,12 +4,12 @@ import re
 
 if app.settings.CHEAT_SERVER:
     OSU_VERSION = re.compile(
-        r"^(?:Abypass Client )?b(?P<date>\d{8})(?:\.(?P<revision>\d))?"
+        r"^(?:Abypass Client )?b(?P<date>\d{8})(?:\.(?P<revision>\d+))?"
         r"(?P<stream>beta|cuttingedge|dev|tourney|Aeris)?$",
     )
 else:
     OSU_VERSION = re.compile(
-    r"^b(?P<date>\d{8})(?:\.(?P<revision>\d))?"
+    r"^b(?P<date>\d{8})(?:\.(?P<revision>\d+))?"
     r"(?P<stream>beta|cuttingedge|dev|tourney)?$",
 )
 
