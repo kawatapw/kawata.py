@@ -571,9 +571,16 @@ def error_catcher(func):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
+                # Capture the exception info before doing anything else
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                
                 log(f"Error in {func.__name__}: {e}", start_color=Ansi.LRED, level=logging.ERROR, extra={
                     "error": f"{e}",
-                    })
+                    "original_traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
+                    "exception_location": traceback.extract_tb(exc_traceback)[-1],  # Last frame is where exception occurred
+                    "function_name": func.__name__,
+                    "function_module": func.__module__
+                })
                 pass
     else:
         @functools.wraps(func)
@@ -581,8 +588,15 @@ def error_catcher(func):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
+                # Capture the exception info before doing anything else
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                
                 log(f"Error in {func.__name__}: {e}", start_color=Ansi.LRED, level=logging.ERROR, extra={
                     "error": f"{e}",
-                    })
+                    "original_traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
+                    "exception_location": traceback.extract_tb(exc_traceback)[-1],  # Last frame is where exception occurred
+                    "function_name": func.__name__,
+                    "function_module": func.__module__
+                })
                 pass
     return wrapper

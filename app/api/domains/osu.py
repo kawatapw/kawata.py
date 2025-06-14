@@ -2568,6 +2568,7 @@ async def checkAerisUpdates(
 		"SmartThreadPool.dll", #
         "WindowsInput.dll"
 	]
+    files_to_exclude = []
     args = {}
 
     for key, _ in request.query_params.items():
@@ -2661,6 +2662,15 @@ async def checkAerisUpdates(
             log(f"Error in Aeris Updater Put Action: {e}", level=logLevel.ERROR)
             return Response(json.dumps({"response": f"Error: {e}"}))
 
+    if args["stream"].lower() == "dev":
+        neededFiles += [
+            "osu!.deps.json", "osu!.runtimeconfig.json", 
+            "osu!.Game.dll", "osu!.dll", "osu!.Resources.dll"
+            ]
+        files_to_exclude += [
+            "SmartThreadPool.dll", "osu.dll", "OpenTK.dll", "DiscordRPC.dll", "Newtonsoft.Json.dll", "WindowsInput.dll"
+        ]
+        neededFiles = [file for file in neededFiles if file not in files_to_exclude]
     #if args["stream"].lower() == "cuttingedge":
     #    args["stream"] = "stable40"
 
