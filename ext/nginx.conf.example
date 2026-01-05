@@ -8,6 +8,13 @@ upstream bancho {
     # server unix:/tmp/bancho.sock fail_timeout=0;
 }
 
+# CORS map: allow root domain and optional `web.` subdomain by echoing
+# the incoming Origin only when it matches. Uses ${DOMAIN} placeholder.
+map $http_origin $cors_allow_origin {
+	default "";
+	~^https?://(web\.)?${DOMAIN}$ $http_origin;
+}
+
 server {
 	listen 80;
 	listen 443 ssl;
@@ -63,7 +70,21 @@ server {
 	error_log /srv/root/.data/logs/nginx/error/api.${DOMAIN}.log;
 
 	location / {
-		add_header 'Access-Control-Allow-Origin' 'https://${DOMAIN}' always;
+		# Use $cors_allow_origin (defined in the http scope via `map`) so
+		# allowed origins are echoed back when they match the root domain
+		# or the `web.` subdomain.
+		add_header 'Access-Control-Allow-Origin' $cors_allow_origin always;
+		add_header 'Access-Control-Allow-Credentials' 'true' always;
+		add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+		add_header 'Access-Control-Allow-Headers' 'Authorization,Content-Type,Accept' always;
+
+		# Reply to preflight OPTIONS requests early.
+		if ($request_method = 'OPTIONS') {
+			add_header 'Access-Control-Max-Age' 1728000;
+			add_header 'Content-Type' 'text/plain; charset=UTF-8';
+			add_header 'Content-Length' 0;
+			return 204;
+		}
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_set_header X-Real-IP  $remote_addr;
 		proxy_set_header Host $http_host;
