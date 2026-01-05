@@ -2540,7 +2540,7 @@ async def difficultyRatingHandler(request: Request) -> Response:
 @error_catcher
 async def checkAerisUpdates(
     request: Request,
-    action: Literal["check", "path", "error", "get-manifest", "request-put", "put"] = None,
+    action: Literal["check", "path", "error", "get-manifest"] = None, # "request-put", "put"
     stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] = None,
     fileinfo:  str   = None,
     buildname: str   = None,
@@ -2597,70 +2597,70 @@ async def checkAerisUpdates(
             log(f"Error in Aeris Updater Get-Manifest Action: {e}", level=logLevel.ERROR)
             return Response(json.dumps({"error": str(e)}))
 
-    elif action == "request-put":
-        try:
-            # Parse the incoming file info
-            new_file = json.loads(fileinfo)
-
-            # Check if we have a previous version to create patch from
-            current_file = get_current_file_version(stream, new_file["filename"])
-            if current_file:
-                if "build_name" not in current_file:
-                    current_file["build_name"] = ""
-                return Response(json.dumps({
-                    "response": "patch",
-                    "filename": current_file["filename"],
-                    "file_hash": current_file["file_hash"],
-                    "build_name": current_file["build_name"],
-                    "url_full": f"https://storage.kawata.pw/get/updater/{stream}/zip/{current_file['file_hash']}.zip"
-                }))
-
-            return Response(json.dumps({"response": "ok"}))
-        except Exception as e:
-            log(f"Error in Aeris Updater Request-Put Action: {e}", level=logLevel.ERROR)
-            return Response(json.dumps({"response": f"Error: {e}"}))
-    
-    elif action == "put":
-        try:
-            # Handle file upload
-            file_data = json.loads(fileinfo)
-            file_type = request.query_params.get("type", "full")
-            
-            if file_type == "patch":
-                base_path = f".data/storage/updater/{stream}/patches"
-                url_base = f"https://storage.kawata.pw/get/updater/{stream}/patches"
-            else:
-                base_path = f".data/storage/updater/{stream}"
-                url_base = f"https://storage.kawata.pw/get/updater/{stream}"
-            #upload_path = f".data/storage/updater/{stream}/{file_data['filename']}"
-            os.makedirs(base_path, exist_ok=True)
-            if file_type == "patch":
-                # Patches use hash as filename
-                file_path = f"{base_path}/{file_data['file_hash']}"
-            else:
-                # Full files keep original name
-                file_path = f"{base_path}/{file_data['filename']}"
-
-            # Save uploaded file
-            with open(file_path, "wb") as f:
-                f.write(await ufile.read())
-                log(f"[Aeris Updater Upload] {file_data['build_name']} | {file_data['filename']}", extra={})
-            
-            if file_type == "patch":
-                file_data["url_patch"] = f"{url_base}/{file_data['file_hash']}"
-            else:
-                file_data["url_full"] = f"{url_base}/{file_data['file_hash']}"
-                zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], file_data["file_hash"]), mode='w')
-                file = ".data/storage/updater/{}/{}".format(args["stream"], file_data['filename'])
-                zf.write(file, arcname=file_data['filename'])
-
-            # Update version database
-            update_file_version(stream, file_data, file_data['build_name'], request)
-
-            return Response(json.dumps({"response": "ok"}))
-        except Exception as e:
-            log(f"Error in Aeris Updater Put Action: {e}", level=logLevel.ERROR)
-            return Response(json.dumps({"response": f"Error: {e}"}))
+#    elif action == "request-put":
+#        try:
+#            # Parse the incoming file info
+#            new_file = json.loads(fileinfo)
+#
+#            # Check if we have a previous version to create patch from
+#            current_file = get_current_file_version(stream, new_file["filename"])
+#            if current_file:
+#                if "build_name" not in current_file:
+#                    current_file["build_name"] = ""
+#                return Response(json.dumps({
+#                    "response": "patch",
+#                    "filename": current_file["filename"],
+#                    "file_hash": current_file["file_hash"],
+#                    "build_name": current_file["build_name"],
+#                    "url_full": f"https://storage.kawata.pw/get/updater/{stream}/zip/{current_file['file_hash']}.zip"
+#                }))
+#
+#            return Response(json.dumps({"response": "ok"}))
+#        except Exception as e:
+#            log(f"Error in Aeris Updater Request-Put Action: {e}", level=logLevel.ERROR)
+#            return Response(json.dumps({"response": f"Error: {e}"}))
+#
+#    elif action == "put":
+#        try:
+#            # Handle file upload
+#            file_data = json.loads(fileinfo)
+#            file_type = request.query_params.get("type", "full")
+#
+#            if file_type == "patch":
+#                base_path = f".data/storage/updater/{stream}/patches"
+#                url_base = f"https://storage.kawata.pw/get/updater/{stream}/patches"
+#            else:
+#                base_path = f".data/storage/updater/{stream}"
+#                url_base = f"https://storage.kawata.pw/get/updater/{stream}"
+#            #upload_path = f".data/storage/updater/{stream}/{file_data['filename']}"
+#            os.makedirs(base_path, exist_ok=True)
+#            if file_type == "patch":
+#                # Patches use hash as filename
+#                file_path = f"{base_path}/{file_data['file_hash']}"
+#            else:
+#                # Full files keep original name
+#                file_path = f"{base_path}/{file_data['filename']}"
+#
+#            # Save uploaded file
+#            with open(file_path, "wb") as f:
+#                f.write(await ufile.read())
+#                log(f"[Aeris Updater Upload] {file_data['build_name']} | {file_data['filename']}", extra={})
+#
+#            if file_type == "patch":
+#                file_data["url_patch"] = f"{url_base}/{file_data['file_hash']}"
+#            else:
+#                file_data["url_full"] = f"{url_base}/{file_data['file_hash']}"
+#                zf = zipfile.ZipFile(".data/storage/updater/{}/zip/{}.zip".format(args["stream"], file_data["file_hash"]), mode='w')
+#                file = ".data/storage/updater/{}/{}".format(args["stream"], file_data['filename'])
+#                zf.write(file, arcname=file_data['filename'])
+#
+#            # Update version database
+#            update_file_version(stream, file_data, file_data['build_name'], request)
+#
+#            return Response(json.dumps({"response": "ok"}))
+#        except Exception as e:
+#            log(f"Error in Aeris Updater Put Action: {e}", level=logLevel.ERROR)
+#            return Response(json.dumps({"response": f"Error: {e}"}))
 
     if args["stream"].lower() == "dev":
         neededFiles += [
