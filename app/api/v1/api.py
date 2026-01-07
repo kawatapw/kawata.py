@@ -209,7 +209,7 @@ async def api_get_player_count() -> Response:
 @error_catcher
 async def api_get_player_info(
     scope: Literal["stats", "info", "all"],
-    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ) -> Response:
     """Return information about a given player."""
@@ -303,7 +303,7 @@ async def api_get_player_info(
 @router.get("/get_player_status")
 @error_catcher
 async def api_get_player_status(
-    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ) -> Response:
     """Return a players current status, if they are online."""
@@ -374,7 +374,7 @@ async def api_get_player_status(
 @error_catcher
 async def api_get_player_scores(
     scope: Literal["recent", "best"],
-    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
     mods_arg: str | None = Query(None, alias="mods"),
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
@@ -532,7 +532,7 @@ async def api_get_player_scores(
 @router.get("/get_player_most_played")
 @error_catcher
 async def api_get_player_most_played(
-    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
     limit: int = Query(25, ge=1, le=100),
@@ -1158,7 +1158,7 @@ async def api_get_pool(
 @error_catcher
 async def api_get_friends(
     scope: Literal["friends", "mutuals", "all"],
-    user_id: int | None = Query(None, alias="id", ge=3, le=2_147_483_647),
+    user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ):
     """Returns Relaionships of a given user."""
