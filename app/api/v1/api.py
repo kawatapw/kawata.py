@@ -720,6 +720,13 @@ async def api_get_map_scores(
     params["limit"] = limit
 
     rows = await app.state.services.database.fetch_all(" ".join(query), params)
+    
+    
+    # Add mods_readable to each score
+    for row in rows:
+        mods = Mods(row["mods"])
+        mods_readable = app.constants.mods.get_mods_string(mods)
+        row["mods_readable"] = mods_readable
 
     return ORJSONResponse(
         {
