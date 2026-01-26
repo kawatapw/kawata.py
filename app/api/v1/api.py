@@ -761,6 +761,9 @@ async def api_get_score_info(
             {"status": "Score not found."},
             status_code=status.HTTP_404_NOT_FOUND,
         )
+    mods = Mods(score["mods"])
+    mods_readable = app.constants.mods.get_mods_string(mods)
+    score["mods_readable"] = mods_readable
     if b == 1:
         beatmap_info = await Beatmap.from_md5(score["map_md5"])  # Access md5 as a key in the score dictionary
         return ORJSONResponse({"status": "success", "score": score, "beatmap_info": beatmap_info.as_dict})

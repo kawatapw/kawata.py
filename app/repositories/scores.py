@@ -102,6 +102,7 @@ class Score(TypedDict):
     acc: float
     max_combo: int
     mods: int
+    mods_readable: Optional[str]
     n300: int
     n100: int
     n50: int
