@@ -19,6 +19,25 @@ router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
 
 
+def _enrich_with_status(user_row: dict) -> dict:
+    """Add is_online + player_status to a user dict by checking in-memory sessions."""
+    player = app.state.sessions.players.get(id=user_row["id"])
+    if player and player.is_online:
+        user_row["is_online"] = True
+        user_row["player_status"] = {
+            "action": player.status.action.value,
+            "action_name": player.status.action.name,
+            "info_text": player.status.info_text,
+            "mode": player.status.mode.value,
+            "mods": int(player.status.mods),
+            "map_id": player.status.map_id,
+        }
+    else:
+        user_row["is_online"] = False
+        user_row["player_status"] = None
+    return user_row
+
+
 @router.get("/get_friends_detailed")
 @error_catcher
 async def api_get_friends_detailed(
@@ -51,7 +70,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["mutuals"] = [dict(row) for row in rows]
+        result["mutuals"] = [_enrich_with_status(dict(row)) for row in rows]
 
     if scope in ("followers", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -67,7 +86,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["followers"] = [dict(row) for row in rows]
+        result["followers"] = [_enrich_with_status(dict(row)) for row in rows]
 
     if scope in ("blocked", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -80,10 +99,38 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["blocked"] = [dict(row) for row in rows]
+        result["blocked"] = [_enrich_with_status(dict(row)) for row in rows]
 
     result["status"] = "success"
     return ORJSONResponse(result)
+
+
+@router.get("/get_friends_status")
+@error_catcher
+async def api_get_friends_status(
+    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
+):
+    """Lightweight polling endpoint: returns only online status for a user's friends."""
+    friend_rows = await app.state.services.database.fetch_all(
+        "SELECT user2 FROM relationships WHERE user1 = :uid AND type = 'friend'",
+        {"uid": user_id},
+    )
+
+    online = {}
+    for row in friend_rows:
+        fid = row["user2"]
+        player = app.state.sessions.players.get(id=fid)
+        if player and player.is_online:
+            online[str(fid)] = {
+                "action": player.status.action.value,
+                "action_name": player.status.action.name,
+                "info_text": player.status.info_text,
+                "mode": player.status.mode.value,
+                "mods": int(player.status.mods),
+                "map_id": player.status.map_id,
+            }
+
+    return ORJSONResponse({"status": "success", "online": online})
 
 
 @router.post("/set_relationship")
