@@ -475,3 +475,155 @@ create index users_country_index
 # v5.2.2
 create index scores_fetch_leaderboard_generic_index
 	on scores (map_md5, status, mode);
+
+# v5.2.3
+-- Add new tables for manual database changes
+
+-- Create changelog table
+CREATE TABLE changelog (
+    id int(64) NOT NULL AUTO_INCREMENT,
+    type int(16) NOT NULL DEFAULT 0 COMMENT 'Change Type, Determines if change is for Frontend, Backend, or Client .',
+    poster int(32) NOT NULL COMMENT 'ID of User that posted/made this change.',
+    category varchar(256) DEFAULT NULL,
+    content varchar(4096) NOT NULL,
+    time datetime NOT NULL,
+    version varchar(64) DEFAULT NULL COMMENT 'Only needed for Client Changelog',
+    PRIMARY KEY (id),
+    KEY type (type),
+    KEY poster (poster),
+    KEY category (category),
+    KEY version (version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores changelogs for Server and Client';
+
+-- Create newly_ranked table
+CREATE TABLE newly_ranked (
+    map_id int(64) NOT NULL,
+    mod_id int(16) NOT NULL,
+    time datetime NOT NULL,
+    UNIQUE KEY map_id (map_id),
+    KEY mod_id (mod_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Create privileges_groups table
+CREATE TABLE privileges_groups (
+    id int(11) NOT NULL AUTO_INCREMENT,
+    name varchar(256) NOT NULL,
+    privileges bigint(32) NOT NULL,
+    color varchar(32) NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- Create scoreinfo table
+CREATE TABLE scoreinfo (
+    scoreid bigint(20) UNSIGNED NOT NULL,
+    pinned tinyint(1) NOT NULL DEFAULT 0,
+    cheat_values varchar(1024) DEFAULT NULL,
+    KEY scoreid (scoreid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Create server_data table
+CREATE TABLE server_data (
+    type varchar(256) NOT NULL,
+    value varchar(4096) DEFAULT NULL,
+    UNIQUE KEY type (type),
+    KEY value (value(768))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores Data for the server, example would be notice.';
+
+-- Create wiped_scores table
+CREATE TABLE wiped_scores (
+    id bigint(20) UNSIGNED NOT NULL,
+    map_md5 char(32) NOT NULL,
+    score int(11) NOT NULL,
+    pp float(8,3) NOT NULL,
+    acc float(6,3) NOT NULL,
+    max_combo int(11) NOT NULL,
+    mods int(11) NOT NULL,
+    n300 int(11) NOT NULL,
+    n100 int(11) NOT NULL,
+    n50 int(11) NOT NULL,
+    nmiss int(11) NOT NULL,
+    ngeki int(11) NOT NULL,
+    nkatu int(11) NOT NULL,
+    grade varchar(2) NOT NULL DEFAULT 'N',
+    status tinyint(4) NOT NULL,
+    mode tinyint(4) NOT NULL,
+    play_time datetime NOT NULL,
+    time_elapsed int(11) NOT NULL,
+    client_flags int(11) NOT NULL,
+    userid int(11) NOT NULL,
+    perfect tinyint(1) NOT NULL,
+    online_checksum char(32) NOT NULL,
+    r_replay_id int(11) NOT NULL,
+    PRIMARY KEY (id),
+    KEY scores_idx_map_md5_status_mode_userid (map_md5,status,mode,userid),
+    KEY scores_idx_map_md5_mode_userid (map_md5,mode,userid),
+    KEY scores_idx_userid_mode_status_map_md_pp (userid,mode,status,map_md5,pp),
+    KEY idx_scores_userid_mode_grade (userid,mode,grade),
+    KEY scores_userid_status_mode_md5_score_idx (userid,status,mode,map_md5,score),
+    KEY scores_idx_mode_status (mode,status),
+    KEY scores_idx_map_md5_score (map_md5,score)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+-- Create users_ordr table
+CREATE TABLE users_ordr (
+    userid int(11) NOT NULL,
+    skin varchar(256) NOT NULL DEFAULT 'loki_s_ultimatum_v5_fix',
+    PRIMARY KEY (userid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Create user_customisations table
+CREATE TABLE user_customisations (
+    userid int(32) NOT NULL,
+    hue int(3) NOT NULL DEFAULT 180,
+    has_banner tinyint(1) NOT NULL DEFAULT 0,
+    has_background tinyint(1) NOT NULL DEFAULT 0,
+    UNIQUE KEY userid (userid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Modify logs table
+ALTER TABLE logs
+DROP PRIMARY KEY,
+CHANGE COLUMN id id varchar(64) NOT NULL,
+CHANGE COLUMN `from` mod int(16) NOT NULL COMMENT 'if type = 0, ''from'' = player && ''to'' = player\r\nif type = 1, ''from'' = player && ''to'' = map',
+CHANGE COLUMN `to` target int(16) NOT NULL,
+CHANGE COLUMN msg reason varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+ADD COLUMN type tinyint(1) NOT NULL DEFAULT 0,
+ADD PRIMARY KEY (id),
+ADD KEY type (type);
+
+-- Modify clans table
+ALTER TABLE clans
+ADD COLUMN description varchar(1024) NOT NULL,
+ADD COLUMN icon varchar(1024) NOT NULL;
+
+-- Modify users table
+ALTER TABLE users
+CHANGE COLUMN priv priv bigint(20) DEFAULT 1,
+CHANGE COLUMN custom_badge_name custom_badge_name varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+CHANGE COLUMN userpage_content userpage_content mediumtext DEFAULT NULL;
+
+-- Modify scores table
+ALTER TABLE scores
+ADD COLUMN r_replay_id int(11) NOT NULL,
+CHANGE COLUMN pp pp float(8,3) NOT NULL;
+
+-- Add indexes to scores table
+ALTER TABLE scores
+ADD INDEX scores_idx_map_md5_status_mode_userid (map_md5,status,mode,userid),
+ADD INDEX scores_idx_map_md5_mode_userid (map_md5,mode,userid),
+ADD INDEX scores_idx_userid_mode_status_map_md_pp (userid,mode,status,map_md5,pp),
+ADD INDEX idx_scores_userid_mode_grade (userid,mode,grade),
+ADD INDEX scores_userid_status_mode_md5_score_idx (userid,status,mode,map_md5,score),
+ADD INDEX scores_idx_mode_status (mode,status),
+ADD INDEX scores_idx_map_md5_score (map_md5,score),
+ADD INDEX scores_fetch_leaderboard_generic_index (map_md5,status,mode);
+
+-- Add foreign keys
+ALTER TABLE scoreinfo
+ADD CONSTRAINT scoreinfo_ibfk_1 FOREIGN KEY (scoreid) REFERENCES scores (id) ON DELETE CASCADE;
+
+ALTER TABLE users_ordr
+ADD CONSTRAINT fk_users_ordr FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE;
+
+ALTER TABLE user_customisations
+ADD CONSTRAINT FK_user_customizations FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE;
