@@ -201,3 +201,183 @@ async def api_set_relationship(
             p.blocks.discard(target_id)
 
     return ORJSONResponse({"status": "success"})
+
+
+@router.get("/get_friends_leaderboard")
+@error_catcher
+async def api_get_friends_leaderboard(
+    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
+    mode: int = Query(0, ge=0, le=3),
+):
+    """Returns mutual friends + self ranked by PP for a given game mode."""
+    # Get mutual friend IDs (bidirectional)
+    mutual_rows = await app.state.services.database.fetch_all(
+        "SELECT r1.user2 AS id "
+        "FROM relationships r1 "
+        "INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2 "
+        "WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'",
+        {"user_id": user_id},
+    )
+
+    # Build ID list: mutual friends + requesting user
+    ids = [row["id"] for row in mutual_rows]
+    ids.append(user_id)
+    ids = list(set(ids))
+
+    if not ids:
+        return ORJSONResponse({"status": "success", "leaderboard": []})
+
+    # Build dynamic placeholders for IN clause
+    placeholders = ",".join(f":id_{i}" for i in range(len(ids)))
+    params = {f"id_{i}": uid for i, uid in enumerate(ids)}
+    params["mode"] = mode
+
+    rows = await app.state.services.database.fetch_all(
+        "SELECT s.id, u.name, u.country, u.priv, "
+        "c.tag AS clan_tag, "
+        "s.pp, s.acc, s.plays "
+        "FROM stats s "
+        "INNER JOIN users u ON u.id = s.id "
+        "LEFT JOIN clans c ON u.clan_id = c.id "
+        f"WHERE s.id IN ({placeholders}) "
+        "AND s.mode = :mode AND u.priv & 1 "
+        "ORDER BY s.pp DESC "
+        "LIMIT 50",
+        params,
+    )
+
+    leaderboard = []
+    for i, row in enumerate(rows):
+        entry = dict(row)
+        entry["rank"] = i + 1
+
+        # Get global rank from Redis
+        global_rank = await app.state.services.redis.zrevrank(
+            f"bancho:leaderboard:{mode}",
+            str(entry["id"]),
+        )
+        entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
+
+        entry["is_online"] = False
+        player = app.state.sessions.players.get(id=entry["id"])
+        if player and player.is_online:
+            entry["is_online"] = True
+
+        # Round accuracy
+        entry["acc"] = round(entry["acc"], 2)
+
+        leaderboard.append(entry)
+
+    # Add PP delta between consecutive ranks
+    for i, entry in enumerate(leaderboard):
+        if i == 0:
+            if len(leaderboard) > 1:
+                entry["pp_delta"] = {
+                    "value": round(entry["pp"] - leaderboard[1]["pp"]),
+                    "type": "lead",
+                }
+            else:
+                entry["pp_delta"] = None
+        else:
+            delta = round(leaderboard[i - 1]["pp"] - entry["pp"])
+            entry["pp_delta"] = {
+                "value": delta,
+                "type": "tie" if delta == 0 else "chase",
+            }
+
+    return ORJSONResponse({"status": "success", "leaderboard": leaderboard})
+
+
+async def _get_player_stats(uid: int, mode: int) -> dict | None:
+    """Fetch a single player's stats for a given mode."""
+    row = await app.state.services.database.fetch_one(
+        "SELECT s.id, u.name, u.country, "
+        "c.tag AS clan_tag, "
+        "s.pp, s.acc, s.plays, s.max_combo, "
+        "s.xh_count, s.x_count, s.sh_count, s.s_count, s.a_count "
+        "FROM stats s "
+        "INNER JOIN users u ON u.id = s.id "
+        "LEFT JOIN clans c ON u.clan_id = c.id "
+        "WHERE s.id = :uid AND s.mode = :mode AND u.priv & 1",
+        {"uid": uid, "mode": mode},
+    )
+
+    if row:
+        entry = dict(row)
+        entry["has_stats"] = entry["pp"] > 0
+    else:
+        # User exists but no stats for this mode — return zeroes
+        user_row = await app.state.services.database.fetch_one(
+            "SELECT id, name, country FROM users WHERE id = :uid AND priv & 1",
+            {"uid": uid},
+        )
+        if not user_row:
+            return None
+        entry = {
+            "id": user_row["id"],
+            "name": user_row["name"],
+            "country": user_row["country"],
+            "clan_tag": None,
+            "pp": 0,
+            "acc": 0.0,
+            "plays": 0,
+            "max_combo": 0,
+            "xh_count": 0,
+            "x_count": 0,
+            "sh_count": 0,
+            "s_count": 0,
+            "a_count": 0,
+            "has_stats": False,
+        }
+
+    # Global rank from Redis
+    global_rank = await app.state.services.redis.zrevrank(
+        f"bancho:leaderboard:{mode}",
+        str(entry["id"]),
+    )
+    entry["rank"] = (global_rank + 1) if global_rank is not None else 0
+    entry["acc"] = round(entry.get("acc", 0), 2)
+
+    return entry
+
+
+@router.get("/compare_stats")
+@error_catcher
+async def api_compare_stats(
+    users: str = Query(...),
+    mode: int = Query(0, ge=0, le=3),
+):
+    """Returns stats comparison for 2-4 players."""
+    try:
+        user_ids = [int(x.strip()) for x in users.split(",")]
+    except ValueError:
+        return ORJSONResponse(
+            {"status": "Invalid user IDs."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(user_ids) < 2 or len(user_ids) > 4:
+        return ORJSONResponse(
+            {"status": "Provide 2-4 user IDs."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Deduplicate while preserving order
+    seen: set[int] = set()
+    unique_ids: list[int] = []
+    for uid in user_ids:
+        if uid not in seen:
+            seen.add(uid)
+            unique_ids.append(uid)
+
+    players = []
+    for uid in unique_ids:
+        p = await _get_player_stats(uid, mode)
+        if p is None:
+            return ORJSONResponse(
+                {"status": "Player not found."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        players.append(p)
+
+    return ORJSONResponse({"status": "success", "players": players})
