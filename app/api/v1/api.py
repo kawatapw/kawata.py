@@ -1198,7 +1198,7 @@ async def api_get_friends(
             {"user_id": resolved_user_id}
         )
 
-        friends = [friends[0] for friend in friends]
+        friends = [row["user2"] for row in friends]
         return ORJSONResponse({"status": "success", "friends": friends})
 
     elif scope == "mutuals":
@@ -1211,7 +1211,7 @@ async def api_get_friends(
             """,
             {"user_id": resolved_user_id})
 
-        mutuals = [mutual[0] for mutual in mutuals]
+        mutuals = [row["user2"] for row in mutuals]
         return ORJSONResponse({"status": "success", "mutuals": mutuals})
 
     elif scope == "all":
@@ -1221,7 +1221,7 @@ async def api_get_friends(
             """,
             {"user_id": resolved_user_id}
         )
-        friends = [friend[0] for friend in friends]
+        friends = [row["user2"] for row in friends]
 
         mutuals = await app.state.services.database.fetch_all("""
             SELECT r1.user2
@@ -1231,7 +1231,7 @@ async def api_get_friends(
             """,
             {"user_id": resolved_user_id})
 
-        mutuals = [mutual[0] for mutual in mutuals]
+        mutuals = [row["user2"] for row in mutuals]
         return ORJSONResponse({"status": "success", "friends": friends, "mutuals": mutuals})
 
 
