@@ -288,6 +288,65 @@ async def api_get_friends_leaderboard(
     return ORJSONResponse({"status": "success", "leaderboard": leaderboard})
 
 
+@router.get("/get_player_quick_stats")
+@error_catcher
+async def api_get_player_quick_stats(
+    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
+    mode: int = Query(0, ge=0, le=3),
+):
+    """Lightweight endpoint returning extra stats + top play for one player."""
+    # Fetch stats
+    stats_row = await app.state.services.database.fetch_one(
+        "SELECT s.pp, s.acc, s.plays, s.playtime, s.max_combo, "
+        "s.tscore, s.rscore, "
+        "s.xh_count, s.x_count, s.sh_count, s.s_count, s.a_count "
+        "FROM stats s "
+        "INNER JOIN users u ON u.id = s.id "
+        "WHERE s.id = :uid AND s.mode = :mode AND u.priv & 1",
+        {"uid": user_id, "mode": mode},
+    )
+
+    if not stats_row:
+        return ORJSONResponse(
+            {"status": "Player not found."},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    stats = dict(stats_row)
+    stats["acc"] = round(stats["acc"], 2)
+
+    # Global rank from Redis
+    global_rank = await app.state.services.redis.zrevrank(
+        f"bancho:leaderboard:{mode}",
+        str(user_id),
+    )
+    stats["global_rank"] = (global_rank + 1) if global_rank is not None else 0
+
+    # Top play (single best score with map title)
+    top_row = await app.state.services.database.fetch_one(
+        "SELECT t.pp, t.acc, t.grade, t.mods, "
+        "CONCAT(b.artist, ' - ', b.title, ' [', b.version, ']') AS map_title "
+        "FROM scores t "
+        "INNER JOIN maps b ON t.map_md5 = b.md5 "
+        "WHERE t.userid = :uid AND t.mode = :mode AND t.status = 2 "
+        "AND b.status IN (2, 3) "
+        "ORDER BY t.pp DESC LIMIT 1",
+        {"uid": user_id, "mode": mode},
+    )
+
+    top_play = None
+    if top_row:
+        top = dict(top_row)
+        top["acc"] = round(top["acc"], 2)
+        top_play = top
+
+    return ORJSONResponse({
+        "status": "success",
+        "stats": stats,
+        "top_play": top_play,
+    })
+
+
 async def _get_player_stats(uid: int, mode: int) -> dict | None:
     """Fetch a single player's stats for a given mode."""
     row = await app.state.services.database.fetch_one(
