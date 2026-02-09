@@ -1297,9 +1297,11 @@ async def api_update_map_status(
             {"status": "Invalid status!"},
         )
     # Get the beatmap from the cache or database
-    bmap = app.state.cache.beatmap.get(map_id) or await maps_repo.fetch_one(id=map_id)
+    # Note: cache is keyed by md5, so lookup by map_id goes to DB
+    bmap = await maps_repo.fetch_one(id=map_id) if map_id is not None else None
     if not bmap:
-        raise HTTPException(status_code=404, detail="Beatmap not found")
+        if set_id is None:
+            raise HTTPException(status_code=404, detail="Beatmap not found")
     new_status = RankedStatus(status)
     # Update the beatmap status
     if set_id is not None:
@@ -1307,11 +1309,12 @@ async def api_update_map_status(
             # update all maps in the set
             beatmap_set = await maps_repo.fetch_many(set_id=set_id)
             for _bmap in beatmap_set:
-                await maps_repo.partial_update(_bmap.id, status=new_status, frozen=True)
+                await maps_repo.partial_update(_bmap["id"], status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change
-            for _bmap in app.state.cache.beatmapset[set_id].maps:
-                _bmap.status = new_status
-                _bmap.frozen = True
+            if set_id in app.state.cache.beatmapset:
+                for _bmap in app.state.cache.beatmapset[set_id].maps:
+                    _bmap.status = new_status
+                    _bmap.frozen = True
             # select all map ids for clearing map requests.
             map_ids = [row["id"] for row in beatmap_set]
         except Exception as e:
@@ -1323,9 +1326,10 @@ async def api_update_map_status(
             # update only map
             await maps_repo.partial_update(map_id, status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change
-            if bmap.md5 in app.state.cache.beatmap:
-                app.state.cache.beatmap[bmap.md5].status = new_status
-                app.state.cache.beatmap[bmap.md5].frozen = True
+            bmap_md5 = bmap["md5"] if bmap else None
+            if bmap_md5 and bmap_md5 in app.state.cache.beatmap:
+                app.state.cache.beatmap[bmap_md5].status = new_status
+                app.state.cache.beatmap[bmap_md5].frozen = True
             map_ids = [map_id]
         except Exception as e:
             return ORJSONResponse(
