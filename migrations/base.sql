@@ -674,3 +674,53 @@ insert into achievements (id, file, name, `desc`, cond) values (80, 'all-intro-n
 insert into achievements (id, file, name, `desc`, cond) values (81, 'all-intro-nightcore', 'Sweet Rave Party', 'Founded in the fine tradition of changing things that were just fine as they were.', 'score.mods & 512');
 insert into achievements (id, file, name, `desc`, cond) values (82, 'all-intro-halftime', 'Slowboat', 'You got there. Eventually.', 'score.mods & 256');
 insert into achievements (id, file, name, `desc`, cond) values (83, 'all-intro-spunout', 'Burned Out', 'One cannot always spin to win.', 'score.mods & 4096');
+
+-- hinaDir Admin V2 tables
+
+create table admin_v2_logs
+(
+    id          int auto_increment primary key,
+    from_id     int not null comment 'moderator user id',
+    to_id       int not null comment 'target user or map id',
+    action      varchar(32) not null,
+    msg         varchar(2048) charset utf8mb3 default null,
+    created_at  datetime not null default current_timestamp,
+    action_type tinyint not null default 0 comment '0=user, 1=map, 2=badge',
+    key idx_av2logs_action (action),
+    key idx_av2logs_to_id (to_id),
+    key idx_av2logs_from_id (from_id),
+    key idx_av2logs_created (created_at),
+    key idx_av2logs_type_created (action_type, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+create table beatmap_work_items
+(
+    id            int auto_increment primary key,
+    set_id        int not null,
+    request_id    int default null,
+    review_state  varchar(16) not null default 'pending',
+    assigned_to   int default null,
+    assigned_at   datetime default null,
+    created_at    datetime not null default current_timestamp,
+    updated_at    datetime not null default current_timestamp on update current_timestamp,
+    resolved_at   datetime default null,
+    resolution    varchar(32) default null,
+    checklist     json default null,
+    priority      tinyint not null default 0,
+    key idx_bwi_set_id (set_id),
+    key idx_bwi_review_state (review_state),
+    key idx_bwi_assigned (assigned_to),
+    key idx_bwi_created (created_at),
+    key idx_bwi_state_priority (review_state, priority, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+create table beatmap_review_comments
+(
+    id            int auto_increment primary key,
+    work_item_id  int not null,
+    user_id       int not null,
+    body          text not null,
+    created_at    datetime not null default current_timestamp,
+    key idx_brc_work_item (work_item_id),
+    key idx_brc_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
