@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import struct
 import orjson
@@ -155,6 +156,117 @@ async def api_calculate_pp(
             else final_results[0]
         ),
         status_code=status.HTTP_200_OK,  # a list via the acclist parameter or a single score via n100 and n50
+    )
+
+
+@router.get("/calculate_pp_batch")
+@error_catcher
+async def api_calculate_pp_batch(
+    token: HTTPCredentials = Depends(oauth2_scheme),
+    beatmap_ids: list[int] = Query([], alias="id"),
+    mods: int = Query(0, min=0, max=2_147_483_647),
+    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
+) -> Response:
+    """Calculate PP for multiple beatmap diffs in a single request.
+
+    Each diff auto-detects its game mode from the database.
+    Returns results keyed by beatmap ID.
+    """
+
+    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+        return ORJSONResponse(
+            {"status": "Invalid API key."},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if len(beatmap_ids) == 0:
+        return ORJSONResponse(
+            {"status": "error", "message": "No beatmap IDs provided."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Cap to 20 diffs per request
+    beatmap_ids = beatmap_ids[:20]
+
+    # Fetch map metadata directly from DB (avoids osu! API race conditions)
+    placeholders = ", ".join(
+        [f":id_{i}" for i in range(len(beatmap_ids))]
+    )
+    params = {f"id_{i}": bid for i, bid in enumerate(beatmap_ids)}
+    rows = await app.state.services.database.fetch_all(
+        f"SELECT id, md5, mode FROM maps WHERE id IN ({placeholders})",
+        params,
+    )
+
+    # Build lookup: beatmap_id -> {md5, mode}
+    db_maps: dict[int, dict] = {}
+    for row in rows:
+        db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
+
+    # Ensure .osu files are available in parallel
+    maps_to_check = [
+        (bid, db_maps[bid]) for bid in beatmap_ids if bid in db_maps
+    ]
+    if maps_to_check:
+        osu_results = await asyncio.gather(
+            *[
+                ensure_osu_file_is_available(bid, expected_md5=m["md5"])
+                for bid, m in maps_to_check
+            ],
+        )
+        file_ok_map = {
+            bid: ok for (bid, _), ok in zip(maps_to_check, osu_results)
+        }
+    else:
+        file_ok_map = {}
+
+    results: dict[str, dict] = {}
+
+    for bid in beatmap_ids:
+        if bid not in db_maps:
+            results[str(bid)] = {"error": "Beatmap not found."}
+            continue
+
+        if not file_ok_map.get(bid, False):
+            results[str(bid)] = {"error": "Beatmap file could not be fetched."}
+            continue
+
+        bmap_info = db_maps[bid]
+        vanilla_mode = GameMode(bmap_info["mode"]).as_vanilla
+
+        scores = [
+            ScoreParams(vanilla_mode, mods, acc=acc)
+            for acc in acclist
+        ]
+
+        try:
+            perf_results = app.usecases.performance.calculate_performances(
+                str(BEATMAPS_PATH / f"{bid}.osu"),
+                scores,
+            )
+        except Exception:
+            results[str(bid)] = {"error": "PP calculation failed."}
+            continue
+
+        pp_values = []
+        for perf, score in zip(perf_results, scores):
+            pp_values.append({
+                "accuracy": score.acc,
+                "pp": perf["performance"]["pp"],
+                "pp_aim": perf["performance"].get("pp_aim", 0),
+                "pp_speed": perf["performance"].get("pp_speed", 0),
+                "pp_flashlight": perf["performance"].get("pp_flashlight", 0),
+                "pp_acc": perf["performance"].get("pp_acc", 0),
+            })
+
+        results[str(bid)] = {
+            "pp_values": pp_values,
+            "difficulty": perf_results[0]["difficulty"] if perf_results else {},
+        }
+
+    return ORJSONResponse(
+        {"status": "success", "results": results},
+        status_code=status.HTTP_200_OK,
     )
 
 

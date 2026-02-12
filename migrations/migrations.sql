@@ -584,7 +584,7 @@ CREATE TABLE user_customisations (
 ALTER TABLE logs
 DROP PRIMARY KEY,
 CHANGE COLUMN id id varchar(64) NOT NULL,
-CHANGE COLUMN `from` mod int(16) NOT NULL COMMENT 'if type = 0, ''from'' = player && ''to'' = player\r\nif type = 1, ''from'' = player && ''to'' = map',
+CHANGE COLUMN `from` `mod` int(16) NOT NULL COMMENT 'if type = 0, ''from'' = player && ''to'' = player\r\nif type = 1, ''from'' = player && ''to'' = map',
 CHANGE COLUMN `to` target int(16) NOT NULL,
 CHANGE COLUMN msg reason varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
 ADD COLUMN type tinyint(1) NOT NULL DEFAULT 0,
