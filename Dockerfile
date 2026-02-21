@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /srv/root
 
 RUN apt update && apt install --no-install-recommends -y \
-    nginx git curl build-essential=12.12 \
+    nginx git curl build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml poetry.lock ./
