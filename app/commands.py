@@ -1056,7 +1056,7 @@ async def recalc(ctx: Context) -> str | None:
     """Recalculate pp for a given map, or all maps."""
     return (
         "Please use tools/recalc.py instead.\n"
-        "If you need any support, join our Discord @ https://discord.gg/ShEQgUx."
+        f"If you need any support, join our Discord @ {app.settings.DISCORD_INVITE}"
     )
 
 

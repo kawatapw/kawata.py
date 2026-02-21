@@ -533,7 +533,7 @@ WELCOME_MSG = "\n".join(
     (
         f"Welcome to {BASE_DOMAIN}.",
         "To see a list of commands, use !help.",
-        f"We have a public (Discord)[{app.settings.DISCORD_LINK}]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_INVITE}]!",
         "Enjoy the server!",
     ),
 )
