@@ -1,4 +1,4 @@
-""" osu: handle connections from web, api, and beyond? """
+"""osu: handle connections from web, api, and beyond?"""
 
 from __future__ import annotations
 
@@ -201,7 +201,7 @@ async def osuGetBeatmapInfo(
     num_requests = len(form_data.Filenames) + len(form_data.Ids)
     log(f"{player} requested info for {num_requests} maps.", Ansi.LCYAN)
 
-    ret = []
+    response_lines: list[str] = []
 
     for idx, map_filename in enumerate(form_data.Filenames):
         # try getting the map from sql
@@ -225,7 +225,7 @@ async def osuGetBeatmapInfo(
         ):
             grades[score["mode"]] = score["grade"]
 
-        ret.append(
+        response_lines.append(
             "{i}|{id}|{set_id}|{md5}|{status}|{grades}".format(
                 i=idx,
                 id=beatmap["id"],
@@ -241,7 +241,7 @@ async def osuGetBeatmapInfo(
             f"{player} requested map(s) info by id ({form_data.Ids})",
         )
 
-    return Response("\n".join(ret).encode())
+    return Response("\n".join(response_lines).encode())
 
 
 @router.get("/web/osu-getfavourites.php")
@@ -471,15 +471,19 @@ async def osuSearchSetHandler(
     player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     map_set_id: int | None = Query(None, alias="s"),
     map_id: int | None = Query(None, alias="b"),
+    checksum: str | None = Query(None, alias="c"),
 ) -> Response:
     # Since we only need set-specific data, we can basically
     # just do same query with either bid or bsid.
 
+    v: int | str
     if map_set_id is not None:
         # this is just a normal request
         k, v = ("set_id", map_set_id)
     elif map_id is not None:
         k, v = ("id", map_id)
+    elif checksum is not None:
+        k, v = ("md5", checksum)
     else:
         return Response(b"")  # invalid args
 
@@ -1778,7 +1782,7 @@ async def getReplay(
 
     # increment replay views for this score
     if score.player is not None and player.id != score.player.id:
-        app.state.loop.create_task(score.increment_replay_views())
+        app.state.loop.create_task(score.increment_replay_views())  # type: ignore[unused-awaitable]
 
     return FileResponse(file)
 
@@ -2002,6 +2006,7 @@ async def getScores(
 
         map_filename = unquote_plus(map_filename)  # TODO: is unquote needed?
 
+        map_exists = False
         if has_set_id:
             # we can look it up in the specific set from cache
             for bmap in app.state.cache.beatmapset[map_set_id].maps:
@@ -2035,7 +2040,7 @@ async def getScores(
     # we've found a beatmap for the request.
 
     if app.state.services.datadog:
-        app.state.services.datadog.increment("bancho.leaderboards_served")
+        app.state.services.datadog.increment("bancho.leaderboards_served")  # type: ignore[no-untyped-call]
 
     if bmap.status < RankedStatus.Ranked:
         # only show leaderboards for ranked,
@@ -2277,14 +2282,6 @@ async def banchoConnect(
     return Response(b"")
 
 
-_checkupdates_cache = {  # default timeout is 1h, set on request.
-    "cuttingedge": {"check": None, "path": None, "timeout": 0},
-    "stable40": {"check": None, "path": None, "timeout": 0},
-    "beta40": {"check": None, "path": None, "timeout": 0},
-    "stable": {"check": None, "path": None, "timeout": 0},
-}
-
-
 @router.get("/web/check-updates.php")
 @error_catcher
 async def checkUpdates(
@@ -2511,7 +2508,7 @@ async def register_account(
             await stats_repo.create_all_modes(player_id=player["id"])
 
         if app.state.services.datadog:
-            app.state.services.datadog.increment("bancho.registrations")
+            app.state.services.datadog.increment("bancho.registrations")  # type: ignore[no-untyped-call]
 
         log(f"<{username} ({player['id']})> has registered!", Ansi.LGREEN)
 

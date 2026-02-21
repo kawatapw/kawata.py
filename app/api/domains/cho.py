@@ -1,4 +1,4 @@
-""" cho: handle cho packets from the osu! client """
+"""cho: handle cho packets from the osu! client"""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
-import databases.core
 from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
@@ -350,7 +349,7 @@ class ChangeAction(BasePacket):
             app.state.sessions.players.enqueue(app.packets.user_stats(player))
 
 
-IGNORED_CHANNELS = ["#highlight", "#userlog"]
+IGNORED_CHANNELS: list[str] = ["#highlight", "#userlog"]
 
 
 @register(ClientPackets.SEND_PUBLIC_MESSAGE)
@@ -547,11 +546,6 @@ RESTRICTED_MSG = (
 
 WELCOME_NOTIFICATION = app.packets.notification(
     f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
-)
-
-OFFLINE_NOTIFICATION = app.packets.notification(
-    "The server is currently running in offline mode; "
-    "some features will be unavailable.",
 )
 
 
@@ -1334,7 +1328,7 @@ async def handle_osu_login_request(
 
         player.update_latest_activity_soon()
     except Exception as e:
-        log(f"Error in final login steps", Ansi.LRED, 
+        log(f"Error in final login steps", Ansi.LRED,
             extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
         # Not critical for functionality
 
@@ -2069,7 +2063,9 @@ class MatchComplete(BasePacket):
 
         if player.match.is_scrimming:
             # determine winner, update match points & inform players.
-            asyncio.create_task(player.match.update_matchpoints(was_playing))
+            asyncio.create_task(  # type: ignore[unused-awaitable]
+                player.match.update_matchpoints(was_playing),
+            )
 
 
 @register(ClientPackets.MATCH_CHANGE_MODS)
@@ -2415,7 +2411,9 @@ class StatsRequest(BasePacket):
 
     async def handle(self, player: Player) -> None:
         unrestrcted_ids = [p.id for p in app.state.sessions.players.unrestricted]
-        is_online = lambda o: o in unrestrcted_ids and o != player.id
+
+        def is_online(o: int) -> bool:
+            return o in unrestrcted_ids and o != player.id
 
         for online in filter(is_online, self.user_ids):
             target = app.state.sessions.players.get(id=online)
