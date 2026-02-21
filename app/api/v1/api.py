@@ -157,7 +157,6 @@ async def api_calculate_pp(
 @error_catcher
 async def api_search_players(
     search: str | None = Query(None, alias="q", min=2, max=32),
-    limit: int = Query(25, alias="limit", ge=1, le=50),
 ) -> Response:
     """Search for users on the server by name."""
     rows = await app.state.services.database.fetch_all(
@@ -165,21 +164,15 @@ async def api_search_players(
         "FROM users "
         "WHERE name LIKE COALESCE(:name, name) "
         "AND priv & 3 = 3 "
-        "ORDER BY id ASC "
-        "LIMIT :limit",
-        {"name": f"%{search}%" if search is not None else None, "limit": limit},
+        "ORDER BY id ASC",
+        {"name": f"%{search}%" if search is not None else None},
     )
-    players =  []
-    for row in rows:
-        request_response = await api_get_player_info(scope='all', user_id=row['id'])
-        player_info = orjson.loads(request_response.body)
-        players.append(player_info['player'])
 
     return ORJSONResponse(
         {
             "status": "success",
-            "results": len(players),
-            "result": [dict(row) for row in players],
+            "results": len(rows),
+            "result": [dict(row) for row in rows],
         },
     )
 
