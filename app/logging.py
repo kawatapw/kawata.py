@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 import logging.config
 from logging.handlers import HTTPHandler
@@ -332,7 +333,8 @@ def log(
     logger: str = '',
     level: int = logging.INFO,
     levelow: bool = False,
-    *args
+    exc_info: bool = False,
+    *args,
 ) -> None:
     """\
     A thin wrapper around the stdlib logging module to handle mostly
@@ -410,7 +412,7 @@ def log(
         lineno=info.lineno,
         msg=f"{msg}",
         args=args or None,
-        exc_info=None,
+        exc_info=sys.exc_info() if exc_info else None,
         func=info.function
     )
     
