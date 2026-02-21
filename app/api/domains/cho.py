@@ -1173,6 +1173,8 @@ async def handle_osu_login_request(
             extra={"ip": ip, "username": login_data['username'], "error": str(e)})
         # Continue anyway, these are not critical for login
 
+    # Initialize user_data to avoid "possibly unbound" error
+    user_data = b""
     try:
         # update our new player's stats, and broadcast them.
         user_data = app.packets.user_presence(player) + app.packets.user_stats(player)
