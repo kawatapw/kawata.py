@@ -43,7 +43,7 @@ class Channel:
             self.name = "#spectator"
         elif self.real_name.startswith("#multi_"):
             self.name = "#multiplayer"
-        elif self._name.startswith("#group_"):
+        elif self.real_name.startswith("#group_"):
             self.name = "#group"
         else:
             self.name = self.real_name

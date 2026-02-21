@@ -1119,14 +1119,14 @@ async def handle_osu_login_request(
             if (
                 not channel.auto_join
                 or not channel.can_read(player.priv)
-                or channel._name == "#lobby"  # (can't be in mp lobby @ login)
+                or channel.real_name == "#lobby"  # (can't be in mp lobby @ login)
             ):
                 continue
 
             # send chan info to all players who can see
             # the channel (to update their playercounts)
             chan_info_packet = app.packets.channel_info(
-                channel._name,
+                channel.real_name,
                 channel.topic,
                 len(channel.players),
             )

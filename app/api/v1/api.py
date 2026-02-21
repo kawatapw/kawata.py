@@ -1267,7 +1267,7 @@ async def api_get_badges(
 @router.post("/update_map_status")
 @error_catcher
 async def api_update_map_status(
-    token: HTTPCredentials = Depends(oauth2_scheme),
+    token: HTTPCredentials = Depends(http_bearer_scheme),
     map_id: int = Query(None, alias="id", ge=0, le=2_147_483_647),
     set_id: int = Query(None, alias="sid", ge=0, le=2_147_483_647),
     status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
