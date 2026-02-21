@@ -1,4 +1,4 @@
-""" api: bancho.py's developer api for interacting with server state """
+"""api: bancho.py's developer api for interacting with server state"""
 
 from __future__ import annotations
 
@@ -45,11 +45,10 @@ SCREENSHOTS_PATH = SystemPath.cwd() / ".data/ss"
 
 
 router = APIRouter()
-oauth2_scheme = HTTPBearer(auto_error=False)
+http_bearer_scheme = HTTPBearer(auto_error=False)
 
-# NOTE: the api is still under design and is subject to change.
-# to keep up with breaking changes, please either join our discord,
-# or keep up with changes to https://github.com/JKBGL/gulag-api-docs.
+# NOTE: The V1 APIs should not be used if a V2 API is available.
+#       These APIs may be deprecated in the future.
 
 # Unauthorized (no api key required)
 # GET /search_players: returns a list of matching users, based on a passed string, sorted by ascending ID.
@@ -66,11 +65,7 @@ oauth2_scheme = HTTPBearer(auto_error=False)
 # GET /get_leaderboard: return the top players for a given mode & sort condition
 
 # Authorized (requires valid api key, passed as 'Authorization' header)
-# NOTE: authenticated handlers may have privilege requirements.
-
-# [Normal]
 # GET /calculate_pp: calculate & return pp for a given beatmap.
-# POST/PUT /set_avatar: Update the tokenholder's avatar to a given file.
 
 DATETIME_OFFSET = 0x89F7FF5F7B58000
 
@@ -78,7 +73,7 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 @router.get("/calculate_pp")
 @error_catcher
 async def api_calculate_pp(
-    token: HTTPCredentials = Depends(oauth2_scheme),
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
     beatmap_id: int = Query(None, alias="id", min=0, max=2_147_483_647),
     nkatu: int = Query(None, max=2_147_483_647),
     ngeki: int = Query(None, max=2_147_483_647),
@@ -162,7 +157,6 @@ async def api_calculate_pp(
 @error_catcher
 async def api_search_players(
     search: str | None = Query(None, alias="q", min=2, max=32),
-    limit: int = Query(25, alias="limit", ge=1, le=50),
 ) -> Response:
     """Search for users on the server by name."""
     rows = await app.state.services.database.fetch_all(
@@ -170,21 +164,15 @@ async def api_search_players(
         "FROM users "
         "WHERE name LIKE COALESCE(:name, name) "
         "AND priv & 3 = 3 "
-        "ORDER BY id ASC "
-        "LIMIT :limit",
-        {"name": f"%{search}%" if search is not None else None, "limit": limit},
+        "ORDER BY id ASC",
+        {"name": f"%{search}%" if search is not None else None},
     )
-    players =  []
-    for row in rows:
-        request_response = await api_get_player_info(scope='all', user_id=row['id'])
-        player_info = orjson.loads(request_response.body)
-        players.append(player_info['player'])
 
     return ORJSONResponse(
         {
             "status": "success",
-            "results": len(players),
-            "result": [dict(row) for row in players],
+            "results": len(rows),
+            "result": [dict(row) for row in rows],
         },
     )
 
@@ -680,8 +668,6 @@ async def api_get_map_scores(
     else:
         mods = None
 
-    # NOTE: userid will eventually become player_id,
-    # along with everywhere else in the codebase.
     query = [
         "SELECT s.id, s.map_md5, s.score, s.pp, s.acc, s.max_combo, s.mods, "
         "s.n300, s.n100, s.n50, s.nmiss, s.ngeki, s.nkatu, s.grade, s.status, "
@@ -1274,7 +1260,7 @@ async def api_get_badges(
 @router.post("/update_map_status")
 @error_catcher
 async def api_update_map_status(
-    token: HTTPCredentials = Depends(oauth2_scheme),
+    token: HTTPCredentials = Depends(http_bearer_scheme),
     map_id: int = Query(None, alias="id", ge=0, le=2_147_483_647),
     set_id: int = Query(None, alias="sid", ge=0, le=2_147_483_647),
     status: int = Query(..., alias="s", ge=0, le=2_147_483_647),

@@ -1,4 +1,4 @@
-""" cho: handle cho packets from the osu! client """
+"""cho: handle cho packets from the osu! client"""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
-import databases.core
 from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
@@ -82,13 +81,13 @@ BASE_DOMAIN = app.settings.DOMAIN
 # TODO: dear god
 NOW_PLAYING_RGX = re.compile(
     r"^\x01ACTION is (?:playing|editing|watching|listening to) "
-    rf"\[https://(?:osu\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
+    rf"\[https://(?:osu\.|web\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
     r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
     r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
 )
 OLD_NOW_PLAYING_RGX = re.compile(
     r"^\x01ACTION is (?:playing|editing|watching|listening to) "
-    rf"\[(?:https?://)?(?:osu\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/b/(?P<bid>\d{{1,10}}) .+\]"
+    rf"\[(?:https?://)?(?:osu\.|web\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/b/(?P<bid>\d{{1,10}}) .+\]"
     r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
     r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
 )
@@ -351,7 +350,7 @@ class ChangeAction(BasePacket):
             app.state.sessions.players.enqueue(app.packets.user_stats(player))
 
 
-IGNORED_CHANNELS = ["#highlight", "#userlog"]
+IGNORED_CHANNELS: list[str] = ["#highlight", "#userlog"]
 
 
 @register(ClientPackets.SEND_PUBLIC_MESSAGE)
@@ -535,7 +534,7 @@ WELCOME_MSG = "\n".join(
     (
         f"Welcome to {BASE_DOMAIN}.",
         "To see a list of commands, use !help.",
-        f"We have a public (Discord)[{app.settings.DISCORD_LINK}]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_INVITE}]!",
         "Enjoy the server!",
     ),
 )
@@ -548,11 +547,6 @@ RESTRICTED_MSG = (
 
 WELCOME_NOTIFICATION = app.packets.notification(
     f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
-)
-
-OFFLINE_NOTIFICATION = app.packets.notification(
-    "The server is currently running in offline mode; "
-    "some features will be unavailable.",
 )
 
 
@@ -1126,14 +1120,14 @@ async def handle_osu_login_request(
             if (
                 not channel.auto_join
                 or not channel.can_read(player.priv)
-                or channel._name == "#lobby"  # (can't be in mp lobby @ login)
+                or channel.real_name == "#lobby"  # (can't be in mp lobby @ login)
             ):
                 continue
 
             # send chan info to all players who can see
             # the channel (to update their playercounts)
             chan_info_packet = app.packets.channel_info(
-                channel._name,
+                channel.real_name,
                 channel.topic,
                 len(channel.players),
             )
@@ -1180,6 +1174,8 @@ async def handle_osu_login_request(
             extra={"ip": ip, "username": login_data['username'], "error": str(e)})
         # Continue anyway, these are not critical for login
 
+    # Initialize user_data to avoid "possibly unbound" error
+    user_data = b""
     try:
         # update our new player's stats, and broadcast them.
         user_data = app.packets.user_presence(player) + app.packets.user_stats(player)
@@ -1335,7 +1331,7 @@ async def handle_osu_login_request(
 
         player.update_latest_activity_soon()
     except Exception as e:
-        log(f"Error in final login steps", Ansi.LRED, 
+        log(f"Error in final login steps", Ansi.LRED,
             extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
         # Not critical for functionality
 
@@ -2070,7 +2066,9 @@ class MatchComplete(BasePacket):
 
         if player.match.is_scrimming:
             # determine winner, update match points & inform players.
-            asyncio.create_task(player.match.update_matchpoints(was_playing))
+            asyncio.create_task(  # type: ignore[unused-awaitable]
+                player.match.update_matchpoints(was_playing),
+            )
 
 
 @register(ClientPackets.MATCH_CHANGE_MODS)
@@ -2416,7 +2414,9 @@ class StatsRequest(BasePacket):
 
     async def handle(self, player: Player) -> None:
         unrestrcted_ids = [p.id for p in app.state.sessions.players.unrestricted]
-        is_online = lambda o: o in unrestrcted_ids and o != player.id
+
+        def is_online(o: int) -> bool:
+            return o in unrestrcted_ids and o != player.id
 
         for online in filter(is_online, self.user_ids):
             target = app.state.sessions.players.get(id=online)

@@ -16,7 +16,7 @@ class Channel:
 
     Possibly confusing attributes
     -----------
-    _name: `str`
+    real_name: `str`
         A name string of the channel.
         The cls.`name` property wraps handling for '#multiplayer' and
         '#spectator' when communicating with the osu! client; only use
@@ -37,17 +37,16 @@ class Channel:
         auto_join: bool = True,
         instance: bool = False,
     ) -> None:
-        # TODO: think of better names than `_name` and `name`
-        self._name = name  # 'real' name ('#{multi/spec}_{id}')
+        self.real_name = name
 
-        if self._name.startswith("#spec_"):
+        if self.real_name.startswith("#spec_"):
             self.name = "#spectator"
-        elif self._name.startswith("#multi_"):
+        elif self.real_name.startswith("#multi_"):
             self.name = "#multiplayer"
-        elif self._name.startswith("#group_"):
+        elif self.real_name.startswith("#group_"):
             self.name = "#group"
         else:
-            self.name = self._name
+            self.name = self.real_name
 
         self.topic = topic
         self.read_priv = read_priv
@@ -58,7 +57,7 @@ class Channel:
         self.players: list[Player] = []
 
     def __repr__(self) -> str:
-        return f"<{self._name}>"
+        return f"<{self.real_name}>"
 
     def __contains__(self, player: Player) -> bool:
         return player in self.players
