@@ -273,8 +273,9 @@ async def bancho_handler(
         with memoryview(await request.body()) as body_view:
             for packet in BanchoPacketReader(body_view, packet_map):
                 await packet.handle(player)
-    except:
-        log(f"Error handling packet from {player}.", Ansi.LRED, 
+    except Exception:
+        log(f"Error handling packet from {player}.", Ansi.LRED,
+            exc_info=True,
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,

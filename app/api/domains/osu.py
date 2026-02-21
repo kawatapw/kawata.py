@@ -746,11 +746,7 @@ async def osuSubmitModularSelector(
             else:
                 score.status = SubmissionStatus.FAILED
 
-        if score_time is not None:
-            if fail_time is not None:
-                score.time_elapsed = int(score_time) if score.passed else int(fail_time)
-        else:
-            score.time_elapsed = score_time if score.passed else fail_time
+            score.time_elapsed = int(score_time) if score.passed else int(fail_time)
 
         # TODO: re-implement pp caps for non-whitelisted players?
 
