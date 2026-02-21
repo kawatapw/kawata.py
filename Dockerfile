@@ -11,6 +11,7 @@ RUN apt update && apt install --no-install-recommends -y \
 COPY pyproject.toml poetry.lock ./
 RUN pip install -U pip poetry==2.2.1
 RUN poetry config virtualenvs.create false
+RUN poetry lock
 RUN poetry install --no-root
 
 RUN apt update && \
