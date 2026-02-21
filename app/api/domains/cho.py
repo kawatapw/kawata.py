@@ -679,7 +679,10 @@ async def get_allowed_client_versions(osu_stream: OsuStream) -> set[date] | None
 
 def parse_adapters_string(adapters_string: str) -> tuple[list[str], bool]:
     running_under_wine = adapters_string == "runningunderwine"
-    adapters = adapters_string[:-1].split(".")
+    if running_under_wine:
+        adapters = ["runningunderwine"]
+    else:
+        adapters = adapters_string[:-1].split(".")
     return adapters, running_under_wine
 
 
