@@ -412,7 +412,7 @@ def log(
         lineno=info.lineno,
         msg=f"{msg}",
         args=args or None,
-        exc_info=sys.exc_info() if exc_info else None,
+        exc_info=exc_info,
         func=info.function
     )
     
