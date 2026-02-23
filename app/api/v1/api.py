@@ -157,7 +157,7 @@ async def api_calculate_pp(
 @router.get("/calculate_pp_batch")
 @error_catcher
 async def api_calculate_pp_batch(
-    token: HTTPCredentials = Depends(oauth2_scheme),
+    token: HTTPCredentials = Depends(http_bearer_scheme),
     beatmap_ids: list[int] = Query([], alias="id"),
     mods: int = Query(0, min=0, max=2_147_483_647),
     acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
