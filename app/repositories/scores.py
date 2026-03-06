@@ -183,20 +183,42 @@ async def fetch_one(id: int) -> Score | None:
         _score = await app.state.services.database.fetch_one(select_stmt)
 
         if _score is not None and 'cheat_values' in _score and _score['cheat_values'] is not None:
-            cheat_values = json.loads(_score['cheat_values'])
-            cheat_values = json.loads(cheat_values)
-            _score = dict(_score, cheat_values=cheat_values)
-            log(
-                f"Fetched Score: {_score['id']}", Ansi.LYELLOW, 
-                extra={
-                    "filter": {
-                        "debugLevel": 2,
-                        "debugFocus": "scores",
+            try:
+                # Handle case where cheat_values is already a JSON object (not a string)
+                if isinstance(_score['cheat_values'], (dict, list)):
+                    cheat_values = _score['cheat_values']
+                else:
+                    # Handle case where cheat_values is a JSON string
+                    cheat_values = json.loads(_score['cheat_values'])
+                    # Handle case where the parsed JSON is itself a JSON string
+                    if isinstance(cheat_values, str):
+                        cheat_values = json.loads(cheat_values)
+                
+                _score = dict(_score, cheat_values=cheat_values)
+                log(
+                    f"Fetched Score: {_score['id']}", Ansi.LYELLOW, 
+                    extra={
+                        "filter": {
+                            "debugLevel": 2,
+                            "debugFocus": "scores",
+                        },
+                        "Score": _score
+                        },
+                    logger="console.debug",
+                    level=logLevel.DBGLV2)
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                # If parsing fails, keep the original value and log a warning
+                log(
+                    f"Failed to parse cheat_values for score {id}: {e}. Keeping original value.",
+                    Ansi.LYELLOW,
+                    extra={
+                        "score_id": id,
+                        "cheat_values_raw": _score['cheat_values'],
+                        "error": str(e)
                     },
-                    "Score": _score
-                    },
-                logger="console.debug",
-                level=logLevel.DBGLV2)
+                    logger="console.debug",
+                    level=logLevel.DBGLV2)
+        
         return cast(Score | None, _score)
     except Exception as e:
         log(

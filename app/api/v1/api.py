@@ -503,7 +503,31 @@ async def api_get_player_scores(
     # load cheat values back into json
     for row in rows:
         if row["cheat_values"]:  # Check if cheat_values is not None or empty
-            row["cheat_values"] = json.loads(json.loads(row["cheat_values"])) # Yes, this is indeed correct...
+            try:
+                # Handle case where cheat_values is already a JSON object (not a string)
+                if isinstance(row["cheat_values"], (dict, list)):
+                    row["cheat_values"] = row["cheat_values"]
+                else:
+                    # Handle case where cheat_values is a JSON string
+                    parsed = json.loads(row["cheat_values"])
+                    # Handle case where the parsed JSON is itself a JSON string (double-encoded)
+                    if isinstance(parsed, str):
+                        row["cheat_values"] = json.loads(parsed)
+                    else:
+                        row["cheat_values"] = parsed
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                # Log the error and set to empty dict
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
+                    log(
+                        f"Failed to parse cheat_values for score {row.get('id', 'unknown')}: {e}",
+                        logger="console.error",
+                        level=logLevel.ERROR,
+                        extra={
+                            "cheat_values": row["cheat_values"],
+                            "error": e,
+                        }
+                    )
+                row["cheat_values"] = {}
         else:
             row["cheat_values"] = {}  # Set to an empty dict if there's no data
 
