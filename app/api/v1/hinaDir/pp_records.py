@@ -111,7 +111,10 @@ async def get_pp_records(
 
         # Double-decode cheat_values
         if row["cheat_values"]:
-            row["cheat_values"] = json.loads(json.loads(row["cheat_values"]))
+            try:
+                row["cheat_values"] = json.loads(json.loads(row["cheat_values"]))
+            except (TypeError, json.JSONDecodeError):
+                row["cheat_values"] = {}
         else:
             row["cheat_values"] = {}
 

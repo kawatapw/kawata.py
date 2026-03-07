@@ -61,10 +61,13 @@ async def create(
         body=body,
     )
     rec_id = await app.state.services.database.execute(insert_stmt)
+    if rec_id is None:
+        raise RuntimeError("Failed to insert review comment record")
 
     select_stmt = select(*READ_PARAMS).where(BeatmapReviewCommentTable.id == rec_id)
     comment = await app.state.services.database.fetch_one(select_stmt)
-    assert comment is not None
+    if comment is None:
+        raise RuntimeError("Failed to fetch inserted review comment record")
     return cast(BeatmapReviewComment, comment)
 
 

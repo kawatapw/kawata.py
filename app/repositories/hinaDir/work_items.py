@@ -9,7 +9,6 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Index
 from sqlalchemy import Integer
-from sqlalchemy import SmallInteger as TinyInt
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import func
@@ -17,6 +16,7 @@ from sqlalchemy import insert
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.mysql import TINYINT as TinyInt
 
 import app.state.services
 from app.repositories import Base
@@ -81,7 +81,7 @@ class BeatmapWorkItem(TypedDict):
 async def create(
     set_id: int,
     request_id: int | None = None,
-    checklist: str | None = None,
+    checklist: dict | None = None,
     priority: int = 0,
 ) -> BeatmapWorkItem:
     """Create a new beatmap work item."""
@@ -92,10 +92,13 @@ async def create(
         priority=priority,
     )
     rec_id = await app.state.services.database.execute(insert_stmt)
+    if rec_id is None:
+        raise RuntimeError("Failed to insert work item record")
 
     select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == rec_id)
     item = await app.state.services.database.fetch_one(select_stmt)
-    assert item is not None
+    if item is None:
+        raise RuntimeError("Failed to fetch inserted work item record")
     return cast(BeatmapWorkItem, item)
 
 

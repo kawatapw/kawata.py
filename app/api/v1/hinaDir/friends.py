@@ -233,15 +233,15 @@ async def api_get_friends_leaderboard(
     params["mode"] = mode
 
     rows = await app.state.services.database.fetch_all(
-        "SELECT s.id, u.name, u.country, u.priv, "
+        "SELECT u.id, u.name, u.country, u.priv, "
         "c.tag AS clan_tag, "
-        "s.pp, s.acc, s.plays "
-        "FROM stats s "
-        "INNER JOIN users u ON u.id = s.id "
+        "COALESCE(s.pp, 0) AS pp, COALESCE(s.acc, 0) AS acc, COALESCE(s.plays, 0) AS plays "
+        "FROM users u "
+        "LEFT JOIN stats s ON s.id = u.id AND s.mode = :mode "
         "LEFT JOIN clans c ON u.clan_id = c.id "
-        f"WHERE s.id IN ({placeholders}) "
-        "AND s.mode = :mode AND u.priv & 1 "
-        "ORDER BY s.pp DESC "
+        f"WHERE u.id IN ({placeholders}) "
+        "AND u.priv & 1 "
+        "ORDER BY pp DESC "
         "LIMIT 50",
         params,
     )
@@ -428,6 +428,12 @@ async def api_compare_stats(
         if uid not in seen:
             seen.add(uid)
             unique_ids.append(uid)
+
+    if len(unique_ids) < 2:
+        return ORJSONResponse(
+            {"status": "Provide 2-4 distinct user IDs."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     players = []
     for uid in unique_ids:

@@ -648,8 +648,9 @@ async def osuSubmitModularSelector(
         if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
             raise ValueError(f"osu! version mismatch: expected {player.client_details.osu_version.date:%Y%m%d}, got {osu_version}")
 
-        if (client_hash_decoded.replace("runningunderwine", "runningunderwine.") if "runningunderwine" in client_hash_decoded else client_hash_decoded) != player.client_details.client_hash:
-            raise ValueError(f"client hash mismatch: expected {player.client_details.client_hash}, got {client_hash_decoded.replace('runningunderwine', 'runningunderwine.') if 'runningunderwine' in client_hash_decoded else client_hash_decoded}")
+        normalized = client_hash_decoded.replace("runningunderwine:", "runningunderwine.:") if "runningunderwine" in client_hash_decoded else client_hash_decoded
+        if normalized != player.client_details.client_hash:
+            raise ValueError("client hash mismatch")
                 
         # assert unique ids (c1) are correct and match login params
         if unique_id1_md5 != player.client_details.uninstall_md5:

@@ -180,8 +180,11 @@ async def api_calculate_pp_batch(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Cap to 20 diffs per request
-    beatmap_ids = beatmap_ids[:20]
+    if len(beatmap_ids) > 20:
+        return ORJSONResponse(
+            {"status": "error", "message": "A maximum of 20 beatmap IDs is allowed."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Fetch map metadata directly from DB (avoids osu! API race conditions)
     placeholders = ", ".join(
@@ -1406,6 +1409,11 @@ async def api_update_map_status(
         try:
             # update all maps in the set
             beatmap_set = await maps_repo.fetch_many(set_id=set_id)
+            if not beatmap_set:
+                return ORJSONResponse(
+                    {"status": "error", "message": "Beatmap set not found."},
+                    status_code=status.HTTP_404_NOT_FOUND,
+                )
             for _bmap in beatmap_set:
                 await maps_repo.partial_update(_bmap["id"], status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change

@@ -24,3 +24,4 @@ logs.log
 /nginx/
 *.fuse*
 *.log
+CLAUDE.md
