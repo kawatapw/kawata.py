@@ -291,69 +291,179 @@ async def api_get_player_info(
 @router.get("/get_player_status")
 @error_catcher
 async def api_get_player_status(
+    user_ids: str | None = Query(None, alias="ids", description="Comma-separated list of user IDs"),
+    usernames: str | None = Query(None, alias="names", description="Comma-separated list of usernames"),
     user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ) -> Response:
-    """Return a players current status, if they are online."""
-    if username and user_id:
+    """Return player status for one or more players.
+    
+    Supports both single player (backward compatible) and multiple players via comma-separated lists.
+    """
+    # Validate input parameters
+    has_multiple_ids = user_ids is not None
+    has_multiple_names = usernames is not None
+    has_single_id = user_id is not None
+    has_single_name = username is not None
+    
+    # Check for conflicting parameters
+    if (has_multiple_ids and has_single_id) or (has_multiple_names and has_single_name):
         return ORJSONResponse(
-            {"status": "Must provide either id OR name!"},
+            {"status": "Cannot use both single and multiple parameter variants."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-
-    if username:
-        player = app.state.sessions.players.get(name=username)
-    elif user_id:
-        player = app.state.sessions.players.get(id=user_id)
+    
+    if (has_multiple_ids or has_single_id) and (has_multiple_names or has_single_name):
+        return ORJSONResponse(
+            {"status": "Must provide either IDs or names, not both."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Parse input into a list of identifiers
+    identifiers: list[str] = []
+    is_id_mode = False
+    
+    if has_multiple_ids:
+        identifiers = [id.strip() for id in user_ids.split(",") if id.strip()]
+        is_id_mode = True
+    elif has_single_id:
+        identifiers = [str(user_id)]
+        is_id_mode = True
+    elif has_multiple_names:
+        identifiers = [name.strip() for name in usernames.split(",") if name.strip()]
+        is_id_mode = False
+    elif has_single_name:
+        identifiers = [username]
+        is_id_mode = False
     else:
         return ORJSONResponse(
-            {"status": "Must provide either id OR name!"},
+            {"status": "Must provide either ids or names."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-
-    if not player:
-        # no such player online, return their last seen time if they exist in sql
-
-        if username:
-            row = await users_repo.fetch_one(name=username)
-        else:  # if userid
-            row = await users_repo.fetch_one(id=user_id)
-
-        if not row:
-            return ORJSONResponse(
-                {"status": "Player not found."},
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-
+    
+    # Limit the number of identifiers to prevent abuse
+    if len(identifiers) > 100:
         return ORJSONResponse(
-            {
-                "status": "success",
-                "player_status": {
-                    "online": False,
-                    "last_seen": row["latest_activity"],
+            {"status": "Too many identifiers. Maximum 100 allowed."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Check if this is a single player request (backward compatibility)
+    is_single_player = len(identifiers) == 1 and (has_single_id or has_single_name)
+    
+    # Process each identifier
+    results = {}
+    for identifier in identifiers:
+        try:
+            # Try to get player from cache first
+            player = None
+            if is_id_mode:
+                try:
+                    player_id = int(identifier)
+                    player = app.state.sessions.players.get(id=player_id)
+                except ValueError:
+                    log(
+                        f"Invalid user ID format: {identifier}",
+                        logger="console.error",
+                        level=logLevel.WARNING,
+                    )
+                    results[identifier] = {
+                        "status": "error",
+                        "message": "Invalid user ID format",
+                    }
+                    continue
+            else:
+                player = app.state.sessions.players.get(name=identifier)
+            
+            if not player:
+                # Player not online, check database
+                if is_id_mode:
+                    row = await users_repo.fetch_one(id=int(identifier))
+                else:
+                    row = await users_repo.fetch_one(name=identifier)
+                
+                if not row:
+                    results[identifier] = {
+                        "status": "error",
+                        "message": "Player not found",
+                    }
+                    continue
+                
+                results[identifier] = {
+                    "status": "success",
+                    "player_status": {
+                        "online": False,
+                        "last_seen": row["latest_activity"],
+                    },
+                }
+            else:
+                # Player is online
+                if player.status.map_md5:
+                    bmap = await Beatmap.from_md5(player.status.map_md5)
+                else:
+                    bmap = None
+                
+                results[identifier] = {
+                    "status": "success",
+                    "player_status": {
+                        "online": True,
+                        "login_time": player.login_time,
+                        "status": {
+                            "action": int(player.status.action),
+                            "info_text": player.status.info_text,
+                            "mode": int(player.status.mode),
+                            "mods": int(player.status.mods),
+                            "beatmap": bmap.as_dict if bmap else None,
+                        },
+                    },
+                }
+        
+        except Exception as e:
+            log(
+                f"Error processing player status for {identifier}: {e}",
+                logger="console.error",
+                level=logLevel.ERROR,
+                extra={
+                    "identifier": identifier,
+                    "is_id_mode": is_id_mode,
+                    "error": str(e),
                 },
-            },
-        )
-
-    if player.status.map_md5:
-        bmap = await Beatmap.from_md5(player.status.map_md5)
-    else:
-        bmap = None
-
+            )
+            results[identifier] = {
+                "status": "error",
+                "message": "Internal server error",
+            }
+    
+    # Return backward-compatible format for single player requests
+    if is_single_player:
+        identifier = identifiers[0]
+        if identifier in results and results[identifier]["status"] == "success":
+            return ORJSONResponse(
+                {
+                    "status": "success",
+                    "player_status": results[identifier]["player_status"],
+                },
+            )
+        else:
+            # Return error in backward-compatible format
+            error_result = results.get(identifier, {})
+            error_message = error_result.get("message", "Unknown error")
+            if "not found" in error_message.lower():
+                return ORJSONResponse(
+                    {"status": "Player not found."},
+                    status_code=status.HTTP_404_NOT_FOUND,
+                )
+            else:
+                return ORJSONResponse(
+                    {"status": error_message},
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+    
+    # Return batch format for multiple players
     return ORJSONResponse(
         {
             "status": "success",
-            "player_status": {
-                "online": True,
-                "login_time": player.login_time,
-                "status": {
-                    "action": int(player.status.action),
-                    "info_text": player.status.info_text,
-                    "mode": int(player.status.mode),
-                    "mods": int(player.status.mods),
-                    "beatmap": bmap.as_dict if bmap else None,
-                },
-            },
+            "players": results,
         },
     )
 
