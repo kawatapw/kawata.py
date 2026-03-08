@@ -126,7 +126,7 @@ async def health_check():
     
     # Check Redis
     try:
-        app.state.services.redis.ping()
+        await app.state.services.redis.ping()
         checks["checks"]["redis"] = "connected"
     except Exception as e:
         checks["status"] = "unhealthy"
