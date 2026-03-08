@@ -263,8 +263,9 @@ async def api_get_friends_leaderboard(
         if player and player.is_online:
             entry["is_online"] = True
 
-        # Round accuracy
-        entry["acc"] = round(entry["acc"], 2)
+        # Cast Decimal/unsigned→native Python types for JSON serialization
+        for k in ("pp", "acc", "plays"):
+            entry[k] = float(entry[k])
 
         leaderboard.append(entry)
 
@@ -313,7 +314,10 @@ async def api_get_player_quick_stats(
         )
 
     stats = dict(stats_row)
-    stats["acc"] = round(stats["acc"], 2)
+    stats["pp"] = float(stats["pp"])
+    stats["acc"] = round(float(stats["acc"]), 2)
+    stats["tscore"] = int(stats["tscore"])
+    stats["rscore"] = int(stats["rscore"])
 
     # Global rank from Redis
     global_rank = await app.state.services.redis.zrevrank(
@@ -337,7 +341,8 @@ async def api_get_player_quick_stats(
     top_play = None
     if top_row:
         top = dict(top_row)
-        top["acc"] = round(top["acc"], 2)
+        top["pp"] = float(top["pp"])
+        top["acc"] = round(float(top["acc"]), 2)
         top_play = top
 
     return ORJSONResponse({
@@ -363,6 +368,8 @@ async def _get_player_stats(uid: int, mode: int) -> dict | None:
 
     if row:
         entry = dict(row)
+        entry["pp"] = float(entry["pp"])
+        entry["acc"] = float(entry["acc"])
         entry["has_stats"] = entry["pp"] > 0
     else:
         # User exists but no stats for this mode — return zeroes
@@ -395,7 +402,7 @@ async def _get_player_stats(uid: int, mode: int) -> dict | None:
         str(entry["id"]),
     )
     entry["rank"] = (global_rank + 1) if global_rank is not None else 0
-    entry["acc"] = round(entry.get("acc", 0), 2)
+    entry["acc"] = round(float(entry.get("acc", 0)), 2)
 
     return entry
 
