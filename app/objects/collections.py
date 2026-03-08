@@ -323,6 +323,7 @@ class Players(list[Player]):
             return
 
         super().append(player)
+        player._cache_token = player.token
         self._by_token[player.token] = player
         self._by_id[player.id] = player
         self._by_name[player.safe_name] = player
@@ -335,7 +336,7 @@ class Players(list[Player]):
             return
 
         super().remove(player)
-        self._by_token.pop(player.token, None)
+        self._by_token.pop(getattr(player, '_cache_token', player.token), None)
         self._by_id.pop(player.id, None)
         self._by_name.pop(player.safe_name, None)
 
