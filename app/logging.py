@@ -98,38 +98,6 @@ def configure_logging():
     setup_logging()
     setup_structlog()
 
-class ElasticsearchHandler(Handler):
-    def __init__(self, hosts, index, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.es = Elasticsearch(hosts)
-        logging.getLogger('elasticsearch').setLevel(logging.WARNING)
-        self.index = index
-
-    def emit(self, record):
-        # Remove the logger key
-        record_dict = record.__dict__
-        if 'logger' in record_dict:
-            del record_dict['logger']
-        
-        try:
-            serializable_record = serialize_record(record)
-        except Exception as e:
-            log(f"Failed to serialize record: {e}", start_color=Ansi.LRED, level=logging.WARNING, extra={
-                'CodeRegion': 'Logging', "Func": "ElasticsearchHandler.emit",
-                "message": f"Failed to serialize record: {e}",
-                "error": f"{e}",
-                "traceback": traceback.format_exc(),
-                "record": str(record_dict),
-                })
-            serializable_record = {
-                "message": f"Failed to serialize record: {e}",
-                "error": f"{e}",
-                "traceback": traceback.format_exc(),
-                "record": str(record_dict),
-                }
-        self.es.index(index=self.index, body=serializable_record)
-
-
 def serialize_record(record, seen=None):
     if seen is None:
         seen = set()
@@ -431,33 +399,23 @@ def log(
         extra['locals'] = arg_info.locals
         extra['func'] = info.function
         # Add stack trace to the 'extra' fields
-        stack_info = inspect.stack()
-        serializable_stack = [{'filename': frame.filename, 'lineno': frame.lineno, 'function': frame.function, 'code_context': frame.code_context, 'index': frame.index} for frame in stack_info]
         extra['stack_trace'] = json.dumps(traceback.format_stack())
-        extra['stack'] = json.dumps(serializable_stack)
-        
         if log_level >= 40:
-            # Add the 'exc_info' to the 'extra' fields
-            extra['verbose_stacktrace'] = {}
-            if info.function in frame.f_globals:
-                extra['verbose_stacktrace']['func_signature'] = str(inspect.signature(frame.f_globals[info.function]))
-                extra['verbose_stacktrace']['func_source'] = inspect.getsource(frame.f_globals[info.function])
-            extra['verbose_stacktrace']['exc_info'] = traceback.format_exc()
-            extra['verbose_stacktrace']['exc_type'] = str(sys.exc_info()[0])
-            extra['verbose_stacktrace']['exception'] = str(traceback.format_exception(*sys.exc_info()))
-            extra['verbose_stacktrace']['exception_only'] = str(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1]))
-            extra['verbose_stacktrace']['error'] = str(sys.exc_info()[1])
-            extra['verbose_stacktrace']['error_traceback'] = str(traceback.format_exc())
-            extra['verbose_stacktrace']['error_stack'] = serializable_stack
-            extra['verbose_stacktrace']['error_locals'] = str(arg_info.locals)
-            extra['verbose_stacktrace']['error_args'] = str(arg_info.args)
-            extra['verbose_stacktrace']['error_varargs'] = str(arg_info.varargs)
-            extra['verbose_stacktrace']['error_keywords'] = str(arg_info.keywords)
-            extra['verbose_stacktrace']['error_message'] = msg
-            extra['verbose_stacktrace']['error_level'] = log_level
-            
-            extra['verbose_stacktrace'] = json.dumps(extra['verbose_stacktrace'], indent=2)
-    
+            # Add minimal stack trace information
+            stack_info = inspect.stack()
+            if stack_info:
+                # Only include the immediate caller frame
+                caller_frame = stack_info[1] if len(stack_info) > 1 else stack_info[0]
+                extra['caller_file'] = caller_frame.filename
+                extra['caller_line'] = caller_frame.lineno
+                extra['caller_function'] = caller_frame.function
+            # Add exception info if available
+            exc_info = sys.exc_info()
+            if exc_info[0] is not None:
+                extra['error_type'] = exc_info[0].__name__
+                extra['error_message'] = str(exc_info[1])
+                extra['stack_trace'] = traceback.format_exc()
+
     # Add the 'extra' fields to the '__dict__' attribute of the 'LogRecord' object
     for key, value in extra.items():
         record.__dict__[key] = value

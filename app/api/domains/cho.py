@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging, random
+import json
 import re
 import struct
 import time
@@ -105,6 +106,36 @@ motds = [
 ]
 
 router = APIRouter(tags=["Bancho API"])
+
+@router.get("/health")
+async def health_check():
+    checks = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "bancho.py",
+        "checks": {}
+    }
+    
+    # Check database
+    try:
+        await app.state.services.database.ping()
+        checks["checks"]["database"] = "connected"
+    except Exception as e:
+        checks["status"] = "unhealthy"
+        checks["checks"]["database"] = f"failed: {str(e)}"
+    
+    # Check Redis
+    try:
+        await app.state.services.redis.ping()
+        checks["checks"]["redis"] = "connected"
+    except Exception as e:
+        checks["status"] = "unhealthy"
+        checks["checks"]["redis"] = f"failed: {str(e)}"
+    
+    
+    # Return appropriate HTTP status
+    status_code = 200 if checks["status"] == "healthy" else 503
+    return Response(content=json.dumps(checks), status_code=status_code, media_type="application/json")
 
 @router.get("/infos")
 @error_catcher
