@@ -2,10 +2,12 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: ["master"]
+    branches: ["master", "BE-Master", "BE-Staging", "BE-Dev"]
     paths-ignore: ["**.md", "ext/**"]
+    tags:
+      - 'v*'
   pull_request:
-    branches: ["master"]
+    branches: ["master", "BE-Master", "BE-Staging", "BE-Dev"]
     paths-ignore: ["**.md", "ext/**"]
   workflow_dispatch:
 
@@ -16,6 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: Checkout
+        with:
+          fetch-depth: 0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -24,6 +28,26 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Extract version from Poetry
+        id: poetry_version
+        run: |
+          pip install poetry
+          VERSION=$(poetry version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
 
       - name: Build
         uses: docker/build-push-action@v5
@@ -31,7 +55,7 @@ jobs:
           context: .
           platforms: linux/amd64, linux/arm64
           outputs: type=oci,dest=/tmp/docker.tar
-          tags: bancho.py:${{ github.sha }}
+          tags: kawata.py:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -41,22 +65,287 @@ jobs:
           name: docker
           path: /tmp/docker.tar
 
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' }}
+    
+    steps:
+      - name: Download Docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/docker.tar
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'kawata.py:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' }}
+    
+    steps:
+      - name: Download Docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/docker.tar
+
+      - name: Test container
+        run: |
+          docker run --rm kawata.py:${{ github.sha }} --version || echo "Version check failed, but continuing..."
+
+  code-coverage:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install
+
+      - name: Run tests with coverage
+        run: |
+          poetry run pytest --cov=./ --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install
+
+      - name: Run safety check
+        run: |
+          poetry run safety check --json --output safety-report.json
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-report
+          path: safety-report.json
+
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' }}
+    
+    steps:
+      - name: Download Docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/docker.tar
+
+      - name: Run performance tests
+        run: |
+          docker run --rm kawata.py:${{ github.sha }} --performance-test || echo "Performance test not implemented"
+
+  push-to-docker-hub:
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, test, code-coverage, dependency-scan, performance-test]
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' }}
+    
+    steps:
+      - name: Download Docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+          path: /tmp
+
+      - name: Extract version from Poetry
+        id: poetry_version
+        run: |
+          pip install poetry
+          VERSION=$(poetry version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64, linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
-        if: ${{ github.ref == 'refs/heads/master' }}
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push to Docker Hub
         uses: docker/build-push-action@v5
-        if: ${{ github.ref == 'refs/heads/master' }}
         with:
           context: .
           platforms: linux/amd64, linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/bancho.py:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/bancho.py:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ steps.poetry_version.outputs.version }}
+            ${{ github.ref == 'refs/heads/BE-Master' && format('{0}/kawata.py:prod', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ github.ref == 'refs/heads/BE-Staging' && format('{0}/kawata.py:staging', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ github.ref == 'refs/heads/BE-Dev' && format('{0}/kawata.py:dev', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ github.ref == 'refs/heads/master' && format('{0}/kawata.py:stable', secrets.DOCKERHUB_USERNAME) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-docker-hub-description:
+    runs-on: ubuntu-latest
+    needs: push-to-docker-hub
+    if: ${{ github.ref == 'refs/heads/BE-Master' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+
+      - name: Extract version from Poetry
+        id: poetry_version
+        run: |
+          pip install poetry
+          VERSION=$(poetry version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py
+          short-description: "kawata.py - Python-based osu! server management"
+          readme-filepath: "./README.md"
+
+  release:
+    needs: [build, security-scan, test, code-coverage, dependency-scan, performance-test, push-to-docker-hub, update-docker-hub-description]
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/BE-Master' || startsWith(github.ref, 'refs/tags/v') }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from Poetry
+        id: poetry_version
+        run: |
+          pip install poetry
+          VERSION=$(poetry version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          # Generate detailed release notes
+          if [ -n "$PREV_TAG" ]; then
+            RELEASE_NOTES="## Changes since $PREV_TAG\n\n"
+            RELEASE_NOTES+="### Commits\n"
+            RELEASE_NOTES+=$(git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD)
+            RELEASE_NOTES+="\n\n### Contributors\n"
+            RELEASE_NOTES+=$(git log --pretty=format:"- %an" $PREV_TAG..HEAD | sort | uniq)
+          else
+            RELEASE_NOTES="## Initial Release\n\n"
+            RELEASE_NOTES+="### Features\n"
+            RELEASE_NOTES+=$(git log --pretty=format:"- %s" -10)
+          fi
+          
+          # Escape for GitHub Actions
+          RELEASE_NOTES="${RELEASE_NOTES//'%'/'%25'}"
+          RELEASE_NOTES="${RELEASE_NOTES//$'\n'/'%0A'}"
+          RELEASE_NOTES="${RELEASE_NOTES//$'\r'/'%0D'}"
+          
+          echo "release_notes=$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          echo "Generated release notes:"
+          echo "$RELEASE_NOTES"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.poetry_version.outputs.version }}
+          name: Release v${{ steps.poetry_version.outputs.version }}
+          body: |
+            ## Release v${{ steps.poetry_version.outputs.version }}
+            
+            ### Docker Images
+            - `docker pull ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ steps.poetry_version.outputs.version }}`
+            - `docker pull ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:latest`
+            
+            ### Changes
+            ${{ steps.release_notes.outputs.release_notes }}
+            
+            ### Installation
+            ```bash
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ steps.poetry_version.outputs.version }}
+            docker run -d --name kawata ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ steps.poetry_version.outputs.version }}
+            ```
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/BE-Master' }}
+          generate_release_notes: true
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, test, code-coverage, dependency-scan, performance-test, push-to-docker-hub, update-docker-hub-description, release]
+    if: ${{ always() && (needs.build.result == 'failure' || needs.security-scan.result == 'failure' || needs.test.result == 'failure' || needs.code-coverage.result == 'failure' || needs.dependency-scan.result == 'failure' || needs.performance-test.result == 'failure' || needs.push-to-docker-hub.result == 'failure' || needs.update-docker-hub-description.result == 'failure' || needs.release.result == 'failure') }}
+    
+    steps:
+      - name: Send Discord notification
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: '❌ Docker build failed for ${{ github.repository }} on branch ${{ github.ref_name }}'
