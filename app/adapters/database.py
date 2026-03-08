@@ -36,7 +36,16 @@ class Database:
 
     async def disconnect(self) -> None:
         await self._database.disconnect()
-
+    
+    async def ping(self) -> bool:
+        """Check if the database connection is alive."""
+        try:
+            # Execute a simple query that's lightweight and fast
+            await self.fetch_val("SELECT 1")
+            return True
+        except Exception:
+            return False
+    
     def _compile(self, clause_element: ClauseElement) -> tuple[str, MySQLParams]:
         compiled: Compiled = clause_element.compile(
             dialect=DIALECT,
