@@ -84,7 +84,7 @@ async def recalculate_score(
     if math.isnan(new_pp) or math.isinf(new_pp):
         new_pp = 0.0
 
-    new_pp = min(new_pp, 9999.999)
+    #new_pp = min(new_pp, 9999.999)
 
     await ctx.database.execute(
         "UPDATE scores SET pp = :new_pp WHERE id = :id",

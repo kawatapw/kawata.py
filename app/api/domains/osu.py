@@ -1120,25 +1120,48 @@ async def osuSubmitModularSelector(
         if cheat_values:
             if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
                 log(f"Cheat Values: {cheat_values}", Ansi.GRAY, extra={"Cheat_Values": cheat_values})
-            cheat_values_str = json.dumps(cheat_values)
-            if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
-                log(f"Score ID: {score.id}, Score Status: {score.status}")
-            if (score.status == 2) or (score.status > 0 and score.id and score.id != 0):
+            
+            # Validate that cheat_values is valid JSON
+            try:
+                # Try to parse the cheat_values as JSON to validate it
+                parsed_cheat_values = json.loads(cheat_values)
+                
+                # If it's valid JSON, serialize it back to a string for database storage
+                # This ensures consistent formatting and prevents double-encoding issues
+                cheat_values_str = json.dumps(parsed_cheat_values)
+                
                 if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
-                    log(f"Score ID: {score.id}")
-                try:
-                    print(f"Inserting Cheat Values")
-                    await app.state.services.database.execute(
-                    "INSERT INTO scoreinfo (scoreid, cheat_values) "
-                    "VALUES (:scoreid, :cheat_values)",
-                    {
-                        "scoreid": score.id,
-                        "cheat_values": cheat_values_str,
-                    },
-                    )
-                except Exception as e:
-                    log(f"Error Inserting Cheat Values: {e}", Ansi.LRED)
-                    pass
+                    log(f"Score ID: {score.id}, Score Status: {score.status}")
+                
+                if (score.status == 2) or (score.status > 0 and score.id and score.id != 0):
+                    if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
+                        log(f"Score ID: {score.id}")
+                    try:
+                        print(f"Inserting Cheat Values")
+                        await app.state.services.database.execute(
+                        "INSERT INTO scoreinfo (scoreid, cheat_values) "
+                        "VALUES (:scoreid, :cheat_values)",
+                        {
+                            "scoreid": score.id,
+                            "cheat_values": cheat_values_str,
+                        },
+                        )
+                    except Exception as e:
+                        log(f"Error Inserting Cheat Values: {e}", Ansi.LRED)
+                        pass
+            except json.JSONDecodeError as e:
+                # If cheat_values is not valid JSON, log the error and don't save it
+                log(f"Invalid JSON in cheat_values: {e}", Ansi.LRED, extra={
+                    "score_id": score.id,
+                    "player": str(score.player),
+                    "invalid_cheat_values": cheat_values,
+                })
+                # Optionally, you could also restrict the player for submitting invalid data
+                # if not score.player.restricted:
+                #     await score.player.restrict(
+                #         admin=app.state.sessions.bot,
+                #         reason="submitted score with invalid cheat_values JSON",
+                #     )
     log(
         f"[{score.mode!r}] {score.player} submitted a score! "
         f"({score.status!r}, {score.pp:,.2f}pp / {stats.pp:,}pp)",
