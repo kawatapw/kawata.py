@@ -38,9 +38,9 @@ profile = "black"
 
 [tool.poetry]
 package-mode = false
-name = "bancho-py"
+name = "kawata-py"
 version = "5.3.0"
-description = "An osu! server implementation optimized for maintainability in modern python"
+description = "A supercharged fork of an osu! server implementation optimized for maintainability in modern python"
 authors = ["Akatsuki Team", "Kawata Team"]
 license = "MIT"
 readme = "README.md"
