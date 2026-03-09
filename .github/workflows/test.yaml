@@ -44,7 +44,7 @@ env:
 
 jobs:
   prepare:
-    uses: ./.github/workflows/micro-flows/prep-build.yaml
+    uses: ./.github/workflows/prep-build.yaml
 
   run-test-suite:
     needs: prepare
