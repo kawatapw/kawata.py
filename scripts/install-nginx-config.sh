@@ -15,6 +15,13 @@ else
   echo "No .env file found, using environment variables passed to the container"
 fi
 
+if [[ ! -f "$SSL_CERT_PATH" || ! -f "$SSL_KEY_PATH" ]]; then
+  echo "SSL certs missing; generating self-signed certs for tests"
+  mkdir -p "$(dirname "$SSL_CERT_PATH")"
+  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout "$SSL_KEY_PATH" -out "$SSL_CERT_PATH" -subj "/CN=localhost"
+fi
+
 echo "Installing nginx configuration"
 sed -e "s|\${APP_PORT}|$APP_PORT|g" \
     -e "s|\${DOMAIN}|$DOMAIN|g" \
