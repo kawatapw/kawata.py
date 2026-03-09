@@ -767,7 +767,7 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
             ret += p_args
         elif p_type in _noexpand_types:
             if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
-                logging.log(f"Integer value out of range for 'i' format code", level=logging.logLevel.WARNING, exc_info=True, extra={"value": p_args})
+                logging.log(f"Integer value out of range for 'i' format code", level=logging.logLevel.WARNING, extra={"value": p_args})
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:
             ret += _expand_types[p_type](*p_args)
