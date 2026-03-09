@@ -239,7 +239,7 @@ class Player:
         self.id = id
         self.name = name
         self.aeris_client:bool = False # Identified by the Specific packet dedicated to Kawata/Aeris clients
-        self.aeris_client_features:AerisFeatures = AerisFeatures.None_ # by default the client don't take into account any Kawata/Aeris features, because it's another client
+        self.aeris_client_features:int = AerisFeatures.None_ # by default the client don't take into account any Kawata/Aeris features, because it's another client
         self.priv = priv
         self.pw_bcrypt = pw_bcrypt
         self.token = token

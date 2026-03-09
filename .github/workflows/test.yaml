@@ -148,33 +148,6 @@ jobs:
             /tmp/container-logs/
           retention-days: 7
 
-      - name: Copy coverage from test container to runner
-        if: ${{ always() }}
-        run: |
-          set -euo pipefail
-          # get container id
-          CID=$(docker compose -f docker-compose.test.yml ps -q bancho-test)
-          if [ -z "$CID" ]; then
-            echo "bancho-test container not found, skipping coverage copy"
-            exit 0
-          fi
-          # create archive inside container, copy to runner, extract
-          docker compose -f docker-compose.test.yml exec -T bancho-test sh -c "cd /srv/root || true; tar -czf /tmp/coverage.tgz coverage || true"
-          docker cp "${CID}:/tmp/coverage.tgz" ./coverage.tgz || true
-          if [ -f ./coverage.tgz ]; then
-            mkdir -p coverage
-            tar -xzf coverage.tgz -C .
-            rm coverage.tgz
-          else
-            echo "No coverage archive produced by container"
-          fi
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage-report
-          path: coverage/
-
       - name: Stop containers
         if: always()
         run: docker compose down
