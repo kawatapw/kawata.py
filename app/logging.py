@@ -6,21 +6,22 @@ import logging.config
 from logging.handlers import HTTPHandler
 import re
 from collections.abc import Mapping
+from collections.abc import MutableMapping
 from enum import IntEnum
 from zoneinfo import ZoneInfo
 
+from requests import request
 import yaml, os
 import json, jsons
 import orjson, rapidjson
 from app import settings
+from app._typing import IPAddress
 import structlog
 from structlog.stdlib import NAME_TO_LEVEL
 import importlib
 import datetime
 import inspect
 from pythonjsonlogger import jsonlogger
-from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import SerializationError
 from logging import Handler
 import traceback, sys
 import time
@@ -51,7 +52,34 @@ from starlette import status
 
 # Stupid Dumb Fucking Json Serialization BS IMPORTS OMFG I'M LOSING MY MIND
 import decimal
-from ipaddress import IPv4Network, IPv4Address
+from ipaddress import IPv4Network, IPv4Address, ip_address
+
+class IPResolver:
+    def __init__(self) -> None:
+        self.cache: MutableMapping[str, IPAddress] = {}
+
+    def get_ip(self, headers: Mapping[str, str]) -> IPAddress:
+        """Resolve the IP address from the headers."""
+        ip_str = headers.get("CF-Connecting-IP")
+        if ip_str is None:
+            forwards = headers.get("X-Forwarded-For", "").split(",")
+
+            if forwards != [""]:
+                ip_str = forwards[0]
+            else:
+                ip_str = headers.get("X-Real-IP", "")
+
+        ip = self.cache.get(ip_str)
+        if ip is None:
+            if ip_str is not '':
+                ip = ip_address(ip_str)
+                self.cache[ip_str] = ip
+            else:
+                ip = ip_address("127.0.0.1")
+
+        return ip
+
+ip_resolver: IPResolver = IPResolver()
 
 def ipv4network_serializer(obj: IPv4Network, **kwargs):
     return str(obj)
@@ -98,50 +126,91 @@ def configure_logging():
     setup_logging()
     setup_structlog()
 
+def serialize_value(value, seen=None):
+    """Serialize a value to a JSON-compatible format, extracting meaningful information from objects."""
+    if seen is None:
+        seen = set()
+    
+    try:
+        # Handle basic types first
+        if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+            return value.isoformat()
+        elif isinstance(value, decimal.Decimal):
+            return float(value)
+        elif isinstance(value, bytes):
+            return value.decode('utf-8')
+        elif isinstance(value, (int, float, str, bool, type(None))):
+            return value
+        elif isinstance(value, (list, set, tuple)):
+            return [serialize_value(item, seen) for item in value]
+        elif isinstance(value, dict):
+            return {str(key): serialize_value(val, seen) for key, val in value.items()}
+        
+        # Handle Request objects specially
+        if hasattr(value, '__class__') and (
+            (hasattr(value, 'method') and hasattr(value, 'headers') and hasattr(value, 'path')) or
+            type(value).__name__ == 'Request'
+        ):
+            # This is likely a Request object, format it properly
+            try:
+                return format_request(value)
+            except Exception:
+                pass
+        
+        # Handle complex objects
+        if id(value) in seen:
+            return f"<Circular Reference: {type(value).__name__} id={id(value)}>"
+        
+        seen.add(id(value))
+        
+        # Try to extract meaningful information from objects
+        if hasattr(value, '__dict__'):
+            # For objects with __dict__, extract key attributes
+            obj_info = {
+                '__type__': type(value).__name__,
+                '__module__': getattr(value, '__module__', None),
+            }
+            
+            # Try to get a name or identifier
+            if hasattr(value, 'name'):
+                obj_info['name'] = value.name
+            elif hasattr(value, 'id'):
+                obj_info['id'] = value.id
+            elif hasattr(value, 'username'):
+                obj_info['username'] = value.username
+            elif hasattr(value, 'title'):
+                obj_info['title'] = value.title
+            
+            # Add a string representation without memory address
+            str_repr = str(value)
+            # Remove memory address from repr if present
+            if ' at 0x' in str_repr:
+                str_repr = f"<{type(value).__name__}>"
+            obj_info['repr'] = str_repr
+            
+            return obj_info
+        else:
+            # For objects without __dict__, use string representation
+            str_repr = str(value)
+            # Remove memory address from repr if present
+            if ' at 0x' in str_repr:
+                return f"<{type(value).__name__}>"
+            return str_repr
+            
+    except Exception:
+        # If anything fails, return a safe string representation
+        try:
+            return str(value)
+        except:
+            return f"<Unserializable: {type(value).__name__}>"
+
 def serialize_record(record, seen=None):
     if seen is None:
         seen = set()
     seen.add(id(record))
 
     def serialize(value):
-        try:
-            if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-                return value.isoformat()
-            elif isinstance(value, decimal.Decimal):
-                return float(value)
-            elif isinstance(value, bytes):
-                return value.decode('utf-8')
-            elif isinstance(value, (list, set, tuple)):
-                return [serialize(item) for item in value]
-            elif isinstance(value, dict):
-                return {key: serialize(val) for key, val in value.items()}
-            elif hasattr(value, '__dict__'):
-                if id(value) in seen:
-                    return f"<Circular Reference: {type(value).__name__} id={id(value)}>"
-                else:
-                    return serialize_record(value, seen)
-        except:
-            pass
-        try:
-            json_record = json.dumps(value)
-            return json_record
-        except:
-            try:
-                # Try to serialize with orjson
-                serialized_record = orjson.dumps(value).decode()
-                return serialized_record
-            except:
-                try:
-                    # Try to serialize with jsons
-                    serialized_record = jsons.dumps(value)
-                    return serialized_record
-                except:
-                    try:
-                        # Try to serialize with rapidjson
-                        serialized_record = rapidjson.dumps(value)
-                        return serialized_record
-                    except:
-                        return str(value)
+        return serialize_value(value, seen)
 
     serializable_record = {}
     for key, value in record.__dict__.items():
@@ -291,6 +360,66 @@ def getHandlerByName(name, logger):
     return None
 
 
+def _serialize_function_args(args, extra):
+    """Serialize function arguments for logging."""
+    if not args:
+        return args, extra
+    
+    # Use the new serialize_value function for proper serialization
+    serialized_args = [serialize_value(arg) for arg in args]
+    
+    if extra is not None:
+        extra.update({'extra_args': tuple(serialized_args)})
+    else:
+        extra = {'extra_args': tuple(serialized_args)}
+    
+    return (), extra
+
+
+def _serialize_locals(arg_info, extra, log_level):
+    """Serialize local variables for logging."""
+    if log_level < 21:
+        return extra
+    
+    try:
+        # Use the new serialize_value function for proper serialization
+        serialized_locals = {}
+        for k, v in arg_info.locals.items():
+            serialized_locals[k] = serialize_value(v)
+        
+        extra['locals'] = json.dumps(serialized_locals)
+    except TypeError:
+        # If even the simplified serialization fails, store as string representation
+        extra['locals'] = str(arg_info.locals)
+    
+    return extra
+
+
+def _add_stack_trace(extra, log_level):
+    """Add stack trace information to the extra fields."""
+    # Add stack trace to the 'extra' fields
+    extra['stack_trace'] = json.dumps(traceback.format_stack())
+    
+    if log_level >= 40:
+        # Add minimal stack trace information
+        stack_info = inspect.stack()
+        if stack_info:
+            # Only include the immediate caller frame
+            caller_frame = stack_info[1] if len(stack_info) > 1 else stack_info[0]
+            extra['caller_file'] = caller_frame.filename
+            extra['caller_line'] = caller_frame.lineno
+            extra['caller_function'] = caller_frame.function
+        
+        # Add exception info if available
+        exc_info = sys.exc_info()
+        if exc_info[0] is not None:
+            extra['error_type'] = exc_info[0].__name__
+            extra['error_message'] = str(exc_info[1])
+            extra['stack_trace'] = traceback.format_exc()
+    
+    return extra
+
+
 ROOT_LOGGER = logging.getLogger()
 
 
@@ -359,12 +488,8 @@ def log(
     
     # Check if the message contains any placeholders
     if not re.search(r'%\(.+?\)s', msg) and args:
-        # If it doesn't, and there are arguments, store the arguments in the 'extra' dict
-        if extra is not None:
-            extra.update({'extra_args': args})
-        else:
-            extra = {'extra_args': args}
-        args = ()
+        # Use helper method to serialize function arguments
+        args, extra = _serialize_function_args(args, extra)
 
     # Get the arguments of the calling function
     arg_info = inspect.getargvalues(frame)
@@ -384,37 +509,13 @@ def log(
         func=info.function
     )
     
-    # Add the logger and methodname to the 'extra' fields
-    extra['logger'] = log_obj
-    extra['method_name'] = logging.getLevelName(record.levelno).lower()
     extra['service.name'] = settings.SERVICE_NAME
     extra['container.name'] = settings.CONTAINER_NAME
+    extra['method_name'] = logging.getLevelName(record.levelno).lower()
     
-    
-    if log_level >= 21:
-        # Add calling function's arguments to the 'extra' fields
-        extra['args'] = arg_info.args
-        extra['varargs'] = arg_info.varargs
-        extra['keywords'] = arg_info.keywords
-        extra['locals'] = arg_info.locals
-        extra['func'] = info.function
-        # Add stack trace to the 'extra' fields
-        extra['stack_trace'] = json.dumps(traceback.format_stack())
-        if log_level >= 40:
-            # Add minimal stack trace information
-            stack_info = inspect.stack()
-            if stack_info:
-                # Only include the immediate caller frame
-                caller_frame = stack_info[1] if len(stack_info) > 1 else stack_info[0]
-                extra['caller_file'] = caller_frame.filename
-                extra['caller_line'] = caller_frame.lineno
-                extra['caller_function'] = caller_frame.function
-            # Add exception info if available
-            exc_info = sys.exc_info()
-            if exc_info[0] is not None:
-                extra['error_type'] = exc_info[0].__name__
-                extra['error_message'] = str(exc_info[1])
-                extra['stack_trace'] = traceback.format_exc()
+    # Use helper methods to serialize locals and add stack trace
+    extra = _serialize_locals(arg_info, extra, log_level)
+    extra = _add_stack_trace(extra, log_level)
 
     # Add the 'extra' fields to the '__dict__' attribute of the 'LogRecord' object
     for key, value in extra.items():
@@ -432,6 +533,23 @@ def log(
     
     # Handle the record
     log_obj.handle(record)
+
+def format_request(request: Request) -> dict:
+    # Example: Exclude 'Cookie' and 'Authorization' headers
+    excluded_headers = ['accept-encoding', 'cf-ray', 'cf-warp-tag-id', 'connection', 'x-forwarded-server']
+
+
+    return {
+        "Method": str(request.method),
+        "URL": f"{request.headers['host']}{request['path']}",
+        "URL-Path": request['path'],
+        "Query-Parameters": dict(request.query_params),
+        "headers": {k: str(v) for k, v in dict(request.headers).items() if k not in excluded_headers},
+        "Client-IP": str(ip_resolver.get_ip(request.headers)),
+        "Client-Country": str(request.headers.get("cf-ipcountry", "")),
+        "User-Agent": str(request.headers.get("user-agent", "Unknown")),
+        "Req-Info": getattr(request.state, "req_info", {}),
+    }
 
 class StructlogFormatter(logging.Formatter):
     def __init__(self, processors=None, exclude=None, *args, **kwargs):

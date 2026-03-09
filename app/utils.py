@@ -20,7 +20,7 @@ from starlette.requests import Request
 import app.settings
 import logging
 import asyncio
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi, log, logLevel, format_request
 
 if TYPE_CHECKING:
     from app.repositories.users import User
@@ -292,7 +292,7 @@ async def get_request_body(type, request: Request):
                 "debugFocus": "requests"
             },
             "Error": e,
-            "Request": request,
+            "Request": json.dumps(format_request(request)),
         }, level=30, logger="console.debug.requests")
         return None
 
@@ -308,7 +308,7 @@ async def get_request_files(type, request: Request):
                     "debugFocus": "requests"
                 },
                 "Error": e,
-                "Request": request,
+                "Request": json.dumps(format_request(request)),
             })
         return None
 

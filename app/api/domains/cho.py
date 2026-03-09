@@ -39,11 +39,8 @@ from app.constants.mods import Mods
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import ClientPrivileges
 from app.constants.privileges import Privileges
-from app.logging import Ansi
-from app.logging import get_timestamp
-from app.logging import log
-from app.logging import magnitude_fmt_time
-from app.logging import error_catcher
+from app.logging import Ansi, log, get_timestamp, magnitude_fmt_time, error_catcher, format_request
+
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.channel import Channel
@@ -263,7 +260,7 @@ async def bancho_handler(
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,
-                "Request": request,
+                "Request": json.dumps(format_request(request)),
             })
         login_data = await handle_osu_login_request(
             request.headers,
@@ -310,7 +307,7 @@ async def bancho_handler(
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,
-                "Request": request,
+                "Request": json.dumps(format_request(request)),
             })
 
     player.last_recv_time = time.time()

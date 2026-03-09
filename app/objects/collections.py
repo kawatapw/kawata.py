@@ -12,8 +12,7 @@ import app.state
 import app.utils
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import Privileges
-from app.logging import Ansi
-from app.logging import log
+from app.logging import Ansi, log, error_catcher
 from app.objects.channel import Channel
 from app.objects.match import Match
 from app.objects.player import Player
@@ -44,6 +43,7 @@ class Channels(list[Channel]):
         # #spect_1 instead of #spectator.
         return f'[{", ".join(c.real_name for c in self)}]'
 
+    @error_catcher
     def get_by_name(self, name: str) -> Channel | None:
         """Get a channel from the list by `name`."""
         for channel in self:
@@ -52,6 +52,7 @@ class Channels(list[Channel]):
 
         return None
 
+    @error_catcher
     def append(self, channel: Channel) -> None:
         """Append `channel` to the list."""
         super().append(channel)
@@ -59,6 +60,7 @@ class Channels(list[Channel]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channel} added to channels list.")
 
+    @error_catcher
     def extend(self, channels: Iterable[Channel]) -> None:
         """Extend the list with `channels`."""
         super().extend(channels)
@@ -66,6 +68,7 @@ class Channels(list[Channel]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channels} added to channels list.")
 
+    @error_catcher
     def remove(self, channel: Channel) -> None:
         """Remove `channel` from the list."""
         super().remove(channel)
@@ -73,6 +76,7 @@ class Channels(list[Channel]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channel} removed from channels list.")
 
+    @error_catcher
     async def prepare(self) -> None:
         """Fetch data from sql & return; preparing to run the server."""
         log("Fetching channels from sql.", Ansi.LCYAN)
@@ -101,6 +105,7 @@ class Matches(list[Match | None]):
     def __repr__(self) -> str:
         return f'[{", ".join(match.name for match in self if match)}]'
 
+    @error_catcher
     def get_free(self) -> int | None:
         """Return the first free match id from `self`."""
         for idx, match in enumerate(self):
@@ -109,6 +114,7 @@ class Matches(list[Match | None]):
 
         return None
 
+    @error_catcher
     def remove(self, match: Match | None) -> None:
         """Remove `match` from the list."""
         for i, _m in enumerate(self):
@@ -140,18 +146,21 @@ class Groups(list[Group]):
     def __repr__(self) -> str:
         return f'[{", ".join(map(repr, self))}]'
 
+    @error_catcher
     def has_group(self, player: Player) -> bool:
         for group in self:
             if player in group.players:
                 return True
         return False
     
+    @error_catcher
     def get_group(self, player: Player) -> Group:
         for group in self:
             if player in group.players:
                 return group
         return None
     
+    @error_catcher
     def player_invites(self, player:Player) -> [Group]:
         groups : [Group] = []
         for group in self:
@@ -159,6 +168,7 @@ class Groups(list[Group]):
                 groups.append(group)
         return groups
     
+    @error_catcher
     def show_invite_str(self, player:Player) -> str:
         invites = self.player_invites(player)
         base = "You have {} Pending invites\n".format(len(invites)) 
@@ -167,6 +177,7 @@ class Groups(list[Group]):
         if self.has_group(player):
             base += f"Warning !!! joining another group will make you leave the one you are in"
 
+    @error_catcher
     def check_token(self, token:str) -> bool:
         for group in self:
             if group.token == token:
@@ -195,31 +206,37 @@ class Players(list[Player]):
         return f'[{", ".join(map(repr, self))}]'
 
     @property
+    @error_catcher
     def ids(self) -> set[int]:
         """Return a set of the current ids in the list."""
         return {p.id for p in self}
 
     @property
+    @error_catcher
     def staff(self) -> set[Player]:
         """Return a set of the current staff online."""
         return {p for p in self if p.priv & Privileges.STAFF}
 
     @property
+    @error_catcher
     def restricted(self) -> set[Player]:
         """Return a set of the current restricted players."""
         return {p for p in self if not p.priv & Privileges.UNRESTRICTED}
 
     @property
+    @error_catcher
     def unrestricted(self) -> set[Player]:
         """Return a set of the current unrestricted players."""
         return {p for p in self if p.priv & Privileges.UNRESTRICTED}
 
+    @error_catcher
     def enqueue(self, data: bytes, immune: Sequence[Player] = []) -> None:
         """Enqueue `data` to all players, except for those in `immune`."""
         for player in self:
             if player not in immune:
                 player.enqueue(data)
 
+    @error_catcher
     def get(
         self,
         token: str | None = None,
@@ -235,6 +252,7 @@ class Players(list[Player]):
             return self._by_name.get(make_safe_name(name))
         return None
 
+    @error_catcher
     async def get_sql(
         self,
         id: int | None = None,
@@ -277,6 +295,7 @@ class Players(list[Player]):
             api_key=player["api_key"],
         )
 
+    @error_catcher
     async def from_cache_or_sql(
         self,
         id: int | None = None,
@@ -292,6 +311,7 @@ class Players(list[Player]):
 
         return None
 
+    @error_catcher
     async def from_login(
         self,
         name: str,
@@ -315,6 +335,7 @@ class Players(list[Player]):
 
         return None
 
+    @error_catcher
     def append(self, player: Player) -> None:
         """Append `player` to the list."""
         if player in self:
@@ -327,6 +348,7 @@ class Players(list[Player]):
         self._by_id[player.id] = player
         self._by_name[player.safe_name] = player
 
+    @error_catcher
     def remove(self, player: Player) -> None:
         """Remove `player` from the list."""
         if player not in self:
@@ -340,6 +362,7 @@ class Players(list[Player]):
         del self._by_name[player.safe_name]
 
 
+@error_catcher
 async def initialize_ram_caches() -> None:
     """Setup & cache the global collections before listening for connections."""
     # fetch channels, clans and pools from db

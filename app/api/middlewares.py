@@ -7,9 +7,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.logging import Ansi
-from app.logging import log
-from app.logging import magnitude_fmt_time
+from app.logging import Ansi, log, magnitude_fmt_time, format_request
 import app.settings
 
 
@@ -30,7 +28,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                 extra={
                     "Exception": str(e),
                     "Request-URL": request.url,
-                    "Request": request,
+                    "Request": json.dumps(format_request(request)),
                     },
                 )
             response = Response(content="Internal Server Error: Bad Request", status_code=500) 
@@ -46,17 +44,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             f"[{request.method}] {response.status_code} {url}{Ansi.RESET!r} | {Ansi.LBLUE!r}Request took: {magnitude_fmt_time(time_elapsed)}",
             col,
             extra={
-                "Request": json.dumps({
-                    "Method": str(request.method),
-                    "URL": str(url),
-                    "Request-Time": str(magnitude_fmt_time(time_elapsed)),
-                    "Query-Parameters": dict(request.query_params),
-                    "Headers": {k: str(v) for k, v in dict(request.headers).items()},
-                    "Client-IP": str(request.headers.get("cf-connecting-ip", "")),
-                    "Client-Country": str(request.headers.get("cf-ipcountry", "")),
-                    "User-Agent": str(request.headers.get("user-agent", "Unknown")),
-                    "Req-Info": getattr(request.state, "req_info", {}),
-                }),
+                "Request": json.dumps(format_request(request)),
                 "Response": json.dumps({
                     "Status-Code": str(response.status_code),
                     "Headers": {k: str(v) for k, v in dict(response.headers).items()},
