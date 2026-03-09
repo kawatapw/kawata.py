@@ -1,0 +1,78 @@
+name: Sync Wiki Documentation
+
+on:
+  push:
+    branches:
+      - BE-Master
+    paths:
+      - ".github/docs/wiki/**"
+  repository_dispatch:
+    types: [docs]
+  gollum:
+
+env:
+  REPO_PATH: ".github/docs/wiki"
+  WIKI_PATH: "wiki"
+  GIT_USERNAME: "github-actions[bot]"
+  GIT_EMAIL: "github-actions@github.com"
+  GIT_COMMIT_MESSAGE: "docs(wiki): Bidirectional sync between docs and wiki"
+  GITHUB_OWNER: "kawatapw"
+  GITHUB_REPO: "kawata.py"
+  REPO_BRANCH: "BE-Master"
+  WIKI_BRANCH: "master"
+
+jobs:
+  sync-docs-to-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate repository
+        id: validate
+        run: |
+          if [ "${{ github.repository }}" = "kawatapw/kawata.py" ] && [ "${{ github.event_name }}" != "gollum" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout repository
+        if: steps.validate.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+      - name: Push files into wiki repo
+        if: steps.validate.outputs.should_run == 'true'
+        uses: newrelic/wiki-sync-action@main
+        with:
+          source: ${{ env.REPO_PATH }}
+          destination: ${{ env.WIKI_PATH }}
+          branch: ${{ env.WIKI_BRANCH }}
+          token: ${{ secrets.BPY_REPO_TOKEN }}
+          gitAuthorName: ${{ env.GIT_USERNAME }}
+          gitAuthorEmail: ${{ env.GIT_EMAIL }}
+          commitMessage: ${{ env.GIT_COMMIT_MESSAGE }}
+
+  sync-wiki-to-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate repository
+        id: validate
+        run: |
+          if [ "${{ github.repository }}" = "kawatapw/kawata.py" ] && [ "${{ github.event_name }}" = "gollum" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout repository
+        if: steps.validate.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ env.REPO_BRANCH }}
+      - name: Push files into repo
+        if: steps.validate.outputs.should_run == 'true'
+        uses: newrelic/wiki-sync-action@main
+        with:
+          source: ${{ env.WIKI_PATH }}
+          destination: ${{ env.REPO_PATH }}
+          branch: ${{ env.REPO_BRANCH }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          gitAuthorName: ${{ env.GIT_USERNAME }}
+          gitAuthorEmail: ${{ env.GIT_EMAIL }}
+          commitMessage: ${{ env.GIT_COMMIT_MESSAGE }}
