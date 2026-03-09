@@ -1,0 +1,52 @@
+name: Security Scan
+
+on:
+  workflow_run:
+    workflows: ["Build Image"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    uses: ./.github/workflows/micro-flows/prep-build.yaml
+
+  trivy:
+    needs: prepare
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for logs/paths)
+        uses: actions/checkout@v4
+
+      - name: Download docker image artifact from Build
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: docker-image
+          path: ./artifacts
+
+      - name: Run Trivy scan and produce SARIF
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            IMG_TAR=$(ls ./artifacts/*.tar | head -n1)
+            [ -f "$IMG_TAR" ] || (echo "image tar not found" && exit 1)
+            docker run --rm -v "$PWD":/data aquasec/trivy:latest image --input "/data/$IMG_TAR" --format sarif --output /data/trivy-results.sarif
+          else
+            IMG="kawata.py:${GITHUB_SHA}"
+            docker run --rm -v "$PWD":/data aquasec/trivy:latest image --input "${IMG}" --format sarif --output /data/trivy-results.sarif || true
+          fi
+
+      - name: Upload Trivy SARIF to Code Scanning
+        if: test -f trivy-results.sarif
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Upload Trivy SARIF artifact
+        if: test -f trivy-results.sarif
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif

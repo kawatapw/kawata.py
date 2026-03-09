@@ -1,0 +1,41 @@
+name: Dependency Scan
+
+on:
+  workflow_run:
+    workflows: ["Build Image"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    uses: ./.github/workflows/micro-flows/prep-build.yaml
+
+  safety:
+    needs: prepare
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry lock || true
+          poetry install --no-root --with dev
+
+      - name: Run safety (requirements)
+        run: |
+          poetry run safety check --json --output safety-report.json || true
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-report
+          path: safety-report.json

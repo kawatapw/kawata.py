@@ -1,0 +1,36 @@
+name: Prepare Build
+
+on:
+  workflow_call:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set.outputs.version }}
+      tag_list: ${{ steps.set.outputs.tag_list }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: set
+        name: Prepare version + tags
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install poetry
+          VERSION=$(poetry version --short 2>/dev/null || echo "0.0.0")
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=${GITHUB_REF#refs/heads/}
+          BRANCH_TAG=${BRANCH//\//-}
+          TAGS="$SHORT_SHA $BRANCH_TAG"
+          if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
+          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS prod"; fi
+          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS staging"; fi
+          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS dev"; fi
+          # always add ci short sha
+          TAGS="$TAGS ci-${SHORT_SHA}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag_list=$TAGS" >> $GITHUB_OUTPUT

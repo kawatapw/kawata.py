@@ -2,17 +2,11 @@ name: Test Application Code
 
 on:
   push:
-    branches:
-      - master
-    paths:
-      - "**.py"
-      - "**.sh"
-      - "**.yml"
-      - "**.toml"
-      - "**.lock"
-      - "**.sql"
-      - "Dockerfile"
   pull_request:
+  workflow_run:
+    workflows: ["Build Image"]
+    types: [completed]
+  workflow_dispatch:
 
 env:
   APP_HOST: "0.0.0.0"
@@ -31,7 +25,7 @@ env:
   DISALLOWED_NAMES: "mrekk,vaxei,btmc,cookiezi"
   DISALLOWED_PASSWORDS: "password,abc123"
   DISALLOW_OLD_CLIENTS: "False"
-  DOMAIN: "cmyui.xyz"
+  DOMAIN: "lokiverse.com"
   MENU_ICON_URL: "https://akatsuki.pw/static/logos/logo_ingame.png"
   MENU_ONCLICK_URL: "https://akatsuki.pw"
   MIRROR_DOWNLOAD_ENDPOINT: "https://catboy.best/d"
@@ -49,14 +43,48 @@ env:
   DB_USE_SSL: "false"
 
 jobs:
+  prepare:
+    uses: ./.github/workflows/micro-flows/prep-build.yaml
+
   run-test-suite:
+    needs: prepare
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build application image
-        run: docker build -t bancho:latest .
+      - name: Download docker image artifact (when triggered by Build)
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: docker-image
+          path: ./artifacts
+
+      - name: Load docker image (if artifact available)
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+          if [ -n "$IMG_TAR" ]; then docker load -i "$IMG_TAR"; fi
+
+      - name: Build application image (fallback - local)
+        if: ${{ github.event_name != 'workflow_run' }}
+        run: |
+          set -euo pipefail
+          IMAGE_NAME="kawatapy"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          BRANCH_TAG="${BRANCH//\//-}"
+          TAGS=("$SHORT_SHA" "$BRANCH_TAG")
+          [ "$BRANCH" = "master" ] && TAGS+=("latest")
+          [ "$BRANCH" = "BE-Master" ] && TAGS+=("prod")
+          [ "$BRANCH" = "BE-Staging" ] && TAGS+=("staging")
+          [ "$BRANCH" = "BE-Dev" ] && TAGS+=("dev")
+          TAGS+=("ci-${SHORT_SHA}")
+          TAG_ARGS=""
+          for t in "${TAGS[@]}"; do TAG_ARGS="${TAG_ARGS} -t ${IMAGE_NAME}:${t}"; done
+          docker build ${TAG_ARGS} .
 
       - name: Start containers
         run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test

@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - BE-Master
+      - BE-Staging
+    tags:
+      - 'v*'
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Security Scan"]
+    types: [completed]
+
+jobs:
+  prepare:
+    uses: ./.github/workflows/micro-flows/prep-build.yaml
+
+  collect_artifacts:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_run' }}
+    outputs:
+      trivy_path: ${{ steps.emit.outputs.trivy }}
+      safety_path: ${{ steps.emit.outputs.safety }}
+      coverage_path: ${{ steps.emit.outputs.coverage }}
+    steps:
+      - name: Download Trivy SARIF
+        id: collect
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: trivy-results
+          path: ./artifacts || true
+      - name: Download safety report (if any)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: safety-report
+          path: ./artifacts || true
+      - name: Download coverage (if any)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: code-coverage-report
+          path: ./artifacts || true
+      - name: Emit outputs
+        id: emit
+        run: |
+          TRIVY=$(ls ./artifacts/*.sarif 2>/dev/null || true)
+          SAFETY=$(ls ./artifacts/*safety* 2>/dev/null || true)
+          COVERAGE=$(ls ./artifacts/coverage* ./artifacts/*coverage* 2>/dev/null || true)
+          echo "trivy=${TRIVY}" >> $GITHUB_OUTPUT
+          echo "safety=${SAFETY}" >> $GITHUB_OUTPUT
+          echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
+
+  create_release:
+    needs: [prepare, collect_artifacts]
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.ref, 'refs/heads/BE-Master') ||
+      contains(github.ref, 'refs/heads/BE-Staging') ||
+      startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate source archive
+        run: tar -czf source-code.tar.gz --exclude='.git' --exclude='*.tar.gz' .
+
+      - name: Collect optional artifacts into release-artifacts.tar.gz
+        run: |
+          mkdir -p collected
+          # copy if present
+          [ -f "${{ needs.collect_artifacts.outputs.trivy_path }}" ] && cp "${{ needs.collect_artifacts.outputs.trivy_path }}" collected/ || true
+          [ -f "${{ needs.collect_artifacts.outputs.safety_path }}" ] && cp "${{ needs.collect_artifacts.outputs.safety_path }}" collected/ || true
+          if [ -d "./artifacts/coverage" ]; then cp -r ./artifacts/coverage collected/ || true; fi
+          tar -czf release-artifacts.tar.gz collected || true
+
+      - name: Create GitHub Release (attach files)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: Release v${{ needs.prepare.outputs.version }}
+          body: |
+            Release v${{ needs.prepare.outputs.version }}
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/BE-Master' }}
+          files: |
+            source-code.tar.gz
+            release-artifacts.tar.gz
