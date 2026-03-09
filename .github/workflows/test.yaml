@@ -61,12 +61,21 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           name: docker-image
           path: ./artifacts
+          # Attempt to retry download if artifact isn't ready yet
+          # (GitHub artifacts can take a moment to propagate)
+          retry-exit-code: 1
+          retry-on: error
 
       - name: Load docker image (if artifact available)
         if: ${{ github.event_name == 'workflow_run' }}
         run: |
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
-          if [ -n "$IMG_TAR" ]; then docker load -i "$IMG_TAR"; fi
+          if [ -n "$IMG_TAR" ]; then 
+            docker load -i "$IMG_TAR"
+            # Tag the loaded image as kawatapy:latest so compose finds it locally
+            # The build workflow saves it as kawata.py:${GITHUB_SHA}
+            docker tag kawata.py:${{ github.sha }} kawatapy:latest
+          fi
 
       - name: Build application image (fallback - local)
         if: ${{ github.event_name != 'workflow_run' }}

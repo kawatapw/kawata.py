@@ -23,12 +23,21 @@ env:
 
 jobs:
   sync-docs-to-wiki:
-    if: ${{ github.repository == format('{0}/{1}', env.GITHUB_OWNER, env.GITHUB_REPO) && github.event_name != 'gollum' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Validate repository
+        id: validate
+        run: |
+          if [ "${{ github.repository }}" = "${{ env.GITHUB_OWNER }}/${{ env.GITHUB_REPO }}" ] && [ "${{ github.event_name }}" != "gollum" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
       - name: Checkout repository
+        if: steps.validate.outputs.should_run == 'true'
         uses: actions/checkout@v4
       - name: Push files into wiki repo
+        if: steps.validate.outputs.should_run == 'true'
         uses: newrelic/wiki-sync-action@main
         with:
           source: ${{ env.REPO_PATH }}
@@ -40,16 +49,24 @@ jobs:
           commitMessage: ${{ env.GIT_COMMIT_MESSAGE }}
 
   sync-wiki-to-docs:
-    if: ${{ github.repository == format('{0}/{1}', env.GITHUB_OWNER, env.GITHUB_REPO) && github.event_name == 'gollum' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Validate repository
+        id: validate
+        run: |
+          if [ "${{ github.repository }}" = "${{ env.GITHUB_OWNER }}/${{ env.GITHUB_REPO }}" ] && [ "${{ github.event_name }}" = "gollum" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
       - name: Checkout repository
+        if: steps.validate.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ env.REPO_BRANCH }}
-
       - name: Push files into repo
+        if: steps.validate.outputs.should_run == 'true'
         uses: newrelic/wiki-sync-action@main
         with:
           source: ${{ env.WIKI_PATH }}

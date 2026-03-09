@@ -39,13 +39,13 @@ jobs:
           fi
 
       - name: Upload Trivy SARIF to Code Scanning
-        if: test -f trivy-results.sarif
+        if: ${{ hashFiles('trivy-results.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
 
       - name: Upload Trivy SARIF artifact
-        if: test -f trivy-results.sarif
+        if: ${{ hashFiles('trivy-results.sarif') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: trivy-results

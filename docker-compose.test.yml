@@ -46,7 +46,7 @@ services:
 
   bancho-test:
     # we also have a public image: osuakatsuki/bancho.py:latest
-    image: bancho:latest
+    image: kawatapy:latest
     depends_on:
       mysql-test:
         condition: service_healthy
