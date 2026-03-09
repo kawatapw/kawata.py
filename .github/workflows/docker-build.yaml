@@ -55,7 +55,8 @@ jobs:
         with:
           context: .
           platforms: linux/amd64, linux/arm64
-          outputs: type=docker,dest=/tmp/docker.tar
+          # Use OCI for multi-platform support
+          outputs: type=oci,dest=/tmp/docker-oci
           tags: kawata.py:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -64,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: docker
-          path: /tmp/docker.tar
+          path: /tmp/docker-oci
 
   security-scan:
     runs-on: ubuntu-latest
@@ -76,7 +77,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docker
-          path: /tmp
+          path: /tmp/docker-oci
+
+      - name: Convert OCI to Docker format
+        run: |
+          docker buildx imagetools create --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
 
       - name: Load Docker image
         run: docker load --input /tmp/docker.tar
@@ -103,7 +108,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docker
-          path: /tmp
+          path: /tmp/docker-oci
+
+      - name: Convert OCI to Docker format
+        run: |
+          docker buildx imagetools create --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
 
       - name: Load Docker image
         run: docker load --input /tmp/docker.tar
@@ -181,7 +190,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docker
-          path: /tmp
+          path: /tmp/docker-oci
+
+      - name: Convert OCI to Docker format
+        run: |
+          docker buildx imagetools create --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
 
       - name: Load Docker image
         run: docker load --input /tmp/docker.tar
@@ -200,10 +213,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docker
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/docker.tar
+          path: /tmp/docker-oci
 
       - name: Extract version from Poetry
         id: poetry_version
@@ -378,8 +388,8 @@ jobs:
             {
               "embeds": [
                 {
-                  "title": "✅ kawata.py Release Published",
-                  "description": "A new version of kawata.py has been successfully released and published to Docker Hub.",
+                  "title": "✅ [kawata.py](http://_vscodecontentref_/0) Release Published",
+                  "description": "A new version of [kawata.py](http://_vscodecontentref_/1) has been successfully released and published to Docker Hub.",
                   "color": 3066993,
                   "fields": [
                     {
@@ -421,7 +431,7 @@ jobs:
             {
               "embeds": [
                 {
-                  "title": "❌ kawata.py Release Failed",
+                  "title": "❌ [kawata.py](http://_vscodecontentref_/2) Release Failed",
                   "description": "The release process failed. Please check the GitHub Actions logs for details.",
                   "color": 15158332,
                   "fields": [
