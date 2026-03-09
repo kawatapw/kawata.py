@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Sourcing environment from .env file"
-while IFS= read -r line || [[ -n "$line" ]]; do
-  if [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]]; then
-    continue
-  fi
-  key="${line%%=*}"
-  value="${line#*=}"
-  export "$key"="$value"
-done < .env
+if [[ -f .env ]]; then
+  echo "Sourcing environment from .env file"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]]; then
+      continue
+    fi
+    key="${line%%=*}"
+    value="${line#*=}"
+    export "$key"="$value"
+  done < .env
+else
+  echo "No .env file found, using environment variables passed to the container"
+fi
 
 echo "Installing nginx configuration"
 sed -e "s|\${APP_PORT}|$APP_PORT|g" \
