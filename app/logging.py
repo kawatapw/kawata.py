@@ -71,7 +71,7 @@ class IPResolver:
 
         ip = self.cache.get(ip_str)
         if ip is None:
-            if ip_str is not '':
+            if ip_str != '':
                 ip = ip_address(ip_str)
                 self.cache[ip_str] = ip
             else:
