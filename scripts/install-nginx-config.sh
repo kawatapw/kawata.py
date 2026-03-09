@@ -31,8 +31,8 @@ if [[ -f "$NGINX_CONFIG_EXAMPLE" ]]; then
   LOG_PATHS=$(grep -E "^\s*(access_log|error_log)" "$NGINX_CONFIG_EXAMPLE" | \
     sed -E 's/^\s*(access_log|error_log)\s+//' | \
     sed -E 's/;.*$//' | \
-    sed -E "s/\$\{DOMAIN\}/$DOMAIN/g" | \
-    sed -E "s/\$\{DATA_DIRECTORY\}/$DATA_DIRECTORY/g")
+    sed -E "s|\$\{DOMAIN\}|$DOMAIN|g" | \
+    sed -E "s|\$\{DATA_DIRECTORY\}|$DATA_DIRECTORY|g")
 
   if [[ -z "$LOG_PATHS" ]]; then
     echo "Warning: No log paths found in $NGINX_CONFIG_EXAMPLE"
