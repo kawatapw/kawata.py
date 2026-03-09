@@ -72,16 +72,16 @@ jobs:
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
           if [ -n "$IMG_TAR" ]; then 
             docker load -i "$IMG_TAR"
-            # Tag the loaded image as kawatapy:latest so compose finds it locally
+            # Tag the loaded image as kawata.py:latest so compose finds it locally
             # The build workflow saves it as kawata.py:${GITHUB_SHA}
-            docker tag kawata.py:${{ github.sha }} kawatapy:latest
+            docker tag kawata.py:${{ github.sha }} kawata.py:latest
           fi
 
       - name: Build application image (fallback - local)
         if: ${{ github.event_name != 'workflow_run' }}
         run: |
           set -euo pipefail
-          IMAGE_NAME="kawatapy"
+          IMAGE_NAME="kawata.py"
           SHORT_SHA="${GITHUB_SHA::7}"
           BRANCH="${GITHUB_REF#refs/heads/}"
           BRANCH_TAG="${BRANCH//\//-}"

@@ -45,8 +45,10 @@ services:
   ## application services
 
   bancho-test:
-    # we also have a public image: osuakatsuki/bancho.py:latest
-    image: kawatapy:latest
+    # * we also have a public image: kawatapw/kawata.py:latest 
+    # NOTE: (You can also use BE-Master/BE-Prod/BE-Staging/BE-Dev tags for running Production/Staging/Dev versions of the image. For production environments, please use BE-Prod to ensure you are using a Production Ready image.)
+    # * For the purposes of this test suite, we use latest to ensure we're testing the exact same image that was built in the Build workflow (when this test workflow is triggered by the Build workflow's completion)
+    image: kawata.py:latest
     depends_on:
       mysql-test:
         condition: service_healthy
