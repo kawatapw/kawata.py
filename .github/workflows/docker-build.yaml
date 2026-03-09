@@ -142,7 +142,7 @@ jobs:
 
       - name: Convert OCI to Docker format
         run: |
-          docker buildx imagetools export --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
+          docker buildx imagetools export --type docker --dest /tmp/docker.tar kawata.py:${{ github.sha }}
 
       - name: Load Docker image
         run: docker load --input /tmp/docker.tar
@@ -173,7 +173,7 @@ jobs:
 
       - name: Convert OCI to Docker format
         run: |
-          docker buildx imagetools export --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
+          docker buildx imagetools export --type docker --dest /tmp/docker.tar kawata.py:${{ github.sha }}
 
       - name: Load Docker image
         run: docker load --input /tmp/docker.tar
