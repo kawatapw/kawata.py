@@ -76,21 +76,3 @@ jobs:
         with:
           name: lint-reports
           path: reports/**
-
-      - name: Publish reports to Gist (optional)
-        if: ${{ secrets.GIST_TOKEN != '' }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GIST_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const files = {};
-            for (const fn of fs.readdirSync('reports')) {
-              files[fn] = { content: fs.readFileSync(`reports/${fn}`, 'utf8') };
-            }
-            const gist = await github.gists.create({
-              files,
-              public: false,
-              description: `CI Lint reports for ${process.env.GITHUB_REPOSITORY}@${process.env.GITHUB_REF}`
-            });
-            core.setOutput('gist_url', gist.data.html_url)
