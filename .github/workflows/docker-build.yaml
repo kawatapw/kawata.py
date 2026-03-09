@@ -340,7 +340,7 @@ jobs:
 
   discord-notify:
     runs-on: ubuntu-latest
-    needs: [build, security-scan, test, code-coverage, dependency-scan, performance-test, push-to-docker-hub, update-docker-hub-description, release]
+    needs: [build, code-coverage, dependency-scan, security-scan, test, release, push-to-docker-hub, update-docker-hub-description]
     if: ${{ always() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     
     steps:
@@ -353,6 +353,7 @@ jobs:
         id: poetry_version
         run: |
           pip install poetry
+          poetry lock
           VERSION=$(poetry version --short)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
