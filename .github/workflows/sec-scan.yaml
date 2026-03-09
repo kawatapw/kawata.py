@@ -34,7 +34,9 @@ jobs:
             [ -f "$IMG_TAR" ] || (echo "image tar not found" && exit 1)
             docker run --rm -v "$PWD":/data aquasec/trivy:latest image --input "/data/$IMG_TAR" --format sarif --output /data/trivy-results.sarif
           else
-            IMG="kawata.py:${GITHUB_SHA}"
+            # Use the first tag from prep-build for local scan
+            FIRST_TAG=$(echo "${{ needs.prepare.outputs.tag_list }}" | awk '{print $1}')
+            IMG="${{ needs.prepare.outputs.github_owner }}/${{ needs.prepare.outputs.github_repo }}:$FIRST_TAG"
             docker run --rm -v "$PWD":/data aquasec/trivy:latest image --input "${IMG}" --format sarif --output /data/trivy-results.sarif || true
           fi
 

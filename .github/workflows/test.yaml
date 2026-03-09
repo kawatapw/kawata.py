@@ -61,8 +61,6 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           name: docker-image
           path: ./artifacts
-          # Attempt to retry download if artifact isn't ready yet
-          # (GitHub artifacts can take a moment to propagate)
           retry-exit-code: 1
           retry-on: error
 
@@ -72,34 +70,35 @@ jobs:
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
           if [ -n "$IMG_TAR" ]; then 
             docker load -i "$IMG_TAR"
-            # Tag the loaded image as kawata.py:latest so compose finds it locally
-            # The build workflow saves it as kawata.py:${GITHUB_SHA}
-            docker tag kawata.py:${{ github.sha }} kawata.py:latest
+            # Tag with the first tag from prep-build (usually short SHA) for consistency
+            FIRST_TAG=$(echo "${{ needs.prepare.outputs.tag_list }}" | awk '{print $1}')
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+            # Also tag as latest for the test
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
           fi
 
       - name: Build application image (fallback - local)
         if: ${{ github.event_name != 'workflow_run' }}
         run: |
           set -euo pipefail
-          IMAGE_NAME="kawata.py"
-          SHORT_SHA="${GITHUB_SHA::7}"
-          BRANCH="${GITHUB_REF#refs/heads/}"
-          BRANCH_TAG="${BRANCH//\//-}"
-          TAGS=("$SHORT_SHA" "$BRANCH_TAG")
-          [ "$BRANCH" = "master" ] && TAGS+=("latest")
-          [ "$BRANCH" = "BE-Master" ] && TAGS+=("prod")
-          [ "$BRANCH" = "BE-Staging" ] && TAGS+=("staging")
-          [ "$BRANCH" = "BE-Dev" ] && TAGS+=("dev")
-          TAGS+=("ci-${SHORT_SHA}")
+          GITHUB_OWNER="${{ needs.prepare.outputs.github_owner }}"
+          GITHUB_REPO="${{ needs.prepare.outputs.github_repo }}"
+          TAGS="${{ needs.prepare.outputs.tag_list }}"
           TAG_ARGS=""
-          for t in "${TAGS[@]}"; do TAG_ARGS="${TAG_ARGS} -t ${IMAGE_NAME}:${t}"; done
-          docker build ${TAG_ARGS} .
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          docker build $TAG_ARGS .
 
       - name: Start containers
         run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test
+        env:
+          TEST_IMAGE: ${{ needs.prepare.outputs.github_owner }}/${{ needs.prepare.outputs.github_repo }}:${{ needs.prepare.outputs.tag_list | split(' ') | first }}
 
       - name: Run tests
         run: docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
+        env:
+          TEST_IMAGE: ${{ needs.prepare.outputs.github_owner }}/${{ needs.prepare.outputs.github_repo }}:${{ needs.prepare.outputs.tag_list | split(' ') | first }}
 
       - name: Stop containers
         if: always()

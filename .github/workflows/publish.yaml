@@ -38,17 +38,25 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Generate Docker tags
+        id: tags
+        run: |
+          DOCKER_USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          TAGS=""
+          for TAG in ${{ needs.prepare.outputs.tag_list }}; do
+            TAGS="$TAGS$DOCKER_USER/kawata.py:$TAG\n"
+          done
+          # Use heredoc to handle newlines properly
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Build and push multi-arch images
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64, linux/arm64
           push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ github.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ needs.prepare.outputs.version }}
-            ${{ github.ref == 'refs/heads/BE-Master' && format('{0}/kawata.py:prod', secrets.DOCKERHUB_USERNAME) || '' }}
-            ${{ github.ref == 'refs/heads/BE-Staging' && format('{0}/kawata.py:staging', secrets.DOCKERHUB_USERNAME) || '' }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

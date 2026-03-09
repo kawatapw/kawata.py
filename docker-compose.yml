@@ -52,7 +52,7 @@ services:
   bancho:
     # * we also have a public image: kawatapw/kawata.py:latest 
     # NOTE: (You can also use BE-Master/BE-Prod/BE-Staging/BE-Dev tags for running Production/Staging/Dev versions of the image. For production environments, please use BE-Prod to ensure you are using a Production Ready image.)
-    image: kawata.py:${CONTAINER_VERSION}
+    image: ${GITHUB_OWNER}/${GITHUB_REPO}:${CONTAINER_VERSION}
     ports:
       - ${APP_PORT}:${APP_PORT}
     depends_on:

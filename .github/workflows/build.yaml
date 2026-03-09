@@ -28,9 +28,20 @@ jobs:
 
       - name: Build single-arch image and save tar artifact
         run: |
-          IMAGE="kawata.py:${GITHUB_SHA}"
-          # Tag as kawata.py:latest for easy reference in tests
-          docker build -t "${IMAGE}" -t "kawata.py:latest" .
+          GITHUB_OWNER="${{ needs.prepare.outputs.github_owner }}"
+          GITHUB_REPO="${{ needs.prepare.outputs.github_repo }}"
+          IMAGE="${GITHUB_OWNER}/${GITHUB_REPO}:${GITHUB_SHA}"
+          
+          # Build with all tags from prep-build
+          TAGS="${{ needs.prepare.outputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          
+          docker build $TAG_ARGS .
+          
+          # Save the main image (SHA) as artifact
           mkdir -p /tmp/artifacts
           docker save "${IMAGE}" -o /tmp/artifacts/docker-image-${GITHUB_SHA}.tar
 
