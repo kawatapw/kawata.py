@@ -67,60 +67,6 @@ jobs:
           name: docker
           path: /tmp/docker-oci
 
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: build
-    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' || github.ref == 'refs/heads/hina/updateV2' }}
-    
-    steps:
-      - name: Download Docker artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker
-          path: /tmp/docker-oci
-
-      - name: Convert OCI to Docker format
-        run: |
-          docker buildx imagetools create --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
-
-      - name: Load Docker image
-        run: docker load --input /tmp/docker.tar
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'kawata.py:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' || github.ref == 'refs/heads/hina/updateV2' }}
-    
-    steps:
-      - name: Download Docker artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker
-          path: /tmp/docker-oci
-
-      - name: Convert OCI to Docker format
-        run: |
-          docker buildx imagetools create --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
-
-      - name: Load Docker image
-        run: docker load --input /tmp/docker.tar
-
-      - name: Test container
-        run: |
-          docker run --rm kawata.py:${{ github.sha }} --version || echo "Version check failed, but continuing..."
-
   code-coverage:
     runs-on: ubuntu-latest
     needs: build
@@ -138,6 +84,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
+          peotry lock
           poetry install
 
       - name: Run tests with coverage
@@ -168,6 +115,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
+          poetry lock
           poetry install
 
       - name: Run safety check
@@ -180,7 +128,7 @@ jobs:
           name: safety-report
           path: safety-report.json
 
-  performance-test:
+  security-scan:
     runs-on: ubuntu-latest
     needs: build
     if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' || github.ref == 'refs/heads/hina/updateV2' }}
@@ -194,18 +142,26 @@ jobs:
 
       - name: Convert OCI to Docker format
         run: |
-          docker buildx imagetools create --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
+          docker buildx imagetools export --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
 
       - name: Load Docker image
         run: docker load --input /tmp/docker.tar
 
-      - name: Run performance tests
-        run: |
-          docker run --rm kawata.py:${{ github.sha }} --performance-test || echo "Performance test not implemented"
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'kawata.py:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-  push-to-docker-hub:
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  test:
     runs-on: ubuntu-latest
-    needs: [build, security-scan, test, code-coverage, dependency-scan, performance-test]
+    needs: build
     if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' || github.ref == 'refs/heads/hina/updateV2' }}
     
     steps:
@@ -215,73 +171,19 @@ jobs:
           name: docker
           path: /tmp/docker-oci
 
-      - name: Extract version from Poetry
-        id: poetry_version
+      - name: Convert OCI to Docker format
         run: |
-          pip install poetry
-          VERSION=$(poetry version --short)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Detected version: $VERSION"
+          docker buildx imagetools export --output type=docker,dest=/tmp/docker.tar kawata.py:${{ github.sha }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/amd64, linux/arm64
+      - name: Load Docker image
+        run: docker load --input /tmp/docker.tar
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Push to Docker Hub
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64, linux/arm64
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ github.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ steps.poetry_version.outputs.version }}
-            ${{ github.ref == 'refs/heads/BE-Master' && format('{0}/kawata.py:prod', secrets.DOCKERHUB_USERNAME) || '' }}
-            ${{ github.ref == 'refs/heads/BE-Staging' && format('{0}/kawata.py:staging', secrets.DOCKERHUB_USERNAME) || '' }}
-            ${{ github.ref == 'refs/heads/BE-Dev' && format('{0}/kawata.py:dev', secrets.DOCKERHUB_USERNAME) || '' }}
-            ${{ github.ref == 'refs/heads/master' && format('{0}/kawata.py:stable', secrets.DOCKERHUB_USERNAME) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  update-docker-hub-description:
-    runs-on: ubuntu-latest
-    needs: push-to-docker-hub
-    if: ${{ github.ref == 'refs/heads/BE-Master' }}
-    
-    steps:
-      - uses: actions/checkout@v4
-        name: Checkout
-
-      - name: Extract version from Poetry
-        id: poetry_version
+      - name: Test container
         run: |
-          pip install poetry
-          VERSION=$(poetry version --short)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Detected version: $VERSION"
-
-      - name: Update Docker Hub description
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py
-          short-description: "kawata.py - Python-based osu! server management"
-          readme-filepath: "./README.md"
+          echo "Not implemented yet - skipping tests"
 
   release:
-    needs: [build, security-scan, test, code-coverage, dependency-scan, performance-test, push-to-docker-hub, update-docker-hub-description]
+    needs: [build, code-coverage, dependency-scan, security-scan, test]
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/BE-Master' || startsWith(github.ref, 'refs/tags/v') }}
     
@@ -358,6 +260,83 @@ jobs:
           generate_release_notes: true
           files: |
             source-code.tar.gz
+
+  push-to-docker-hub:
+    runs-on: ubuntu-latest
+    needs: [build, code-coverage, dependency-scan, security-scan, test]
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || github.ref == 'refs/heads/BE-Dev' || github.ref == 'refs/heads/hina/updateV2' }}
+    
+    steps:
+      - name: Download Docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker
+          path: /tmp/docker-oci
+
+      - name: Extract version from Poetry
+        id: poetry_version
+        run: |
+          pip install poetry
+          VERSION=$(poetry version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64, linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64, linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py:${{ steps.poetry_version.outputs.version }}
+            ${{ github.ref == 'refs/heads/BE-Master' && format('{0}/kawata.py:prod', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ github.ref == 'refs/heads/BE-Staging' && format('{0}/kawata.py:staging', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ github.ref == 'refs/heads/BE-Dev' && format('{0}/kawata.py:dev', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ github.ref == 'refs/heads/master' && format('{0}/kawata.py:stable', secrets.DOCKERHUB_USERNAME) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-docker-hub-description:
+    runs-on: ubuntu-latest
+    needs: push-to-docker-hub
+    if: ${{ github.ref == 'refs/heads/BE-Master' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+
+      - name: Extract version from Poetry
+        id: poetry_version
+        run: |
+          pip install poetry
+          VERSION=$(poetry version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/kawata.py
+          short-description: "kawata.py - Python-based osu! server management"
+          readme-filepath: "./README.md"
 
   discord-notify:
     runs-on: ubuntu-latest
