@@ -112,20 +112,31 @@ jobs:
         if: failure()
         run: |
           echo "=== Capturing container logs for debugging ==="
+          mkdir -p /tmp/container-logs
+          
           echo "Container status:"
-          docker compose -f docker-compose.test.yml ps
+          docker compose -f docker-compose.test.yml ps > /tmp/container-logs/container-status.txt 2>&1
+          cat /tmp/container-logs/container-status.txt
           echo ""
+          
           echo "=== bancho-test logs ==="
-          docker compose -f docker-compose.test.yml logs bancho-test || true
+          docker compose -f docker-compose.test.yml logs bancho-test > /tmp/container-logs/bancho-test.log 2>&1 || true
+          cat /tmp/container-logs/bancho-test.log
           echo ""
+          
           echo "=== mysql-test logs ==="
-          docker compose -f docker-compose.test.yml logs mysql-test || true
+          docker compose -f docker-compose.test.yml logs mysql-test > /tmp/container-logs/mysql-test.log 2>&1 || true
+          cat /tmp/container-logs/mysql-test.log
           echo ""
+          
           echo "=== redis-test logs ==="
-          docker compose -f docker-compose.test.yml logs redis-test || true
+          docker compose -f docker-compose.test.yml logs redis-test > /tmp/container-logs/redis-test.log 2>&1 || true
+          cat /tmp/container-logs/redis-test.log
           echo ""
+          
           echo "=== All container logs ==="
-          docker compose -f docker-compose.test.yml logs || true
+          docker compose -f docker-compose.test.yml logs > /tmp/container-logs/all-containers.log 2>&1 || true
+          cat /tmp/container-logs/all-containers.log
 
       - name: Archive logs on failure
         if: failure()
