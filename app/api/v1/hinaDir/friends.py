@@ -13,6 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 from app.logging import error_catcher
+import app.settings
 import app.state
 
 router = APIRouter()
@@ -70,7 +71,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["mutuals"] = [_enrich_with_status(dict(row)) for row in rows]
+        result["mutuals"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
 
     if scope in ("followers", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -86,7 +87,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["followers"] = [_enrich_with_status(dict(row)) for row in rows]
+        result["followers"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
 
     if scope in ("blocked", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -99,7 +100,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["blocked"] = [_enrich_with_status(dict(row)) for row in rows]
+        result["blocked"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
 
     result["status"] = "success"
     return ORJSONResponse(result)
@@ -117,18 +118,19 @@ async def api_get_friends_status(
     )
 
     online = {}
-    for row in friend_rows:
-        fid = row["user2"]
-        player = app.state.sessions.players.get(id=fid)
-        if player and player.is_online:
-            online[str(fid)] = {
-                "action": player.status.action.value,
-                "action_name": player.status.action.name,
-                "info_text": player.status.info_text,
-                "mode": player.status.mode.value,
-                "mods": int(player.status.mods),
-                "map_id": player.status.map_id,
-            }
+    if friend_rows:
+        for row in friend_rows:
+            fid = row["user2"]
+            player = app.state.sessions.players.get(id=fid)
+            if player and player.is_online:
+                online[str(fid)] = {
+                    "action": player.status.action.value,
+                    "action_name": player.status.action.name,
+                    "info_text": player.status.info_text,
+                    "mode": player.status.mode.value,
+                    "mods": int(player.status.mods),
+                    "map_id": player.status.map_id,
+                }
 
     return ORJSONResponse({"status": "success", "online": online})
 
@@ -220,7 +222,7 @@ async def api_get_friends_leaderboard(
     )
 
     # Build ID list: mutual friends + requesting user
-    ids = [row["id"] for row in mutual_rows]
+    ids = [row["id"] for row in mutual_rows] if mutual_rows else []
     ids.append(user_id)
     ids = list(set(ids))
 
@@ -247,26 +249,27 @@ async def api_get_friends_leaderboard(
     )
 
     leaderboard = []
-    for i, row in enumerate(rows):
-        entry = dict(row)
-        entry["rank"] = i + 1
+    if rows:
+        for i, row in enumerate(rows):
+            entry = dict(row)
+            entry["rank"] = i + 1
 
-        # Get global rank from Redis
-        global_rank = await app.state.services.redis.zrevrank(
-            f"bancho:leaderboard:{mode}",
-            str(entry["id"]),
-        )
-        entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
+            # Get global rank from Redis
+            global_rank = await app.state.services.redis.zrevrank(
+                f"bancho:leaderboard:{mode}",
+                str(entry["id"]),
+            )
+            entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
 
-        entry["is_online"] = False
-        player = app.state.sessions.players.get(id=entry["id"])
-        if player and player.is_online:
-            entry["is_online"] = True
+            entry["is_online"] = False
+            player = app.state.sessions.players.get(id=entry["id"])
+            if player and player.is_online:
+                entry["is_online"] = True
 
-        # Round accuracy
-        entry["acc"] = round(entry["acc"], 2)
+            # Round accuracy
+            entry["acc"] = round(entry["acc"], 2)
 
-        leaderboard.append(entry)
+            leaderboard.append(entry)
 
     # Add PP delta between consecutive ranks
     for i, entry in enumerate(leaderboard):

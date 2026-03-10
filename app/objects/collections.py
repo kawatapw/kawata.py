@@ -139,7 +139,7 @@ class Groups(list[Group]):
         # allow us to either pass in the player
         # obj, or the player name as a string.
         if isinstance(player, str):
-            return player in (player.name for player in self)
+            return player in (group.lead.name for group in self)
         else:
             return super().__contains__(player)
 
@@ -154,15 +154,15 @@ class Groups(list[Group]):
         return False
     
     @error_catcher
-    def get_group(self, player: Player) -> Group:
+    def get_group(self, player: Player) -> Group | None:
         for group in self:
             if player in group.players:
                 return group
         return None
     
     @error_catcher
-    def player_invites(self, player:Player) -> [Group]:
-        groups : [Group] = []
+    def player_invites(self, player:Player) -> list[Group]:
+        groups : list[Group] = []
         for group in self:
             if player in group.invites:
                 groups.append(group)
@@ -176,6 +176,7 @@ class Groups(list[Group]):
             base += f"type !accept {x.lead.safe_name} to join {x.lead.name}'s group\n"
         if self.has_group(player):
             base += f"Warning !!! joining another group will make you leave the one you are in"
+        return base
 
     @error_catcher
     def check_token(self, token:str) -> bool:
@@ -387,7 +388,7 @@ async def initialize_ram_caches() -> None:
     # static api keys
     app.state.sessions.api_keys = {
         row["api_key"]: row["id"]
-        for row in await app.state.services.database.fetch_all(
+        for row in (await app.state.services.database.fetch_all(
             "SELECT id, api_key FROM users WHERE api_key IS NOT NULL",
-        )
+        ) or [])
     }

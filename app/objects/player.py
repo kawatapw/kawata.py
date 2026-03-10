@@ -913,10 +913,10 @@ class Player:
 
     async def relationships_from_sql(self) -> None:
         """Retrieve `self`'s relationships from sql."""
-        for row in await app.state.services.database.fetch_all(
+        for row in (await app.state.services.database.fetch_all(
             "SELECT user2, type FROM relationships WHERE user1 = :user1",
             {"user1": self.id},
-        ):
+        ) or []):
             if row["type"] == "friend":
                 self.friends.add(row["user2"])
             else:

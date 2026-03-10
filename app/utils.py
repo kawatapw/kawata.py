@@ -339,7 +339,8 @@ async def write_log_file(type, file_path, request):
             except Exception as e:
                 body_str = None
             file.write(f"\nRequest Body:\n")
-            file.write(body_str)
+            # ...existing code...
+            file.write(body_str if body_str is not None else "Unable to decode body")
         files = await get_request_files(type, request)
         if files != None:
             file.write(f"\nFiles:\n")

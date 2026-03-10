@@ -96,7 +96,7 @@ async def get_pp_records(
         "ORDER BY sc.pp DESC "
         "LIMIT :offset, :limit"
     )
-    rows = [dict(r) for r in await app.state.services.database.fetch_all(data_sql, data_params)]
+    rows = [dict(r) for r in (await app.state.services.database.fetch_all(data_sql, data_params) or [])]
 
     # Post-process rows
     for row in rows:

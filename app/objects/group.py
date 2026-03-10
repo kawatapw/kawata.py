@@ -7,9 +7,9 @@ import app
 
 
 class Group:
-    def __init__(self, lead:Player):
-        self.players: [Player] = [lead]
-        self.lead = lead
+    def __init__(self, lead: Player):
+        self.players: list[Player] = [lead]
+        self.lead: Player = lead
         found = False
         token = ''
         while not found:
@@ -17,7 +17,7 @@ class Group:
             if app.state.sessions.groups.check_token(token):
                 found = True
         self.token: str = token
-        self.invites: [Player] = []
+        self.invites: list[Player] = []
         self.channel : Channel = Channel(f'#group_{self.token}', 
                                          topic="Private group",
                                          instance=True,
@@ -35,7 +35,7 @@ class Group:
             lead.enqueue(app.packets.group_users(lead))
     
     def invite(self, player:Player):
-        self.invite.append(player)
+        self.invites.append(player)
         if (player.has_group_capability):
             player.enqueue(app.packets.group_invite(self.lead))
         else:

@@ -602,6 +602,10 @@ async def osuSubmitModularSelector(
     score_data_b64, replay_file = score_parameters
 
     # decrypt the score data (aes)
+    # Handle None values for required parameters
+    if client_hash_b64 is None or iv_b64 is None or osu_version is None:
+        return Response(b"error: invalid score data")
+    
     score_data, client_hash_decoded = encryption.decrypt_score_aes_data(
         score_data_b64,
         client_hash_b64,
@@ -638,6 +642,9 @@ async def osuSubmitModularSelector(
 
     ## perform checksum validation
 
+    if unique_ids is None:
+        return Response(b"error: invalid score data")
+    
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
     unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
     unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
@@ -707,6 +714,7 @@ async def osuSubmitModularSelector(
 
     # we should update their activity no matter
     # what the result of the score submission is.
+    assert score.player is not None
     score.player.update_latest_activity_soon()
 
     # make sure the player's client displays the correct mode's stats
@@ -747,7 +755,7 @@ async def osuSubmitModularSelector(
             else:
                 score.status = SubmissionStatus.FAILED
 
-            score.time_elapsed = int(score_time) if score.passed else int(fail_time)
+            score.time_elapsed = int(score_time) if score.passed and score_time is not None else int(fail_time) if fail_time is not None else 0
 
         # TODO: re-implement pp caps for non-whitelisted players?
 
@@ -961,15 +969,15 @@ async def osuSubmitModularSelector(
 
             # calculate new total weighted accuracy
             weighted_acc = sum(
-                row["acc"] * 0.95**i for i, row in enumerate(best_scores)
+                row["acc"] * 0.95**i for i, row in enumerate(best_scores or [])
             )
-            bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
+            bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores or [])))
             stats.acc = (weighted_acc * bonus_acc) / 100
             stats_updates["acc"] = stats.acc
 
             # calculate new total weighted pp
-            weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores))
-            bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
+            weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores or []))
+            bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores or []))
             stats.pp = round(weighted_pp + bonus_pp)
             stats_updates["pp"] = stats.pp
 
@@ -1984,11 +1992,11 @@ async def difficultyRatingHandler(request: Request) -> Response:
 @error_catcher
 async def checkAerisUpdates(
     request: Request,
-    action: Literal["check", "path", "error", "get-manifest"] = None, # "request-put", "put"
-    stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] = None,
-    fileinfo:  str   = None,
-    buildname: str   = None,
-    ufile: UploadFile = None
+    action: Literal["check", "path", "error", "get-manifest"] | None = None, # "request-put", "put"
+    stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] | None = None,
+    fileinfo: str | None = None,
+    buildname: str | None = None,
+    ufile: UploadFile | None = None
 ) -> Response:
     neededFiles = [
 		"avcodec-51.dll", 
@@ -2131,6 +2139,8 @@ async def checkAerisUpdates(
                 needUpdate = True
             result = []
             log("[Aeris updater]: requested Update for : {}".format(args["stream"]))
+            data = []
+            needUpdate = True
             try:
                 data = json.loads(open(updaterCache, "r").read())
                 needUpdate = len(data) < len(neededFiles)
@@ -2196,7 +2206,7 @@ async def checkAerisUpdates(
                 log("[Aeris updater] Downloadable files updated")
 
             else:
-                result = data
+                result = data if 'data' in locals() else []
 
             return Response(json.dumps(result))
         except Exception as e:
@@ -2217,7 +2227,7 @@ async def getInternalVersion(v: int):
     return Response(str(new_version))
 
 
-def get_current_file_version(stream: str, filename: str) -> dict:
+def get_current_file_version(stream: str, filename: str) -> dict | None:
     """Get the current version info for a file in a stream"""
     try:
         updater_cache = f".data/storage/updater/{stream}/updater.json"
