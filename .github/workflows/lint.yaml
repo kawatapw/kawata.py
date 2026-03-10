@@ -42,11 +42,13 @@ jobs:
         run: |
           poetry run mypy . > reports/mypy.txt 2>&1 || true
 
-      - name: Run flake8
-        id: flake8
+      - name: Run ruff
+        id: ruff
         continue-on-error: true
         run: |
-          poetry run flake8 . --format=default > reports/flake8.txt 2>&1 || true
+          poetry run ruff check . > reports/ruff.txt 2>&1 || true
+          poetry run ruff format . --check > reports/ruff-format.txt 2>&1 || true
+
 
       - name: Run bandit (security lint)
         id: bandit
