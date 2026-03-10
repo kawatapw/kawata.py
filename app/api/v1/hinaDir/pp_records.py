@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.param_functions import Query
@@ -42,7 +43,7 @@ async def get_pp_records(
 
     # Build WHERE clause
     where = "sc.mode = :mode AND sc.status = 2 AND u.priv & 1 AND sc.pp > 0"
-    where_params: dict = {"mode": mode}
+    where_params: dict[str, Any] = {"mode": mode}
 
     if cheat_type is not None:
         where += (

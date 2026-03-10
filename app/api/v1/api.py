@@ -258,7 +258,7 @@ async def api_calculate_pp_batch(
         difficulty_result = perf_results[0]["difficulty"] if perf_results else None
         results[str(bid)] = {
             "pp_values": pp_values,
-            "difficulty": difficulty_result if difficulty_result is not None else {},
+            "difficulty": difficulty_result,
         }
 
     return ORJSONResponse(
@@ -447,7 +447,7 @@ async def api_get_player_status(
         identifiers = [name.strip() for name in usernames.split(",") if name.strip()]
         is_id_mode = False
     elif has_single_name:
-        identifiers = [username]
+        identifiers = [username] if username is not None else []
         is_id_mode = False
     else:
         return ORJSONResponse(
@@ -1421,16 +1421,16 @@ async def api_get_friends(
 
     # get user info from username or id
     if username: 
-        user_info = await app.state.sessions.players.get(name=username)
+        user_info = app.state.sessions.players.get(name=username)
     else: # if userid
-        user_info = await app.state.sessions.players.get(id=user_id)
+        user_info = app.state.sessions.players.get(id=user_id)
     if user_info is None:
         return ORJSONResponse(
             {"status": "Player not found."},
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    resolved_user_id: int = user_info["id"]
+    resolved_user_id: int = user_info.id
 
     if scope == "friends":
         # Query for all friends of the resolved user_id
@@ -1528,9 +1528,9 @@ async def api_get_badges(
 @router.post("/update_map_status")
 @error_catcher
 async def api_update_map_status(
-    token: HTTPCredentials = Depends(http_bearer_scheme),
-    map_id: int = Query(None, alias="id", ge=0, le=2_147_483_647),
-    set_id: int = Query(None, alias="sid", ge=0, le=2_147_483_647),
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
+    map_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
+    set_id: int | None = Query(None, alias="sid", ge=0, le=2_147_483_647),
     status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
 ) -> Response:
     """Update the status of a given beatmap."""
@@ -1566,9 +1566,9 @@ async def api_update_map_status(
                 await maps_repo.partial_update(_bmap["id"], status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change
             if set_id in app.state.cache.beatmapset:
-                for _bmap in app.state.cache.beatmapset[set_id].maps:
-                    _bmap.status = new_status
-                    _bmap.frozen = True
+                for beatmap in app.state.cache.beatmapset[set_id].maps:
+                    beatmap.status = new_status
+                    beatmap.frozen = True
             # select all map ids for clearing map requests.
             map_ids = [row["id"] for row in beatmap_set]
         except Exception as e:
@@ -1578,6 +1578,12 @@ async def api_update_map_status(
     else:
         try:
             # update only map
+            # map_id is guaranteed to be not None here because we checked above
+            # that at least one of map_id or set_id must be provided
+            if map_id is None:
+                return ORJSONResponse(
+                    {"status": "map_id is required when set_id is not provided"},
+                )
             await maps_repo.partial_update(map_id, status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change
             bmap_md5 = bmap["md5"] if bmap else None

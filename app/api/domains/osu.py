@@ -627,6 +627,9 @@ async def osuSubmitModularSelector(
     if username[-1] == " ":
         username = username[:-1]
 
+    if pw_md5 is None:
+        return Response(b"error: invalid score data")
+    
     player = await app.state.sessions.players.from_login(username, pw_md5)
     if not player:
         # Player is not online, return nothing so that their
@@ -1216,7 +1219,7 @@ async def osuSubmitModularSelector(
             open(file_path, 'a').close()
     
         # Execute Write Log
-        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[no-untyped-call]
+        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[unused-awaitable]
 
     return Response(response)
 

@@ -1338,14 +1338,15 @@ def group_leave() -> bytes:
 def group_users(player:Player) -> bytes:
     group = groups.get_group(player)
     users = []
-    for user in group.players:
-        lead = 1 if user.id == group.lead.id else 0
+    if group is not None:
+        for user in group.players:
+            lead = 1 if user.id == group.lead.id else 0
 
-        users.append({
-            "Name": user.name,
-            "ID" : str(user.id),
-            "Lead": str(lead)
-        })
+            users.append({
+                "Name": user.name,
+                "ID" : str(user.id),
+                "Lead": str(lead)
+            })
     return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
 
 def group_invite(lead:Player) -> bytes:

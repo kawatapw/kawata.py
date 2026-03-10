@@ -197,7 +197,7 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
 
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
     scores = [
-        row._asdict()
+        dict(row)
         for row in await ctx.database.fetch_all(
             """\
             SELECT scores.id, scores.mode, scores.mods, scores.map_md5,

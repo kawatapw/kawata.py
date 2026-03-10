@@ -79,7 +79,9 @@ def GetPriv(priv: Union[int, List[Privileges]]) -> Union[int, List[Privileges]]:
     if isinstance(priv, int):
         privs: Union[int, List[Privileges]] = [p for p in Privileges if priv & p.value == p.value]
 
-    elif isinstance(priv, list) and all(isinstance(p, Privileges) for p in priv):
+    elif isinstance(priv, list):
+        if not all(isinstance(p, Privileges) for p in priv):
+            raise TypeError("Privilege must be an int or a list of instances of Privileges")
         privs = 0
         for p in priv:
             privs |= p.value

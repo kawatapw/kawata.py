@@ -330,7 +330,7 @@ async def write_log_file(type: str, file_path: str, request: Request) -> None:
         log(f"Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
         form_data = await get_form_data(type, request)
         log(f"Grabbed Form Data", Ansi.GRAY)
-        if form_data != None:
+        if form_data is not None:
             # Extract the aliases and their values from the form data
             aliases = {alias: str(form_data.get(alias)) for alias in form_data}
             # Convert the aliases dictionary to JSON format
@@ -340,7 +340,7 @@ async def write_log_file(type: str, file_path: str, request: Request) -> None:
             log(f"Form Data Written")
         # Read the request body as bytes and decode it
         body = await get_request_body(type, request)
-        if body != None:
+        if body is not None:
             try:
                 body_str = body.decode()
             except Exception as e:
@@ -349,7 +349,7 @@ async def write_log_file(type: str, file_path: str, request: Request) -> None:
             # ...existing code...
             file.write(body_str if body_str is not None else "Unable to decode body")
         files = await get_request_files(type, request)
-        if files != None:
+        if files is not None:
             file.write(f"\nFiles:\n")
             for field, uploaded_file in files.items():
                 file.write(f"{field}: {uploaded_file.filename}\n")

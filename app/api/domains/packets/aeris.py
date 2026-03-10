@@ -1,6 +1,6 @@
 from typing import Mapping, TypedDict
 from .common import *
-from app.logging import Ansi, log, error_catcher
+from app.logging import Ansi, log
 from app.constants.aeris_features import AerisFeatures
 from app.objects.group import Group
 from app.packets import BanchoPacketReader, ClientPackets, BasePacket
@@ -8,12 +8,11 @@ from app.objects.player import Player
 from app.state.sessions import *
 import app.settings
 
-AERIS_SERVER_FEATURES = AerisFeatures.Groups
+AERIS_SERVER_FEATURES: int = AerisFeatures.Groups
 if (app.settings.CHEAT_SERVER):
     AERIS_SERVER_FEATURES |= AerisFeatures.Cheats
 
 @register(ClientPackets.IDENTIFY, restricted=True)
-@error_catcher
 class AerisIdentify(BasePacket):
     def __init__(self, reader: BanchoPacketReader):
         self.features = reader.read_i32()
@@ -28,7 +27,6 @@ class AerisIdentify(BasePacket):
         
 
 @register(ClientPackets.CREATE_GROUP)
-@error_catcher
 class CreateGroup(BasePacket):
     async def handle(self, player: Player) -> None:
         log(f"user {player.name} ({player.id}) making group", Ansi.BLUE)
@@ -39,13 +37,11 @@ class CreateGroup(BasePacket):
 
 @register(ClientPackets.CREATE_GROUP_MATCH)
 @register(ClientPackets.DISMOUNT_GROUP_MATCH)
-@error_catcher
 class unavail(BasePacket):
     async def handle(self, player: Player) -> None:
         player.enqueue(app.packets.notification("this feature is not yet available"))
 
 @register(ClientPackets.GROUP_USERS)
-@error_catcher
 class GroupUsers(BasePacket):
     async def handle(self, player: Player) -> None:
         group = groups.get_group(player)
@@ -53,7 +49,6 @@ class GroupUsers(BasePacket):
             player.enqueue(app.packets.group_users(player))
 
 @register(ClientPackets.ACCEPT_GROUP)
-@error_catcher
 class acceptGroup(BasePacket):
     def __init__(self, reader: BanchoPacketReader) -> None:
         self.lead = players.get(id=reader.read_i32())
@@ -62,6 +57,9 @@ class acceptGroup(BasePacket):
             player.enqueue(app.packets.notification("the leader has disconnected, please request another invite"))
             return
         group = groups.get_group(self.lead)
+        if group is None:
+            player.enqueue(app.packets.notification("the leader has disconnected, please request another invite"))
+            return
         if not player in group.invites:
             player.enqueue(app.packets.notification("Your invite is invalid"))
             return
@@ -69,7 +67,6 @@ class acceptGroup(BasePacket):
 
 
 @register(ClientPackets.DISBAND_GROUP)
-@error_catcher
 class disbandGroup(BasePacket):
     async def handle(self, player: Player) -> None:
         group = groups.get_group(player)
@@ -78,7 +75,6 @@ class disbandGroup(BasePacket):
         group.disband()
 
 @register(ClientPackets.INVITE_GROUP)
-@error_catcher
 class inviteGroup(BasePacket):
     def __init__(self, reader: BanchoPacketReader) -> None:
         self.target = players.get(id=reader.read_i32())
@@ -87,7 +83,10 @@ class inviteGroup(BasePacket):
             player.enqueue(app.packets.notification("the target is not online"))
             return
         group = groups.get_group(player)
-        if group is None or group.lead is not player:
+        if group is None:
+            player.enqueue(app.packets.notification("Your group is invalid"))
+            return
+        if group.lead is not player:
             player.enqueue(app.packets.notification("Your group is invalid"))
             return
         
@@ -95,7 +94,6 @@ class inviteGroup(BasePacket):
             group.add_player(player)
 
 @register(ClientPackets.GROUP_KICK)
-@error_catcher
 class kickGroup(BasePacket):
     def __init__(self, reader: BanchoPacketReader) -> None:
         self.target = players.get(id=reader.read_i32())
@@ -112,7 +110,6 @@ class kickGroup(BasePacket):
             group.remove_user(player, True)
 
 @register(ClientPackets.GROUP_LEAVE)
-@error_catcher
 class leaveGroup(BasePacket):
     async def handle(self, player: Player) -> None:
         group = groups.get_group(player)

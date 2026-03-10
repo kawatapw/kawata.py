@@ -31,7 +31,7 @@ async def get_changelog(
     unix_from: int = 0,
 ) -> Success[list[dict[str, Any]]] | Failure:
     try:
-        params = {}
+        params: dict[str, Any] = {}
         query = f"""\
             SELECT {READ_PARAMS}
               FROM changelog
