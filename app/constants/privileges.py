@@ -77,7 +77,7 @@ def GetPriv(priv: Union[int, List[Privileges]]) -> Union[int, List[Privileges]]:
         ValueError: If no privileges are found.
     """
     if isinstance(priv, int):
-        privs = [p for p in Privileges if p.value != 0 and priv & p.value == p.value]
+        privs: Union[int, List[Privileges]] = [p for p in Privileges if priv & p.value == p.value]
 
     elif isinstance(priv, list) and all(isinstance(p, Privileges) for p in priv):
         privs = 0

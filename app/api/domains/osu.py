@@ -105,7 +105,7 @@ def authenticate_player_session(
         username: str = param_function(..., alias=username_alias),
         pw_md5: str = param_function(..., alias=pw_md5_alias),
     ) -> Player:
-        player = await app.state.sessions.players.from_login(
+        player: Player | None = await app.state.sessions.players.from_login(
             name=unquote(username),
             pw_md5=pw_md5,
         )
@@ -1216,7 +1216,7 @@ async def osuSubmitModularSelector(
             open(file_path, 'a').close()
     
         # Execute Write Log
-        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[unused-awaitable]
+        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[no-untyped-call]
 
     return Response(response)
 
@@ -2233,7 +2233,7 @@ def get_current_file_version(stream: str, filename: str) -> dict[str, Any] | Non
         updater_cache = f".data/storage/updater/{stream}/updater.json"
         if os.path.exists(updater_cache):
             with open(updater_cache, 'r') as f:
-                data = json.loads(f.read())
+                data: list[dict[str, Any]] = json.loads(f.read())
                 for file_info in data:
                     if file_info["filename"] == filename:
                         return file_info

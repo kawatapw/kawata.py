@@ -1,6 +1,7 @@
 """ bancho.py's v2 apis for interacting with client specific data """
 from __future__ import annotations
 import textwrap
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi import status
@@ -27,8 +28,8 @@ async def get_changelog(
     page_size: int = Query(50, ge=1, le=100),
     change_type: int | None = Query(None, ge=0, le=2),
     category: str | None = None,
-    unix_from: int | None = 0,
-) -> Success[list] | Failure:
+    unix_from: int = 0,
+) -> Success[list[dict[str, Any]]] | Failure:
     try:
         params = {}
         query = f"""\

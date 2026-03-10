@@ -1329,13 +1329,13 @@ def switch_tournament_server(ip: str) -> bytes:
 def identify(version: int) -> bytes:
     return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
 
-def group_join():
+def group_join() -> bytes:
     return write(ServerPackets.GROUP_JOIN)
 
-def group_leave():
+def group_leave() -> bytes:
     return write(ServerPackets.GROUP_LEAVE)
 
-def group_users(player:Player):
+def group_users(player:Player) -> bytes:
     group = groups.get_group(player)
     users = []
     for user in group.players:
@@ -1348,7 +1348,7 @@ def group_users(player:Player):
         })
     return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
 
-def group_invite(lead:Player):
+def group_invite(lead:Player) -> bytes:
     invite = {
 		"From":lead.name,
 		"ID":lead.id

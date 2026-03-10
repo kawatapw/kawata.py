@@ -58,6 +58,10 @@ jobs:
           
           # Set outputs
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "tag_list=$TAGS" >> $GITHUB_OUTPUT
+          echo "tag_list=$TAGS" >> $GITHUB_STEP_SUMMARY
           echo "github_owner=kawatapw" >> $GITHUB_OUTPUT
+          echo "github_owner=kawatapw" >> $GITHUB_STEP_SUMMARY
           echo "github_repo=kawata.py" >> $GITHUB_OUTPUT
+          echo "github_repo=kawata.py" >> $GITHUB_STEP_SUMMARY

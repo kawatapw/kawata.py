@@ -11,7 +11,7 @@ jobs:
   prepare:
     uses: ./.github/workflows/prep-build.yaml
 
-  lint:
+  mypy:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
@@ -33,9 +33,6 @@ jobs:
         run: |
           uv sync --all-extras --dev
 
-      - name: Prepare reports dir
-        run: mkdir -p reports
-
       - name: Run mypy
         id: mypy
         continue-on-error: true
@@ -48,6 +45,34 @@ jobs:
             cat reports/mypy.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Upload mypy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mypy-report
+          path: reports/mypy.txt
+
+  ruff:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
 
       - name: Run ruff
         id: ruff
@@ -69,6 +94,36 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Upload ruff reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruff-reports
+          path: |
+            reports/ruff.txt
+            reports/ruff-format.txt
+
+  bandit:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
       - name: Run bandit (security lint)
         id: bandit
         continue-on-error: true
@@ -81,6 +136,34 @@ jobs:
             cat reports/bandit.json >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: reports/bandit.json
+
+  pytest:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
 
       - name: Run pytest with coverage (junit + coverage.xml)
         id: pytest
@@ -98,25 +181,38 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Summarize results to job summary
-        if: always()
-        run: |
-          echo "## Lint & Test Report" >> $GITHUB_STEP_SUMMARY
-          for f in reports/*; do
-            echo "- $(basename "$f")" >> $GITHUB_STEP_SUMMARY
-          done
-          # Add summary for pytest results
-          if [ -f reports/junit.xml ]; then
-            echo "## Pytest Summary" >> $GITHUB_STEP_SUMMARY
-            echo "JUnit XML report generated at reports/junit.xml" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -f reports/coverage.xml ]; then
-            echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            echo "Coverage report generated at reports/coverage.xml" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload reports artifact
+      - name: Upload pytest reports
         uses: actions/upload-artifact@v4
         with:
-          name: lint-reports
-          path: reports/**
+          name: pytest-reports
+          path: |
+            reports/junit.xml
+            reports/coverage.xml
+
+  summarize:
+    needs: [mypy, ruff, bandit, pytest]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports
+
+      - name: Summarize results to job summary
+        run: |
+          echo "## Lint & Test Report" >> $GITHUB_STEP_SUMMARY
+          for f in reports/**/*; do
+            if [ -f "$f" ]; then
+              echo "- $(basename "$f")" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          # Add summary for pytest results
+          if [ -f reports/pytest-reports/junit.xml ]; then
+            echo "## Pytest Summary" >> $GITHUB_STEP_SUMMARY
+            echo "JUnit XML report generated at reports/pytest-reports/junit.xml" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/pytest-reports/coverage.xml ]; then
+            echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report generated at reports/pytest-reports/coverage.xml" >> $GITHUB_STEP_SUMMARY
+          fi
