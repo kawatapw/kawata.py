@@ -38,8 +38,8 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           export PATH="$HOME/.cargo/bin:$PATH"
           
-          # Get version from pyproject.toml
-          VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          # Get version from pyproject.toml using a single-line Python command
+          VERSION=$(python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
           SHORT_SHA=${GITHUB_SHA::7}
           BRANCH=${GITHUB_REF#refs/heads/}
           BRANCH_TAG=${BRANCH//\//-}
@@ -48,13 +48,9 @@ jobs:
           TAGS="$SHORT_SHA $BRANCH_TAG"
           
           # Add specific tags based on branch
-          # BE-Master is production - add latest and prod
-          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest prod"; fi
-          # BE-Staging is staging - add staging
-          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS staging"; fi
-          # BE-Dev is development - add dev
-          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS dev"; fi
-          # Master branch for fork compatibility - add latest
+          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest BE-Prod"; fi
+          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS BE-Staging"; fi
+          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS BE-Dev"; fi
           if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
           
           # Always add ci short sha
