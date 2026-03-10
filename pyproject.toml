@@ -37,7 +37,10 @@ force_single_line = true
 profile = "black"
 
 [tool.ruff]
-line-length = 88
+# Enable fixers
+fix = true
+unsafe-fixes = false
+docstring-code-line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
@@ -52,7 +55,7 @@ select = [
     "UP", # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long, handled by black
+    "E501",  # line too long, handled by formatter
 ]
 
 [tool.ruff.format]
@@ -126,7 +129,6 @@ types-requests = "2.31.0.20240125"
 mypy = "1.8.0"
 types-pyyaml = "^6.0.12.12"
 sqlalchemy2-stubs = "^0.0.2a38"
-flake8 = "7.3.0"
 bandit = "1.9.4"
 ruff = "0.15.5"
 
