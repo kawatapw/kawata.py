@@ -12,6 +12,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import TypedDict
 from typing import cast
+from app.api.domains.packets.aeris import AERIS_SERVER_FEATURES
 from app.constants.aeris_features import AerisFeatures
 
 import databases.core
@@ -378,7 +379,7 @@ class Player:
     def has_group_capability(self) -> bool:
         """Does the server and the client has group capabilities"""
         return self.aeris_client \
-            and app.api.domains.packets.aeris.AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
+            and AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
                 and self.aeris_client_features & AerisFeatures.Groups > 0
 
     @staticmethod

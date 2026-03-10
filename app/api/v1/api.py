@@ -346,7 +346,7 @@ async def api_get_player_info(
     if scope in ("info", "all"):
         api_data["info"] = dict(user_info)
         info = api_data["info"]
-        if resolved_clan_id != 0:
+        if resolved_clan_id is not None and resolved_clan_id != 0:
             # Fetch Clan Info
             clan_response = await api_get_clan(clan_id=resolved_clan_id)
             clan_data = orjson.loads(clan_response.body)

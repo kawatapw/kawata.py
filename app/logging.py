@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from requests import request
 import yaml, os
 import json
-import jsons
+import jsons  # type: ignore[import-untyped]
 from app import settings
 from app._typing import IPAddress
 import structlog
@@ -26,7 +26,7 @@ import traceback
 import time
 import asyncio
 import functools
-from typing import Any, TypeVar, ParamSpec, Callable
+from typing import Any, TypeVar, ParamSpec, Callable, NoReturn, Coroutine, overload, cast
 import types
 
 # Incredibly Stupid Required Imports for Error_Catcher
@@ -91,7 +91,7 @@ def ipv4address_serializer(obj: IPv4Address, **kwargs: Any) -> str:
 jsons.set_serializer(ipv4network_serializer, IPv4Network)
 jsons.set_serializer(ipv4address_serializer, IPv4Address)
 
-def setup_logging(default_path='logging.yaml', default_level=logging.INFO, env_key='LOG_CFG') -> None:
+def setup_logging(default_path: str = 'logging.yaml', default_level: int = logging.INFO, env_key: str = 'LOG_CFG') -> None:
     """Setup logging configuration"""
     path = default_path
     value = os.getenv(env_key, None)
@@ -221,15 +221,14 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
 
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
     def format(self, record: logging.LogRecord) -> str:
-        # Convert only keys and values that are not of type str, int, float, bool, or None
+        # Convert only values that are not of type str, int, float, bool, or None
         record.__dict__ = {
-            str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k:
-            str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            k: str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
             for k, v in record.__dict__.items()
         }
 
         # Check if the message contains any placeholders as this throws an error when formatting on string_record
-        if not re.search(r'%\(.+?\)s', record.msg) and record.args:
+        if record.msg and isinstance(record.msg, str) and not re.search(r'%\(.+?\)s', record.msg) and record.args is not None:
             record.args = None
 
         string_record = super().format(record)
@@ -307,9 +306,11 @@ class logLevel(IntEnum):
         logging.addLevelName(cls.DBGLV2, 'DBGLV2')
         logging.addLevelName(cls.DBGLV1, 'DBGLV1')
         # Add the custom log levels to the NAME_TO_LEVEL dictionary in structlog
-        structlog.stdlib.NAME_TO_LEVEL['verbose'] = cls.VERBOSE
-        structlog.stdlib.NAME_TO_LEVEL['dbglv2'] = cls.DBGLV2
-        structlog.stdlib.NAME_TO_LEVEL['dbglv1'] = cls.DBGLV1
+        # Use getattr to avoid type checking issues with non-exported attribute
+        name_to_level = getattr(structlog.stdlib, 'NAME_TO_LEVEL', {})
+        name_to_level['verbose'] = cls.VERBOSE
+        name_to_level['dbglv2'] = cls.DBGLV2
+        name_to_level['dbglv1'] = cls.DBGLV1
 logLevel.add_Log_Levels()
 
 class DebugFilter(logging.Filter):
@@ -361,7 +362,7 @@ def getHandlerByName(name: str, logger: logging.Logger) -> Handler | None:
     return None
 
 
-def _serialize_function_args(args: tuple[Any, ...], extra: dict[str, object]) -> tuple[tuple[()], dict[str, object]]:
+def _serialize_function_args(args: tuple[Any, ...], extra: dict[str, object]) -> tuple[tuple[Any, ...], dict[str, object]]:
     """Serialize function arguments for logging."""
     if not args:
         return args, extra
@@ -429,7 +430,7 @@ def log(
     level: int = logging.INFO,
     levelow: bool = False,
     exc_info: bool = False,
-    *args,
+    *args: Any,
 ) -> None:
     """\
     A thin wrapper around the stdlib logging module to handle mostly
@@ -478,7 +479,12 @@ def log(
     frame = inspect.currentframe()
     if frame is None or frame.f_back is None:
         # Fallback if we can't get the frame
-        info = inspect.FrameInfo(None, "", 0, "", None, None)  # type: ignore[assignment]
+        # Create a simple object with the required attributes
+        class FrameInfoFallback:
+            filename: str = '<unknown>'
+            lineno: int = 0
+            function: str = '<unknown>'
+        info: inspect.Traceback | FrameInfoFallback = FrameInfoFallback()
     else:
         info = inspect.getframeinfo(frame.f_back)
     
@@ -660,7 +666,7 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
-                return await func(*args, **kwargs)
+                return cast(R, await func(*args, **kwargs))
             except Exception as e:
                 # Capture the exception info before doing anything else
                 exc_type, exc_value, exc_traceback = sys.exc_info()

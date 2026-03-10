@@ -208,7 +208,7 @@ class Match:
             raise ValueError(
                 f"Host with id {self.host_id} not found for match {self!r}",
             )
-        return cast(Player, player)
+        return player
 
     @property
     def url(self) -> str:
