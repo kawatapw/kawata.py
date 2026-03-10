@@ -37,6 +37,7 @@ jobs:
         id: mypy
         continue-on-error: true
         run: |
+          mkdir -p reports
           uv run mypy . > reports/mypy.txt 2>&1 || true
           # Parse mypy output to determine pass/fail status
           if [ -f reports/mypy.txt ]; then
@@ -78,6 +79,7 @@ jobs:
         id: ruff
         continue-on-error: true
         run: |
+          mkdir -p reports
           uv run ruff check . > reports/ruff.txt 2>&1 || true
           uv run ruff format . --check > reports/ruff-format.txt 2>&1 || true
           # Parse ruff output to determine pass/fail status
@@ -128,6 +130,7 @@ jobs:
         id: bandit
         continue-on-error: true
         run: |
+          mkdir -p reports
           uv run bandit -r . -f json -o reports/bandit.json || true
           # Parse bandit output to determine pass/fail status
           if [ -f reports/bandit.json ]; then
@@ -169,6 +172,7 @@ jobs:
         id: pytest
         continue-on-error: true
         run: |
+          mkdir -p reports
           uv run pytest --maxfail=1 --disable-warnings -q \
             --junitxml=reports/junit.xml || true
           # coverage xml if coverage plugin configured

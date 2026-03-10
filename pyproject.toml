@@ -105,6 +105,9 @@ warn_requird_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+junit_suite_name = "kawata-py"
+junit_log_passing_tests = true
+junit_duration_report = "call"
 
 [tool.isort]
 add_imports = ["from __future__ import annotations"]
