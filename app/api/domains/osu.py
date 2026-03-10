@@ -762,11 +762,11 @@ async def osuSubmitModularSelector(
         """ Score submission checks completed; submit the score. """
 
         if app.state.services.datadog:
-            app.state.services.datadog.increment("bancho.submitted_scores")
+            app.state.services.datadog.increment("bancho.submitted_scores")  # type: ignore[no-untyped-call]
 
         if score.status == SubmissionStatus.BEST:
             if app.state.services.datadog:
-                app.state.services.datadog.increment("bancho.submitted_scores_best")
+                app.state.services.datadog.increment("bancho.submitted_scores_best")  # type: ignore[no-untyped-call]
 
             if score.bmap.has_leaderboard:
                 if score.bmap.status == RankedStatus.Loved and score.mode in (
@@ -1216,7 +1216,7 @@ async def osuSubmitModularSelector(
             open(file_path, 'a').close()
     
         # Execute Write Log
-        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))
+        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[unused-awaitable]
 
     return Response(response)
 
@@ -2137,7 +2137,7 @@ async def checkAerisUpdates(
             updaterCache = ".data/storage/updater/{}/{}".format(args["stream"], "updater.json")
             if not os.path.exists(updaterCache):
                 needUpdate = True
-            result = []
+            result: list[dict[str, Any]] = []
             log("[Aeris updater]: requested Update for : {}".format(args["stream"]))
             data = []
             needUpdate = True
@@ -2192,8 +2192,8 @@ async def checkAerisUpdates(
                     result[index]["filesize"] = os.stat(file).st_size
                     result[index]["file_hash"] = fileMd5(file)
                     result[index]["url_full"] = "https://storage.kawata.pw/get/updater/{}/zip/{}".format(args["stream"], result[index]["file_hash"])
-                    timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
-                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(timestamp))
+                    file_timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
+                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(file_timestamp))
                     result[index]["filename"] = x
                     if "patch_id" not in result[index]:
                         result[index]["patch_id"] = None
@@ -2217,7 +2217,7 @@ async def checkAerisUpdates(
     return Response(b"")
 
 @router.get("/web/get-internal-version.php")
-async def getInternalVersion(v: int):
+async def getInternalVersion(v: int) -> Response:
     # Generate an incremental build number
     # Could store this in a database to persist across restarts
     current = get_current_internal_version(v)
@@ -2227,7 +2227,7 @@ async def getInternalVersion(v: int):
     return Response(str(new_version))
 
 
-def get_current_file_version(stream: str, filename: str) -> dict | None:
+def get_current_file_version(stream: str, filename: str) -> dict[str, Any] | None:
     """Get the current version info for a file in a stream"""
     try:
         updater_cache = f".data/storage/updater/{stream}/updater.json"
@@ -2247,7 +2247,7 @@ def get_base_filename(filename: str) -> str:
         return filename.split('_')[0]
     return filename
 
-def update_file_version(stream: str, file_data: dict, build_name: str, request: Request):
+def update_file_version(stream: str, file_data: dict[str, Any], build_name: str, request: Request) -> None:
     """Update version info after successful upload"""
     try:
         updater_cache = f".data/storage/updater/{stream}/updater.json"
@@ -2300,7 +2300,7 @@ def get_current_internal_version(version: int) -> int:
         log(f"Error getting internal version: {e}", Ansi.LRED)
     return 0
 
-def save_internal_version(version: int, internal: int):
+def save_internal_version(version: int, internal: int) -> None:
     """Save new internal version number"""
     try:
         os.makedirs(".data/storage/internal_versions", exist_ok=True)
@@ -2312,7 +2312,7 @@ def save_internal_version(version: int, internal: int):
 
 @router.post("/aeris/osu-error.php")
 @error_catcher
-async def aerisErrorHandler(request: Request, data: str = Form(..., alias="error")):
+async def aerisErrorHandler(request: Request, data: str = Form(..., alias="error")) -> Response:
     error_data = json.loads(data)
     
     # Process based on error type

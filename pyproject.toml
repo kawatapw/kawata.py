@@ -115,7 +115,6 @@ profile = "black"
 # Enable fixers
 fix = true
 unsafe-fixes = false
-docstring-code-line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
@@ -135,7 +134,6 @@ ignore = [
 
 [tool.ruff.format]
 # Black-compatible formatting
-line-length = 88
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false

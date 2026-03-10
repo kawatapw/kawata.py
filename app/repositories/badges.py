@@ -16,23 +16,24 @@ READ_PARAMS = textwrap.dedent(
     """,
 )
 
-class Badge(TypedDict):
-    id: int
-    name: str
-    description: str
-    priority: int
-    badge_styles: list[badge.Badge_Style]
-
-class BadgeUpdateFields(TypedDict, total=False):
-    name: str
-    description: str
-    priority: int
-    badge_styles: list[badge.Badge_Style]
 class BadgeStyle(TypedDict):
     id: int
     badge_id: int
     type: str
     value: str
+
+class Badge(TypedDict):
+    id: int
+    name: str
+    description: str
+    priority: int
+    badge_styles: list[BadgeStyle]
+
+class BadgeUpdateFields(TypedDict, total=False):
+    name: str
+    description: str
+    priority: int
+    badge_styles: list[BadgeStyle]
 
 
 async def create(

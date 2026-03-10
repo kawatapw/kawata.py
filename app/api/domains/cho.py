@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from typing import Literal
 from typing import TypedDict
 from zoneinfo import ZoneInfo
@@ -105,8 +106,8 @@ motds = [
 router = APIRouter(tags=["Bancho API"])
 
 @router.get("/health")
-async def health_check():
-    checks = {
+async def health_check() -> Response:
+    checks: dict[str, Any] = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "bancho.py",
@@ -256,7 +257,7 @@ async def bancho_handler(
     if osu_token is None:
         # the client is performing a login
         request._body = await request.body() # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
-        log(f"Login request from {ip}.\nRequest Body: {request._body}", Ansi.LCYAN, 
+        log(f"Login request from {ip}.\nRequest Body: {request._body.decode()}", Ansi.LCYAN, 
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,
@@ -1342,10 +1343,10 @@ async def handle_osu_login_request(
     try:
         if app.state.services.datadog:
             if not player.restricted:
-                app.state.services.datadog.increment("bancho.online_players")
+                app.state.services.datadog.increment("bancho.online_players")  # type: ignore[no-untyped-call]
 
             time_taken = time.time() - login_time
-            app.state.services.datadog.histogram("bancho.login_time", time_taken)
+            app.state.services.datadog.histogram("bancho.login_time", time_taken)  # type: ignore[no-untyped-call]
     except Exception as e:
         log(f"Error updating datadog metrics", Ansi.LRED, 
             extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})

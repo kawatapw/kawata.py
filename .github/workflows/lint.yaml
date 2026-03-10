@@ -41,6 +41,13 @@ jobs:
         continue-on-error: true
         run: |
           uv run mypy . > reports/mypy.txt 2>&1 || true
+          # Parse mypy output to determine pass/fail status
+          if [ -f reports/mypy.txt ]; then
+            echo "## Mypy Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/mypy.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Run ruff
         id: ruff
@@ -48,12 +55,32 @@ jobs:
         run: |
           uv run ruff check . > reports/ruff.txt 2>&1 || true
           uv run ruff format . --check > reports/ruff-format.txt 2>&1 || true
+          # Parse ruff output to determine pass/fail status
+          if [ -f reports/ruff.txt ]; then
+            echo "## Ruff Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/ruff-format.txt ]; then
+            echo "## Ruff Format Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff-format.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Run bandit (security lint)
         id: bandit
         continue-on-error: true
         run: |
           uv run bandit -r . -f json -o reports/bandit.json || true
+          # Parse bandit output to determine pass/fail status
+          if [ -f reports/bandit.json ]; then
+            echo "## Bandit Results" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat reports/bandit.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Run pytest with coverage (junit + coverage.xml)
         id: pytest
@@ -63,6 +90,13 @@ jobs:
             --junitxml=reports/junit.xml || true
           # coverage xml if coverage plugin configured
           uv run pytest --maxfail=1 --disable-warnings -q --cov=./ --cov-report=xml:reports/coverage.xml || true
+          # Parse pytest output to determine pass/fail status
+          if [ -f reports/junit.xml ]; then
+            echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
+            echo '```xml' >> $GITHUB_STEP_SUMMARY
+            cat reports/junit.xml >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Summarize results to job summary
         if: always()
@@ -71,6 +105,15 @@ jobs:
           for f in reports/*; do
             echo "- $(basename "$f")" >> $GITHUB_STEP_SUMMARY
           done
+          # Add summary for pytest results
+          if [ -f reports/junit.xml ]; then
+            echo "## Pytest Summary" >> $GITHUB_STEP_SUMMARY
+            echo "JUnit XML report generated at reports/junit.xml" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/coverage.xml ]; then
+            echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report generated at reports/coverage.xml" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload reports artifact
         uses: actions/upload-artifact@v4

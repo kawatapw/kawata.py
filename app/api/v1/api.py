@@ -168,7 +168,7 @@ async def api_calculate_pp_batch(
     Returns results keyed by beatmap ID.
     """
 
-    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+    if app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -194,9 +194,10 @@ async def api_calculate_pp_batch(
     )
 
     # Build lookup: beatmap_id -> {md5, mode}
-    db_maps: dict[int, dict] = {}
-    for row in rows:
-        db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
+    db_maps: dict[int, dict[str, Any]] = {}
+    if rows:
+        for row in rows:
+            db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
 
     # Ensure .osu files are available in parallel
     maps_to_check = [
@@ -215,7 +216,7 @@ async def api_calculate_pp_batch(
     else:
         file_ok_map = {}
 
-    results: dict[str, dict] = {}
+    results: dict[str, dict[str, Any]] = {}
 
     for bid in beatmap_ids:
         if bid not in db_maps:
@@ -254,9 +255,10 @@ async def api_calculate_pp_batch(
                 "pp_acc": perf["performance"].get("pp_acc", 0),
             })
 
+        difficulty_result = perf_results[0]["difficulty"] if perf_results else None
         results[str(bid)] = {
             "pp_values": pp_values,
-            "difficulty": perf_results[0]["difficulty"] if perf_results else {},
+            "difficulty": difficulty_result if difficulty_result is not None else {},
         }
 
     return ORJSONResponse(
@@ -283,8 +285,8 @@ async def api_search_players(
     return ORJSONResponse(
         {
             "status": "success",
-            "results": len(rows),
-            "result": [dict(row) for row in rows],
+            "results": len(rows) if rows else 0,
+            "result": [dict(row) for row in rows] if rows else [],
         },
     )
 
