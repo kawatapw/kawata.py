@@ -34,10 +34,10 @@ def support_deprecated_vars(
                 f'The "{deprecated_name}" config option has been deprecated as of {until.isoformat()} and is no longer supported. Use {new_name} instead.',
             )
 
-        log(
-            f'The "{deprecated_name}" config option has been deprecated and will be supported until {until.isoformat()}. Use {new_name} instead.',
-            Ansi.LYELLOW,
-        )
+        #log(
+        #    f'The "{deprecated_name}" config option has been deprecated and will be supported until {until.isoformat()}. Use {new_name} instead.',
+        #    Ansi.LYELLOW,
+        #)
         return val2
 
     if allow_empty_string:

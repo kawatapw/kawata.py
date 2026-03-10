@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 import logging.config
 from logging.handlers import HTTPHandler
 import re
@@ -27,6 +26,7 @@ import traceback, sys
 import time
 import asyncio
 import functools
+from typing import Any
 
 # Incredibly Stupid Required Imports for Error_Catcher
 from fastapi import status
@@ -81,16 +81,16 @@ class IPResolver:
 
 ip_resolver: IPResolver = IPResolver()
 
-def ipv4network_serializer(obj: IPv4Network, **kwargs):
+def ipv4network_serializer(obj: IPv4Network, **kwargs: Any) -> str:
     return str(obj)
 
-def ipv4address_serializer(obj: IPv4Address, **kwargs):
+def ipv4address_serializer(obj: IPv4Address, **kwargs: Any) -> str:
     return str(obj)
 
 jsons.set_serializer(ipv4network_serializer, IPv4Network)
 jsons.set_serializer(ipv4address_serializer, IPv4Address)
 
-def setup_logging(default_path='logging.yaml', default_level=logging.INFO, env_key='LOG_CFG'):
+def setup_logging(default_path='logging.yaml', default_level=logging.INFO, env_key='LOG_CFG') -> None:
     """Setup logging configuration"""
     path = default_path
     value = os.getenv(env_key, None)
@@ -103,7 +103,7 @@ def setup_logging(default_path='logging.yaml', default_level=logging.INFO, env_k
     else:
         logging.basicConfig(level=default_level)
 
-def setup_structlog():
+def setup_structlog() -> None:
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
@@ -122,11 +122,11 @@ def setup_structlog():
         cache_logger_on_first_use=True,
     )
 
-def configure_logging():
+def configure_logging() -> None:
     setup_logging()
     setup_structlog()
 
-def serialize_value(value, seen=None):
+def serialize_value(value, seen=None) -> Any:
     """Serialize a value to a JSON-compatible format, extracting meaningful information from objects."""
     if seen is None:
         seen = set()
@@ -204,22 +204,22 @@ def serialize_value(value, seen=None):
         except:
             return f"<Unserializable: {type(value).__name__}>"
 
-def serialize_record(record, seen=None):
+def serialize_record(record, seen=None) -> dict[Any, Any]:
     if seen is None:
         seen = set()
     seen.add(id(record))
 
-    def serialize(value):
+    def serialize(value) -> Any:
         return serialize_value(value, seen)
 
-    serializable_record = {}
+    serializable_record: dict[Any, Any] = {}
     for key, value in record.__dict__.items():
         serializable_record[key] = serialize(value)
 
     return serializable_record
 
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
-    def format(self, record):
+    def format(self, record) -> bytes:
         # Convert only keys and values that are not of type str, int, float, bool, or None
         record.__dict__ = {
             str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k:
@@ -242,7 +242,7 @@ def get_timestamp(full: bool = False, tz: ZoneInfo | None = None) -> str:
     fmt = "%d/%m/%Y %I:%M:%S%p" if full else "%I:%M:%S%p"
     return f"{datetime.datetime.now(tz=tz):{fmt}}"
 
-def fromtimestamp(timestamp):
+def fromtimestamp(timestamp) -> str:
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
 
 ANSI_ESCAPE_REGEX = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]")
@@ -312,7 +312,7 @@ class logLevel(IntEnum):
 logLevel.add_Log_Levels()
 
 class DebugFilter(logging.Filter):
-    def filter(self, record):
+    def filter(self, record) -> bool:
         # Get the 'filter' field from the 'extra' dictionary
         filter_field = record.__dict__.get('filter')
         # If the 'filter' field is not present, don't filter the record
@@ -353,14 +353,14 @@ for handler in console_handlers:
     else:
         handler.setLevel(logLevel.DEBUG)
 
-def getHandlerByName(name, logger):
+def getHandlerByName(name, logger) -> Handler | None:
     for handler in logger.handlers:
         if handler.get_name() == name:
             return handler
     return None
 
 
-def _serialize_function_args(args, extra):
+def _serialize_function_args(args, extra) -> tuple[tuple, Mapping[str, object]]:
     """Serialize function arguments for logging."""
     if not args:
         return args, extra
@@ -376,7 +376,7 @@ def _serialize_function_args(args, extra):
     return (), extra
 
 
-def _serialize_locals(arg_info, extra, log_level):
+def _serialize_locals(arg_info, extra, log_level) -> Mapping[str, object]:
     """Serialize local variables for logging."""
     if log_level < 21:
         return extra
@@ -395,7 +395,7 @@ def _serialize_locals(arg_info, extra, log_level):
     return extra
 
 
-def _add_stack_trace(extra, log_level):
+def _add_stack_trace(extra, log_level) -> Mapping[str, object]:
     """Add stack trace information to the extra fields."""
     # Add stack trace to the 'extra' fields
     extra['stack_trace'] = json.dumps(traceback.format_stack())
@@ -552,7 +552,7 @@ def format_request(request: Request) -> dict:
     }
 
 class StructlogFormatter(logging.Formatter):
-    def __init__(self, processors=None, exclude=None, *args, **kwargs):
+    def __init__(self, processors=None, exclude=None, *args, **kwargs) -> None:
         super().__init__('', *args, **kwargs)  # Pass an empty string as the format string
         if processors is None:
             processors = []
@@ -561,7 +561,7 @@ class StructlogFormatter(logging.Formatter):
         ]
         self.exclude = exclude or []
 
-    def _import_processor(self, processor):
+    def _import_processor(self, processor) -> Any:
         if isinstance(processor, str):
             module_name, class_name = processor.rsplit('.', 1)
             module = importlib.import_module(module_name)
@@ -574,15 +574,15 @@ class StructlogFormatter(logging.Formatter):
             kwargs = processor.get('kwargs', {})
             return class_(*args, **kwargs)
 
-    def format(self, record):
-        event_dict = {
+    def format(self, record) -> str:
+        event_dict: dict[str, Any] = {
             'event': escape_ansi(record.msg),
             'logger': record.name,
             'level': record.levelname,
             'timestamp': record.created,
         }
         # Exclude attributes that are in self.exclude
-        extra_dict = {k: v for k, v in record.__dict__.items() if k not in event_dict and k not in self.exclude}
+        extra_dict: dict[str, Any] = {k: v for k, v in record.__dict__.items() if k not in event_dict and k not in self.exclude}
         event_dict.update(extra_dict)
         for processor in self.processors:
             event_dict = processor(None, None, event_dict)
@@ -591,7 +591,7 @@ class StructlogFormatter(logging.Formatter):
         return json.dumps(event_dict, cls=LogEncoder, indent=2)
 
 
-TIME_ORDER_SUFFIXES = ["nsec", "μsec", "msec", "sec"]
+TIME_ORDER_SUFFIXES: list[str] = ["nsec", "μsec", "msec", "sec"]
 
 def magnitude_fmt_time(nanosec: int | float) -> str:
     suffix = None
@@ -602,11 +602,11 @@ def magnitude_fmt_time(nanosec: int | float) -> str:
     return f"{nanosec:.2f} {suffix}"
 
 class LogEncoder(json.JSONEncoder):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.currently_processing = set()
+        self.currently_processing: set[Any] = set()
 
-    def default(self, o):
+    def default(self, o) -> str | dict[Any, str | dict[Any, Any]]:
         if id(o) in self.currently_processing:
             return "Circular reference detected"
         self.currently_processing.add(id(o))
@@ -624,14 +624,14 @@ class LogEncoder(json.JSONEncoder):
             # Remove the object from the set of currently processing objects
             self.currently_processing.remove(id(o))
 
-    def encode(self, o):
+    def encode(self, o) -> str:
         if isinstance(o, dict):
             # Convert keys of type `type` to strings
             o = self._convert_dict(o)
         return super().encode(o)
 
-    def _convert_dict(self, o):
-        new_dict = {}
+    def _convert_dict(self, o) -> dict[str, Any]:
+        new_dict: dict[str, Any] = {}
         for k, v in o.items():
             if isinstance(k, type):
                 k = str(k)
@@ -642,10 +642,10 @@ class LogEncoder(json.JSONEncoder):
             new_dict[k] = v
         return new_dict
 
-def error_catcher(func):
+def error_catcher(func) -> Any:
     if asyncio.iscoroutinefunction(func):
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs) -> Any:
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
@@ -662,7 +662,7 @@ def error_catcher(func):
                 pass
     else:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
