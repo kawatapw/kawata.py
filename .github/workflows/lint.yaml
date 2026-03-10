@@ -24,14 +24,14 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install poetry
-        run: python -m pip install --upgrade poetry wheel
-
-      - name: Update poetry.lock
-        run: poetry lock || true
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: poetry install --no-root --with dev || true
+        run: |
+          uv sync --all-extras --dev
 
       - name: Prepare reports dir
         run: mkdir -p reports
@@ -40,30 +40,29 @@ jobs:
         id: mypy
         continue-on-error: true
         run: |
-          poetry run mypy . > reports/mypy.txt 2>&1 || true
+          uv run mypy . > reports/mypy.txt 2>&1 || true
 
       - name: Run ruff
         id: ruff
         continue-on-error: true
         run: |
-          poetry run ruff check . > reports/ruff.txt 2>&1 || true
-          poetry run ruff format . --check > reports/ruff-format.txt 2>&1 || true
-
+          uv run ruff check . > reports/ruff.txt 2>&1 || true
+          uv run ruff format . --check > reports/ruff-format.txt 2>&1 || true
 
       - name: Run bandit (security lint)
         id: bandit
         continue-on-error: true
         run: |
-          poetry run bandit -r . -f json -o reports/bandit.json || true
+          uv run bandit -r . -f json -o reports/bandit.json || true
 
       - name: Run pytest with coverage (junit + coverage.xml)
         id: pytest
         continue-on-error: true
         run: |
-          poetry run pytest --maxfail=1 --disable-warnings -q \
+          uv run pytest --maxfail=1 --disable-warnings -q \
             --junitxml=reports/junit.xml || true
           # coverage xml if coverage plugin configured
-          poetry run pytest --maxfail=1 --disable-warnings -q --cov=./ --cov-report=xml:reports/coverage.xml || true
+          uv run pytest --maxfail=1 --disable-warnings -q --cov=./ --cov-report=xml:reports/coverage.xml || true
 
       - name: Summarize results to job summary
         if: always()

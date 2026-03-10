@@ -4,7 +4,7 @@ on:
   workflow_call:
     outputs:
       version:
-        description: "The version from poetry"
+        description: "The version from project"
         value: ${{ jobs.prepare.outputs.version }}
       tag_list:
         description: "Space-separated list of tags"
@@ -34,9 +34,12 @@ jobs:
         name: Prepare version + tags
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          pip install poetry
-          VERSION=$(poetry version --short 2>/dev/null || echo "0.0.0")
+          # Install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.cargo/bin:$PATH"
+          
+          # Get version from pyproject.toml
+          VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
           SHORT_SHA=${GITHUB_SHA::7}
           BRANCH=${GITHUB_REF#refs/heads/}
           BRANCH_TAG=${BRANCH//\//-}

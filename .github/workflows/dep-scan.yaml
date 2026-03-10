@@ -18,21 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install deps
+      - name: Install uv
         run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-          poetry lock || true
-          poetry install --no-root --with dev
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
 
       - name: Run safety (requirements)
         run: |
-          poetry run safety check --json --output safety-report.json || true
+          uv run safety check --json --output safety-report.json || true
 
       - name: Upload safety report
         uses: actions/upload-artifact@v4
