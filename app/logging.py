@@ -438,7 +438,7 @@ def log(
     fields to logs for warnings and errors, while attaching extra fields to the log.
     """
 
-    # Get the logger
+    # Get the logger find a suitable default if one not provided.
     if logger:
         log_obj = structlog.get_logger(logger)
     else:
