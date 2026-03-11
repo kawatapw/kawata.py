@@ -75,6 +75,12 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history for proper diff analysis
 
+      - name: Setup Python # Weirdly fixes issues...
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -148,7 +154,7 @@ jobs:
         run: |
           mkdir -p reports
           # Run bandit and capture output (configuration from pyproject.toml)
-          uv run bandit -c /srv/root/pyproject.toml -r . -f json -o reports/bandit.json || true
+          uv run bandit -c ./pyproject.toml -r . -f json -o reports/bandit.json || true
           # Parse and display the output using our parser
           if [ -f reports/bandit.json ]; then
             python3 tools/parse_bandit.py reports/bandit.json >> $GITHUB_STEP_SUMMARY
@@ -229,6 +235,12 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Fetch all history for proper diff analysis
+
+      - name: Setup Python # Weirdly fixes issues...
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Install uv
         run: |
