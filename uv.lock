@@ -452,31 +452,6 @@ wheels = [
 ]
 
 [[package]]
-name = "elastic-transport"
-version = "8.17.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "certifi" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6a/54/d498a766ac8fa475f931da85a154666cc81a70f8eb4a780bc8e4e934e9ac/elastic_transport-8.17.1.tar.gz", hash = "sha256:5edef32ac864dca8e2f0a613ef63491ee8d6b8cfb52881fa7313ba9290cac6d2", size = 73425, upload-time = "2025-03-13T07:28:30.776Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cf/cd/b71d5bc74cde7fc6fd9b2ff9389890f45d9762cbbbf81dc5e51fd7588c4a/elastic_transport-8.17.1-py3-none-any.whl", hash = "sha256:192718f498f1d10c5e9aa8b9cf32aed405e469a7f0e9d6a8923431dbb2c59fb8", size = 64969, upload-time = "2025-03-13T07:28:29.031Z" },
-]
-
-[[package]]
-name = "elasticsearch"
-version = "8.13.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "elastic-transport" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/65/18b66eafb43456bdce684d1bbbc1a8e3c2c0ff79097b9848ae091aa6fbc1/elasticsearch-8.13.2.tar.gz", hash = "sha256:d51c93431a459b2b7c6c919b6e92a2adc8ac712758de9aeeb16cd4997fc148ad", size = 379737, upload-time = "2024-05-24T12:55:22.731Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/46/ce9bec71b0f563a936eeed6b08457805a4c3c121c622d174edb5ae7d29cb/elasticsearch-8.13.2-py3-none-any.whl", hash = "sha256:7412ceae9c0e437a72854ab3123aa1f37110d1635cc645366988b8c0fee98598", size = 478024, upload-time = "2024-05-24T12:55:18.54Z" },
-]
-
-[[package]]
 name = "fastapi"
 version = "0.109.2"
 source = { registry = "https://pypi.org/simple" }
@@ -719,7 +694,6 @@ dependencies = [
     { name = "cryptography" },
     { name = "databases", extra = ["mysql"] },
     { name = "datadog" },
-    { name = "elasticsearch" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jsons" },
@@ -780,7 +754,6 @@ requires-dist = [
     { name = "cryptography", specifier = "==42.0.2" },
     { name = "databases", extras = ["mysql"], specifier = "==0.8.0" },
     { name = "datadog", specifier = "==0.48.0" },
-    { name = "elasticsearch", specifier = "==8.13.2" },
     { name = "fastapi", specifier = "==0.109.2" },
     { name = "httpx", specifier = "==0.26.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = "==5.13.2" },

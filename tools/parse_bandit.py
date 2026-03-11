@@ -63,8 +63,8 @@ def parse_bandit_output(json_file: Path) -> Dict[str, Any]:
         elif severity == "LOW":
             summary["low_severity"] += 1
 
-        # Add issue details (limit to first 50 issues to avoid overflow)
-        if len(summary["issues"]) < 50:
+        # Add issue details (limit to first 10 issues to avoid overflow)
+        if len(summary["issues"]) < 10:
             # Extract code snippet if available
             code_snippet = issue.get("code", "")
             if code_snippet:
@@ -102,7 +102,7 @@ def format_summary(summary: Dict[str, Any]) -> str:
 
     # Issue details
     if summary["issues"]:
-        lines.append("### Issues (First 50)\n")
+        lines.append("### Issues (First 10)\n")
         for i, issue in enumerate(summary["issues"], 1):
             lines.append(f"#### {i}. {issue['severity']} - {issue['test_id']}\n")
             lines.append(f"- **File**: `{issue['file']}` (line {issue['line']})\n")
@@ -113,8 +113,8 @@ def format_summary(summary: Dict[str, Any]) -> str:
             lines.append("\n")
         
         # Add note about total issues
-        if summary["total_issues"] > 50:
-            lines.append(f"**Note**: Showing first 50 of {summary['total_issues']} total issues.\n")
+        if summary["total_issues"] > 10:
+            lines.append(f"**Note**: Showing first 10 of {summary['total_issues']} total issues.\n")
     else:
         lines.append("### Issues\n")
         lines.append("✅ No issues found!\n")
