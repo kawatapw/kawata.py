@@ -1,0 +1,69 @@
+name: Summarize Results
+
+on:
+  workflow_call:
+    inputs:
+      run_id:
+        description: "The run ID to summarize"
+        required: true
+        type: string
+      workflow_names:
+        description: "Comma-separated list of workflow names to summarize"
+        required: true
+        type: string
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --no-install-project --only-group ci
+          uv run python tools/ci/ci.py workflow start --workflow summarize --job summarize
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ inputs.run_id }}
+          path: ./all-artifacts
+
+      - name: Generate summary report using CI tool
+        run: |
+          # Split workflow names by comma and generate summary for each
+          IFS=',' read -ra WORKFLOW_NAMES <<< "${{ inputs.workflow_names }}"
+          for workflow in "${WORKFLOW_NAMES[@]}"; do
+            echo "Generating summary for workflow: $workflow"
+            python tools/ci/ci.py summary generate \
+              --run-id ${{ inputs.run_id }} \
+              --artifact-dir ./all-artifacts \
+              --workflow "$workflow"
+          done
+
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-summarize
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow summarize --job summarize --status ${{ job.status }}

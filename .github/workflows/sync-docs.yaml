@@ -6,6 +6,7 @@ on:
       - BE-Master
     paths:
       - ".github/docs/wiki/**"
+  workflow_call:
   repository_dispatch:
     types: [docs]
   gollum:

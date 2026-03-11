@@ -1,28 +1,56 @@
 name: Push to Docker Hub
 
 on:
-  push:
-    branches:
-      - BE-Master
-      - BE-Staging
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: "The version from project"
+        required: true
+        type: string
+      tag_list:
+        description: "Space-separated list of tags"
+        required: true
+        type: string
+      github_owner:
+        description: "The GitHub owner"
+        required: true
+        type: string
+      github_repo:
+        description: "The GitHub repo"
+        required: true
+        type: string
 
 jobs:
-  prepare:
-    uses: ./.github/workflows/prep-build.yaml
-
   push:
-    needs: prepare
-    if: ${{ github.event_name != 'workflow_run' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: |
+      ${{ github.event_name != 'workflow_run' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }} ||
+      contains(github.ref, 'refs/heads/master') ||
+      contains(github.ref, 'refs/heads/latest') ||
+      contains(github.ref, 'refs/heads/BE-Master') ||
+      contains(github.ref, 'refs/heads/BE-Prod') ||
+      contains(github.ref, 'refs/heads/BE-Staging') ||
+      startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --no-install-project --only-group ci
+          uv run python tools/ci/ci.py workflow start --workflow publish --job push
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -43,7 +71,7 @@ jobs:
         run: |
           DOCKER_USER="${{ secrets.DOCKERHUB_USERNAME }}"
           TAGS=""
-          for TAG in ${{ needs.prepare.outputs.tag_list }}; do
+          for TAG in ${{ inputs.tag_list }}; do
             TAGS="$TAGS$DOCKER_USER/kawata.py:$TAG\n"
           done
           # Use heredoc to handle newlines properly
@@ -60,3 +88,23 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        run: |
+          python tools/ci/ci.py summary generate --workflow publish
+
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-publish
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow publish --job push --status ${{ job.status }}

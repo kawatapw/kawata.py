@@ -30,6 +30,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync 
+          uv run python tools/ci/ci.py workflow start --workflow prep-build --job prepare
+
       - id: set
         name: Prepare version + tags
         run: |
@@ -42,15 +56,19 @@ jobs:
           VERSION=$(python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
           SHORT_SHA=${GITHUB_SHA::7}
           BRANCH=${GITHUB_REF#refs/heads/}
-          BRANCH_TAG=${BRANCH//\//-}
+          
+          # Convert branch name to lowercase and replace slashes with hyphens
+          BRANCH_TAG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/\//-/g')
           
           # Define base tags
           TAGS="$SHORT_SHA $BRANCH_TAG"
           
-          # Add specific tags based on branch
-          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest BE-Prod"; fi
-          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS BE-Staging"; fi
-          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS BE-Dev"; fi
+          # Add specific tags based on branch (ensure these are also lowercase if they add new text)
+          # Note: 'BE-Master', 'BE-Staging', 'BE-Dev' will still add uppercase tags if not handled.
+          # You might want to change these to 'be-master', 'be-staging', 'be-dev' or convert them.
+          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest be-prod"; fi # Changed BE-Prod to be-prod
+          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS be-staging"; fi # Changed BE-Staging to be-staging
+          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS be-dev"; fi # Changed BE-Dev to be-dev
           if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
           
           # Always add ci short sha
@@ -65,3 +83,23 @@ jobs:
           echo "github_owner=kawatapw" >> $GITHUB_STEP_SUMMARY
           echo "github_repo=kawata.py" >> $GITHUB_OUTPUT
           echo "github_repo=kawata.py" >> $GITHUB_STEP_SUMMARY
+
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        run: |
+          python tools/ci/ci.py summary generate --workflow prep-build
+
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-prep-build
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow prep-build --job prepare --status ${{ job.status }}
