@@ -434,9 +434,8 @@ def log(
     *args: Any,
 ) -> None:
     """\
-    A thin wrapper around the stdlib logging module to handle mostly
-    backwards-compatibility for colours during our migration to the
-    standard library logging module.
+    A wrapper for the python logging library to add color formatting and additional
+    fields to logs for warnings and errors, while attaching extra fields to the log.
     """
 
     # Get the logger
