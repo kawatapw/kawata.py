@@ -10,6 +10,7 @@ from app.constants.privileges import Privileges
 from app.logging import Ansi
 from app.logging import log
 from app.utils import DebugLevelWatcher
+from typing import Any
 
 OSU_CLIENT_MIN_PING_INTERVAL = 300000 // 1000  # defined by osu!
 
@@ -43,34 +44,35 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
                 },
             })
 
-        expired_donors = await app.state.services.database.fetch_all(
+        expired_donors: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(
             "SELECT id FROM users "
             "WHERE donor_end <= UNIX_TIMESTAMP() "
             "AND priv & :donor_priv",
             {"donor_priv": Privileges.DONATOR.value},
         )
 
-        for expired_donor in expired_donors:
-            player = await app.state.sessions.players.from_cache_or_sql(
-                id=expired_donor["id"],
-            )
-
-            assert player is not None
-
-            # TODO: perhaps make a `revoke_donor` method?
-            await player.remove_privs(Privileges.DONATOR)
-            player.donor_end = 0
-            await app.state.services.database.execute(
-                "UPDATE users SET donor_end = 0 WHERE id = :id",
-                {"id": player.id},
-            )
-
-            if player.is_online:
-                player.enqueue(
-                    app.packets.notification("Your supporter status has expired."),
+        if expired_donors is not None:
+            for expired_donor in expired_donors:
+                player = await app.state.sessions.players.from_cache_or_sql(
+                    id=expired_donor["id"],
                 )
 
-            log(f"{player}'s supporter status has expired.", Ansi.LMAGENTA)
+                assert player is not None
+
+                # TODO: perhaps make a `revoke_donor` method?
+                await player.remove_privs(Privileges.DONATOR)
+                player.donor_end = 0
+                await app.state.services.database.execute(
+                    "UPDATE users SET donor_end = 0 WHERE id = :id",
+                    {"id": player.id},
+                )
+
+                if player.is_online:
+                    player.enqueue(
+                        app.packets.notification("Your supporter status has expired."),
+                    )
+
+                log(f"{player}'s supporter status has expired.", Ansi.LMAGENTA)
 
         await asyncio.sleep(interval)
 

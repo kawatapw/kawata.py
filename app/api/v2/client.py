@@ -1,6 +1,7 @@
 """ bancho.py's v2 apis for interacting with client specific data """
 from __future__ import annotations
 import textwrap
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi import status
@@ -27,10 +28,10 @@ async def get_changelog(
     page_size: int = Query(50, ge=1, le=100),
     change_type: int | None = Query(None, ge=0, le=2),
     category: str | None = None,
-    unix_from: str | None = 0,
-) -> Success[list] | Failure:
+    unix_from: int = 0,
+) -> Success[list[dict[str, Any]]] | Failure:
     try:
-        params = {}
+        params: dict[str, Any] = {}
         query = f"""\
             SELECT {READ_PARAMS}
               FROM changelog
@@ -58,6 +59,11 @@ async def get_changelog(
         params["unix_from"] = unix_from
 
         data = await database.fetch_all(query, params)
+        if data is None:
+            return responses.failure(
+                message="An error occurred while fetching changelog.",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         meta = {
             "total": len(data),
             "page": page,
@@ -68,24 +74,18 @@ async def get_changelog(
         }
         res = []
         for row in data:
-            try:
-                res.append({
-                    "type": row["type"],
-                    "category": row["category"], 
-                    "poster": row["poster"],
-                    "content": row["content"],
-                    "time": row["time"].strftime("%Y-%m-%d %H:%M:%S"),
-                    "version": row["version"]
-                })
-            except:
-                res.append({
-                    "type": row[0],
-                    "category": row[1],
-                    "poster": row[2],
-                    "content": row[3],
-                    "time": row[4].strftime("%Y-%m-%d %H:%M:%S"),
-                    "version": row[5]
-                })
+            res.append({
+                "type": row["type"],
+                "category": row["category"], 
+                "poster": row["poster"],
+                "content": row["content"],
+                "time": row["time"].strftime("%Y-%m-%d %H:%M:%S"),
+                "version": row["version"]
+            })
         return responses.success(content=res, meta=meta)
     except Exception as e:
         log(f"Error in get_changelog: {e}")
+        return responses.failure(
+            message="An error occurred while fetching changelog.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

@@ -914,7 +914,7 @@ class BeatmapSet:
                 {"set_id": bsid},
             )
 
-            current_maps = {row["id"]: row["status"] for row in res}
+            current_maps = {row["id"]: row["status"] for row in res} if res is not None else {}
 
             for api_bmap in api_response:
                 # newer version available for this map

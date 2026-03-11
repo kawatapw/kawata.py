@@ -239,7 +239,7 @@ class Player:
         self.id = id
         self.name = name
         self.aeris_client:bool = False # Identified by the Specific packet dedicated to Kawata/Aeris clients
-        self.aeris_client_features:AerisFeatures = AerisFeatures.None_ # by default the client don't take into account any Kawata/Aeris features, because it's another client
+        self.aeris_client_features:int = AerisFeatures.None_ # by default the client don't take into account any Kawata/Aeris features, because it's another client
         self.priv = priv
         self.pw_bcrypt = pw_bcrypt
         self.token = token
@@ -378,7 +378,7 @@ class Player:
     def has_group_capability(self) -> bool:
         """Does the server and the client has group capabilities"""
         return self.aeris_client \
-            and app.api.domains.packets.aeris.AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
+            and AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
                 and self.aeris_client_features & AerisFeatures.Groups > 0
 
     @staticmethod
@@ -913,10 +913,10 @@ class Player:
 
     async def relationships_from_sql(self) -> None:
         """Retrieve `self`'s relationships from sql."""
-        for row in await app.state.services.database.fetch_all(
+        for row in (await app.state.services.database.fetch_all(
             "SELECT user2, type FROM relationships WHERE user1 = :user1",
             {"user1": self.id},
-        ):
+        ) or []):
             if row["type"] == "friend":
                 self.friends.add(row["user2"])
             else:

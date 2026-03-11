@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from typing import Literal
 from typing import TypedDict
 from zoneinfo import ZoneInfo
@@ -39,11 +40,8 @@ from app.constants.mods import Mods
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import ClientPrivileges
 from app.constants.privileges import Privileges
-from app.logging import Ansi
-from app.logging import get_timestamp
-from app.logging import log
-from app.logging import magnitude_fmt_time
-from app.logging import error_catcher
+from app.logging import Ansi, log, get_timestamp, magnitude_fmt_time, error_catcher, format_request
+
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.channel import Channel
@@ -108,8 +106,8 @@ motds = [
 router = APIRouter(tags=["Bancho API"])
 
 @router.get("/health")
-async def health_check():
-    checks = {
+async def health_check() -> Response:
+    checks: dict[str, Any] = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "bancho.py",
@@ -259,11 +257,11 @@ async def bancho_handler(
     if osu_token is None:
         # the client is performing a login
         request._body = await request.body() # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
-        log(f"Login request from {ip}.\nRequest Body: {request._body}", Ansi.LCYAN, 
+        log(f"Login request from {ip}.\nRequest Body: {request._body.decode()}", Ansi.LCYAN, 
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,
-                "Request": request,
+                "Request": json.dumps(format_request(request)),
             })
         login_data = await handle_osu_login_request(
             request.headers,
@@ -310,7 +308,7 @@ async def bancho_handler(
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,
-                "Request": request,
+                "Request": json.dumps(format_request(request)),
             })
 
     player.last_recv_time = time.time()
@@ -705,7 +703,10 @@ async def get_allowed_client_versions(osu_stream: OsuStream) -> set[date] | None
 
 def parse_adapters_string(adapters_string: str) -> tuple[list[str], bool]:
     running_under_wine = adapters_string == "runningunderwine"
-    adapters = adapters_string[:-1].split(".")
+    if running_under_wine:
+        adapters = ["runningunderwine"]
+    else:
+        adapters = adapters_string[:-1].split(".")
     return adapters, running_under_wine
 
 
@@ -1342,10 +1343,10 @@ async def handle_osu_login_request(
     try:
         if app.state.services.datadog:
             if not player.restricted:
-                app.state.services.datadog.increment("bancho.online_players")
+                app.state.services.datadog.increment("bancho.online_players")  # type: ignore[no-untyped-call]
 
             time_taken = time.time() - login_time
-            app.state.services.datadog.histogram("bancho.login_time", time_taken)
+            app.state.services.datadog.histogram("bancho.login_time", time_taken)  # type: ignore[no-untyped-call]
     except Exception as e:
         log(f"Error updating datadog metrics", Ansi.LRED, 
             extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})

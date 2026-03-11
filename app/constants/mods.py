@@ -295,7 +295,6 @@ OSU_SPECIFIC_MODS = Mods.AUTOPILOT | Mods.SPUNOUT | Mods.TARGET
 # taiko & catch have no specific mods
 MANIA_SPECIFIC_MODS = Mods.MIRROR | Mods.RANDOM | Mods.FADEIN | KEY_MODS
 
-@staticmethod
 def get_mods_string(mods: Mods) -> str:
     mod_list = []
     for mod in Mods:
