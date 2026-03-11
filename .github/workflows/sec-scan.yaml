@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (for logs/paths)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download docker image artifact from Build
         if: ${{ github.event_name == 'workflow_run' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           run-id: ${{ github.event.workflow_run.id }}
           name: docker-image
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload Trivy SARIF artifact
         if: ${{ hashFiles('trivy-results.sarif') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-results
           path: trivy-results.sarif

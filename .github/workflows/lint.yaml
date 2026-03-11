@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Fetch all history for proper diff analysis
 
@@ -61,7 +61,7 @@ jobs:
           fi
 
       - name: Upload mypy report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mypy-report
           path: reports/mypy.txt
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Fetch all history for proper diff analysis
 
@@ -118,7 +118,7 @@ jobs:
           fi
 
       - name: Upload ruff reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ruff-reports
           path: |
@@ -130,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Fetch all history for proper diff analysis
 
@@ -173,7 +173,7 @@ jobs:
           fi
 
       - name: Upload bandit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bandit-report
           path: reports/bandit.json
@@ -235,7 +235,7 @@ jobs:
       DB_USE_SSL: "false"
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Fetch all history for proper diff analysis
 
@@ -281,7 +281,7 @@ jobs:
           fi
 
       - name: Upload pytest reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pytest-reports
           path: |
@@ -294,7 +294,7 @@ jobs:
     if: always()
     steps:
       - name: Download all reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: reports
 

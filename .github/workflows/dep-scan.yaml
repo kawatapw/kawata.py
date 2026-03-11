@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
         run: |
@@ -31,7 +31,7 @@ jobs:
           uv run safety check --json --output safety-report.json || true
 
       - name: Upload safety report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: safety-report
           path: safety-report.json

@@ -35,7 +35,7 @@ jobs:
           fi
       - name: Checkout repository
         if: steps.validate.outputs.should_run == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Push files into wiki repo
         if: steps.validate.outputs.should_run == 'true'
         uses: newrelic/wiki-sync-action@main
@@ -61,7 +61,7 @@ jobs:
           fi
       - name: Checkout repository
         if: steps.validate.outputs.should_run == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ env.REPO_BRANCH }}
