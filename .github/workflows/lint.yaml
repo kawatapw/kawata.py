@@ -1,12 +1,12 @@
 name: Lint
 
 on:
-  push:
-    #paths:
-    #  - "**.py"
   pull_request:
     paths:
       - "**.py"
+  workflow_run:
+    workflows: ["Build Image"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
@@ -185,6 +185,42 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Download docker image artifact (when triggered by Build)
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: docker-image
+          path: ./artifacts
+          retry-exit-code: 1
+          retry-on: error
+
+      - name: Load docker image (if artifact available)
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+          if [ -n "$IMG_TAR" ]; then 
+            docker load -i "$IMG_TAR"
+            # Tag with the first tag from prep-build (usually short SHA) for consistency
+            FIRST_TAG=$(echo "${{ needs.prepare.outputs.tag_list }}" | awk '{print $1}')
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+            # Also tag as latest for the test
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+          fi
+
+      - name: Build application image (fallback - local)
+        if: ${{ github.event_name != 'workflow_run' }}
+        run: |
+          set -euo pipefail
+          GITHUB_OWNER="${{ needs.prepare.outputs.github_owner }}"
+          GITHUB_REPO="${{ needs.prepare.outputs.github_repo }}"
+          TAGS="${{ needs.prepare.outputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          docker build $TAG_ARGS .
 
       - name: Setup Python
         uses: actions/setup-python@v5
