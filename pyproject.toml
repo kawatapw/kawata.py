@@ -144,3 +144,19 @@ docstring-code-format = true
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.bandit]
+exclude_dirs = [
+    ".denv",
+    ".venv",
+    "venv",
+    "tests",
+    "testing",
+    "migrations",
+    "tools",
+    "__pycache__",
+]
+skips = [
+    "B101",  # assert_used - acceptable in tests
+    "B105",  # hardcoded_password_string - many false positives in our codebase
+]
