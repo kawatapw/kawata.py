@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["Build Image"]
     types: [completed]
+  workflow_call:
   workflow_dispatch:
 
 env:

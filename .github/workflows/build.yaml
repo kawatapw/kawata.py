@@ -61,3 +61,13 @@ jobs:
         with:
           name: poetry-version
           path: /tmp/poetry-version.txt
+
+  lint:
+    needs: build
+    uses: ./.github/workflows/lint.yaml
+    secrets: inherit
+
+  test:
+    needs: build
+    uses: ./.github/workflows/test.yaml
+    secrets: inherit
