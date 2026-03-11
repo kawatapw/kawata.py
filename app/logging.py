@@ -220,19 +220,20 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
     return serializable_record
 
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
-    def format(self, record: logging.LogRecord) -> str:
-        # Convert only values that are not of type str, int, float, bool, or None
+    def format(self, record: logging.LogRecord) -> bytes:
+        # Convert only keys and values that are not of type str, int, float, bool, or None
         record.__dict__ = {
-            k: str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k:
+            str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
             for k, v in record.__dict__.items()
         }
 
         # Check if the message contains any placeholders as this throws an error when formatting on string_record
-        if record.msg and isinstance(record.msg, str) and not re.search(r'%\(.+?\)s', record.msg) and record.args is not None:
+        if not re.search(r'%\(.+?\)s', record.msg) and record.args:
             record.args = None
 
         string_record = super().format(record)
-        return string_record
+        return string_record.encode('utf-8') + b'\n'
 
 
 console_logger = logging.getLogger('console')

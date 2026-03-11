@@ -12,7 +12,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import TypedDict
 from typing import cast
-from app.api.domains.packets.aeris import AERIS_SERVER_FEATURES
 from app.constants.aeris_features import AerisFeatures
 
 import databases.core
