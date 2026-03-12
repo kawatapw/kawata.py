@@ -19,7 +19,7 @@ env:
   GIT_COMMIT_MESSAGE: "docs(wiki): Bidirectional sync between docs and wiki"
   GITHUB_OWNER: "kawatapw"
   GITHUB_REPO: "kawata.py"
-  REPO_BRANCH: "BE-Master"
+  REPO_BRANCH: "BE-Prod"
   WIKI_BRANCH: "master"
 
 jobs:
