@@ -105,8 +105,8 @@ class ClientPackets(IntEnum):
     SPECTATE_FRAMES_FIX2 = 51200  
     
     CREATE_GROUP = 110
-    DISBAND_GROUP = 111,
-    INVITE_GROUP = 112,
+    DISBAND_GROUP = 111
+    INVITE_GROUP = 112
     ACCEPT_GROUP = 113
     DENY_GROUP = 114
     GROUP_USERS = 116
@@ -767,7 +767,7 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
             ret += p_args
         elif p_type in _noexpand_types:
             if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
-                logging.log(f"Integer value {p_args} out of range for 'i' format code")
+                logging.log(f"Integer value out of range for 'i' format code", level=logging.logLevel.WARNING, extra={"value": p_args})
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:
             ret += _expand_types[p_type](*p_args)
@@ -1329,26 +1329,27 @@ def switch_tournament_server(ip: str) -> bytes:
 def identify(version: int) -> bytes:
     return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
 
-def group_join():
+def group_join() -> bytes:
     return write(ServerPackets.GROUP_JOIN)
 
-def group_leave():
+def group_leave() -> bytes:
     return write(ServerPackets.GROUP_LEAVE)
 
-def group_users(player:Player):
+def group_users(player:Player) -> bytes:
     group = groups.get_group(player)
     users = []
-    for user in group.players:
-        lead = 1 if user.id == group.lead.id else 0
+    if group is not None:
+        for user in group.players:
+            lead = 1 if user.id == group.lead.id else 0
 
-        users.append({
-            "Name": user.name,
-            "ID" : str(user.id),
-            "Lead": str(lead)
-        })
+            users.append({
+                "Name": user.name,
+                "ID" : str(user.id),
+                "Lead": str(lead)
+            })
     return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
 
-def group_invite(lead:Player):
+def group_invite(lead:Player) -> bytes:
     invite = {
 		"From":lead.name,
 		"ID":lead.id

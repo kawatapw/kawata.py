@@ -1,0 +1,184 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: "The version from project"
+        required: true
+        type: string
+      tag_list:
+        description: "Space-separated list of tags"
+        required: true
+        type: string
+      github_owner:
+        description: "The GitHub owner"
+        required: true
+        type: string
+      github_repo:
+        description: "The GitHub repo"
+        required: true
+        type: string
+
+jobs:
+  collect_artifacts:
+    runs-on: ubuntu-latest
+    if: |
+      ${{ github.event_name == 'workflow_run' }} ||
+      contains(github.ref, 'refs/heads/master') ||
+      contains(github.ref, 'refs/heads/latest') ||
+      contains(github.ref, 'refs/heads/BE-Master') ||
+      contains(github.ref, 'refs/heads/BE-Prod') ||
+      contains(github.ref, 'refs/heads/BE-Staging') ||
+      startsWith(github.ref, 'refs/tags/')
+    outputs:
+      trivy_path: ${{ steps.emit.outputs.trivy }}
+      safety_path: ${{ steps.emit.outputs.safety }}
+      coverage_path: ${{ steps.emit.outputs.coverage }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --no-install-project --only-group ci
+          uv run python tools/ci/ci.py workflow start --workflow release --job collect_artifacts
+
+      - name: Download Trivy SARIF
+        id: collect
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: trivy-results
+          path: ./artifacts || true
+
+      - name: Download safety report (if any)
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: safety-report
+          path: ./artifacts || true
+
+      - name: Download coverage (if any)
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: code-coverage-report
+          path: ./artifacts || true
+
+      - name: Emit outputs
+        id: emit
+        run: |
+          TRIVY=$(ls ./artifacts/*.sarif 2>/dev/null || true)
+          SAFETY=$(ls ./artifacts/*safety* 2>/dev/null || true)
+          COVERAGE=$(ls ./artifacts/coverage* ./artifacts/*coverage* 2>/dev/null || true)
+          echo "trivy=${TRIVY}" >> $GITHUB_OUTPUT
+          echo "safety=${SAFETY}" >> $GITHUB_OUTPUT
+          echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
+
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        run: |
+          python tools/ci/ci.py summary generate --workflow release
+
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-release-collect
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow release --job collect_artifacts --status ${{ job.status }}
+
+  create_release:
+    needs: [collect_artifacts]
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.ref, 'refs/heads/master') ||
+      contains(github.ref, 'refs/heads/latest') ||
+      contains(github.ref, 'refs/heads/BE-Master') ||
+      contains(github.ref, 'refs/heads/BE-Prod') ||
+      contains(github.ref, 'refs/heads/BE-Staging') ||
+      startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --no-install-project --only-group ci
+          python tools/ci/ci.py workflow start --workflow release --job create_release
+
+      - name: Generate source archive
+        run: tar -czf source-code.tar.gz --exclude='.git' --exclude='*.tar.gz' .
+
+      - name: Collect optional artifacts into release-artifacts.tar.gz
+        run: |
+          mkdir -p collected
+          # copy if present
+          [ -f "${{ needs.collect_artifacts.outputs.trivy_path }}" ] && cp "${{ needs.collect_artifacts.outputs.trivy_path }}" collected/ || true
+          [ -f "${{ needs.collect_artifacts.outputs.safety_path }}" ] && cp "${{ needs.collect_artifacts.outputs.safety_path }}" collected/ || true
+          if [ -d "./artifacts/coverage" ]; then cp -r ./artifacts/coverage collected/ || true; fi
+          tar -czf release-artifacts.tar.gz collected || true
+
+      - name: Create GitHub Release (attach files)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Release v${{ inputs.version }}
+          body: |
+            Release v${{ inputs.version }}
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/BE-Master' }}
+          files: |
+            source-code.tar.gz
+            release-artifacts.tar.gz
+
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        run: |
+          python tools/ci/ci.py summary generate --workflow release
+
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-release-create
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow release --job create_release --status ${{ job.status }}

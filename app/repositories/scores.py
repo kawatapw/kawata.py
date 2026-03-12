@@ -228,6 +228,7 @@ async def fetch_one(id: int) -> Score | None:
             logger="console.error",
             level=logLevel.ERROR,
         )
+        return None
 
 
 async def fetch_count(

@@ -583,11 +583,11 @@ CREATE TABLE user_customisations (
 -- Modify logs table
 ALTER TABLE logs
 DROP PRIMARY KEY,
-CHANGE COLUMN id id varchar(64) NOT NULL,
-CHANGE COLUMN `from` mod int(16) NOT NULL COMMENT 'if type = 0, ''from'' = player && ''to'' = player\r\nif type = 1, ''from'' = player && ''to'' = map',
-CHANGE COLUMN `to` target int(16) NOT NULL,
-CHANGE COLUMN msg reason varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
-ADD COLUMN type tinyint(1) NOT NULL DEFAULT 0,
+CHANGE COLUMN `id` `id` varchar(64) NOT NULL,
+CHANGE COLUMN `from` `mod` int(16) NOT NULL COMMENT 'if type = 0, `from` = player && `to` = player\r\nif type = 1, `from` = player && `to` = map',
+CHANGE COLUMN `to` `target` int(16) NOT NULL,
+CHANGE COLUMN `msg` `reason` varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+ADD COLUMN `type` tinyint(1) NOT NULL DEFAULT 0,
 ADD PRIMARY KEY (id),
 ADD KEY type (type);
 
@@ -627,3 +627,11 @@ ADD CONSTRAINT fk_users_ordr FOREIGN KEY (userid) REFERENCES users (id) ON DELET
 
 ALTER TABLE user_customisations
 ADD CONSTRAINT FK_user_customizations FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE;
+
+# v5.3.1
+-- Fix invalid zero‑date default in logs.time
+-- The column previously used '0000-00-00 00:00:00' which is not a valid datetime
+-- in strict‑mode MySQL/MariaDB.  Change it to use CURRENT_TIMESTAMP for both
+-- insert and update semantics.
+ALTER TABLE logs
+    MODIFY `time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;

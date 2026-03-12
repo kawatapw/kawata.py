@@ -135,13 +135,13 @@ create table relationships
 
 create table logs
 (
-	id varchar(64) not null,
-	mod int(16) not null comment 'if type = 0, ''from'' = player && ''to'' = player\r\nif type = 1, ''from'' = player && ''to'' = map',
-	target int(16) not null,
-	action varchar(32) not null,
-	reason varchar(2048) charset utf8mb3 default null,
-	time datetime not null default '0000-00-00 00:00:00' on update current_timestamp(),
-	type tinyint(1) not null default 0,
+	`id` varchar(64) not null,
+	`mod` int(16) not null comment 'if type = 0, `from` = player && `to` = player\r\nif type = 1, `from` = player && `to` = map',
+	`target` int(16) not null,
+	`action` varchar(32) not null,
+	`reason` varchar(2048) charset utf8mb3 default null,
+	`time` datetime not null default CURRENT_TIMESTAMP on update current_timestamp(),
+	`type` tinyint(1) not null default 0,
 	primary key (id),
 	key type (type)
 );

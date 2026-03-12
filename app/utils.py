@@ -15,12 +15,13 @@ from typing import TypeVar
 import httpx
 import pymysql
 
+from fastapi.datastructures import FormData
 from starlette.requests import Request
 
 import app.settings
 import logging
 import asyncio
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi, log, logLevel, format_request
 
 if TYPE_CHECKING:
     from app.repositories.users import User
@@ -260,7 +261,7 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
         and data_view[-8:] == b"\x49END\xae\x42\x60\x82"
     )
 
-async def get_form_data(type, request: Request):
+async def get_form_data(type: str, request: Request) -> FormData | None:
     try:
         return await request.form()
     except Exception as e:
@@ -273,10 +274,10 @@ async def get_form_data(type, request: Request):
         }, level=14, logger="console.debug",)
         return None
 
-async def get_request_body(type, request: Request):
+async def get_request_body(type: str, request: Request) -> bytes | None:
     try:
         request._body = await request.body()
-        log(f"Request Body: {request._body}", Ansi.GRAY, level=16, logger="console.debug.requests",
+        log(f"Request Body: {request._body!r}", Ansi.GRAY, level=16, logger="console.debug.requests",
             extra={
                 "filter": {
                     "debugLevel": 1,
@@ -292,13 +293,19 @@ async def get_request_body(type, request: Request):
                 "debugFocus": "requests"
             },
             "Error": e,
-            "Request": request,
+            "Request": json.dumps(format_request(request)),
         }, level=30, logger="console.debug.requests")
         return None
 
-async def get_request_files(type, request: Request):
+async def get_request_files(type: str, request: Request) -> dict[str, Any] | None:
     try:
-        return await request.files()
+        form_data = await request.form()
+        # Extract files from form data
+        files: dict[str, Any] = {}
+        for key, value in form_data.items():
+            if hasattr(value, 'filename'):  # It's a file
+                files[key] = value
+        return files if files else None
     except Exception as e:
         # Handle the exception here
         log(f"Request Contains no Files", Ansi.GRAY, level=40,
@@ -308,11 +315,11 @@ async def get_request_files(type, request: Request):
                     "debugFocus": "requests"
                 },
                 "Error": e,
-                "Request": request,
+                "Request": json.dumps(format_request(request)),
             })
         return None
 
-async def write_log_file(type, file_path, request):
+async def write_log_file(type: str, file_path: str, request: Request) -> None:
     log(f"Writing Log File for Old Client Submission", Ansi.GRAY, level=16, logger="console.debug")
     with open(file_path, 'w') as file:
         if type == "SCORE":
@@ -323,7 +330,7 @@ async def write_log_file(type, file_path, request):
         log(f"Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
         form_data = await get_form_data(type, request)
         log(f"Grabbed Form Data", Ansi.GRAY)
-        if form_data != None:
+        if form_data is not None:
             # Extract the aliases and their values from the form data
             aliases = {alias: str(form_data.get(alias)) for alias in form_data}
             # Convert the aliases dictionary to JSON format
@@ -333,15 +340,16 @@ async def write_log_file(type, file_path, request):
             log(f"Form Data Written")
         # Read the request body as bytes and decode it
         body = await get_request_body(type, request)
-        if body != None:
+        if body is not None:
             try:
                 body_str = body.decode()
             except Exception as e:
                 body_str = None
             file.write(f"\nRequest Body:\n")
-            file.write(body_str)
+            # ...existing code...
+            file.write(body_str if body_str is not None else "Unable to decode body")
         files = await get_request_files(type, request)
-        if files != None:
+        if files is not None:
             file.write(f"\nFiles:\n")
             for field, uploaded_file in files.items():
                 file.write(f"{field}: {uploaded_file.filename}\n")
@@ -353,12 +361,12 @@ class DebugLevelWatcher:
     async def watch(interval: int) -> None:
         """Watch app.settings.DEBUG_LEVEL for changes and execute something on change."""
         current_debug_level = app.settings.DEBUG_LEVEL
-        DebugLevelWatcher.set()
+        DebugLevelWatcher.set_debug_level()
 
         while True:
             if app.settings.DEBUG_LEVEL != current_debug_level:
                 # DEBUG_LEVEL has changed, execute something
-                DebugLevelWatcher.set()
+                DebugLevelWatcher.set_debug_level()
 
                 # Update current_debug_level
                 current_debug_level = app.settings.DEBUG_LEVEL
@@ -366,35 +374,36 @@ class DebugLevelWatcher:
             # Sleep for a short interval before checking again
             await asyncio.sleep(interval)
 
-    class set:
-        def __init__(self):
-            """Set debug level stuff."""
-            self.loggerLevel()
-            pass
-        def loggerLevel(self):
-            """Set debug level stuff."""
+    @staticmethod
+    def set_debug_level() -> None:
+        """Set debug level stuff."""
+        DebugLevelWatcher.loggerLevel()
 
-            try:
-                console_logger = logging.getLogger('console')
-                console_handlers = console_logger.handlers
-                for handler in console_handlers:
-                    # Sets Console Logger Level based on current DebugLevel
-                    if app.settings.DEBUG_LEVEL == 3:
-                        handler.setLevel(logLevel.VERBOSE)
-                    elif app.settings.DEBUG_LEVEL == 2:
-                        handler.setLevel(logLevel.DBGLV2)
-                    elif app.settings.DEBUG_LEVEL == 1:
-                        handler.setLevel(logLevel.DBGLV1)
-                    elif app.settings.DEBUG_LEVEL == 0:
-                        handler.setLevel(logLevel.INFO)
-                    else:
-                        handler.setLevel(logLevel.DEBUG)
-                pass
-            except Exception as e:
-                log(f"Failed to set logger level: {e}", Ansi.LRED, extra={
-                    "message": "Failed to set logger level. Check the error message for more information.",
-                    "error": str(e),
-                    "traceback": f"{e.__traceback__}",
-                })
-                pass
+    @staticmethod
+    def loggerLevel() -> None:
+        """Set debug level stuff."""
+
+        try:
+            console_logger = logging.getLogger('console')
+            console_handlers = console_logger.handlers
+            for handler in console_handlers:
+                # Sets Console Logger Level based on current DebugLevel
+                if app.settings.DEBUG_LEVEL == 3:
+                    handler.setLevel(logLevel.VERBOSE)
+                elif app.settings.DEBUG_LEVEL == 2:
+                    handler.setLevel(logLevel.DBGLV2)
+                elif app.settings.DEBUG_LEVEL == 1:
+                    handler.setLevel(logLevel.DBGLV1)
+                elif app.settings.DEBUG_LEVEL == 0:
+                    handler.setLevel(logLevel.INFO)
+                else:
+                    handler.setLevel(logLevel.DEBUG)
+            pass
+        except Exception as e:
+            log(f"Failed to set logger level: {e}", Ansi.LRED, extra={
+                "message": "Failed to set logger level. Check the error message for more information.",
+                "error": str(e),
+                "traceback": f"{e.__traceback__}",
+            })
+            pass
                 

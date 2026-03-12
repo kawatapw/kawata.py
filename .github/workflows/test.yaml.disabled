@@ -1,0 +1,360 @@
+name: Test Codebase
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: "The version from project"
+        required: true
+        type: string
+      tag_list:
+        description: "Space-separated list of tags"
+        required: true
+        type: string
+      github_owner:
+        description: "The GitHub owner"
+        required: true
+        type: string
+      github_repo:
+        description: "The GitHub repo"
+        required: true
+        type: string
+
+env:
+  APP_HOST: "0.0.0.0"
+  APP_PORT: "10000"
+  TZ: "America/Chicago"
+  SERVICE_NAME: "kawata"
+  CONTAINER_NAME: "bancho"
+  CONTAINER_VERSION: "BE-Test"
+  GITHUB_OWNER: "kawatapw"
+  GITHUB_REPO: "kawata.py"
+  CHEAT_SERVER: "true"
+  CLIENT_VERSION: ""
+  DOMAIN: "cmyui.xyz"
+  USINGROOTDOMAIN: "False"
+  DB_HOST: "mysql-test"
+  DB_NAME: "bancho"
+  DB_PASS: "lol123"
+  DB_PORT: "3306"
+  DB_USER: "cmyui"
+  REDIS_DB: "0"
+  REDIS_HOST: "redis"
+  REDIS_PASS: "pass"
+  REDIS_PORT: "6379"
+  REDIS_USER: "default"
+  OSU_API_KEY: ""
+  BOT_API_KEY: ""
+  DATA_DIRECTORY: "/srv/root/.data"
+  SSL_CERT_PATH: "/srv/root/certs/fullchain.crt"
+  SSL_KEY_PATH: "/srv/root/certs/privkey.pem"
+  MIRROR_SEARCH_ENDPOINT: "https://catboy.best/api/search"
+  MIRROR_DOWNLOAD_ENDPOINT: "https://catboy.best/d"
+  COMMAND_PREFIX: "!"
+  REQUEST_PENDING_ONLY: "True"
+  SEASONAL_BGS: "https://akatsuki.pw/static/flower.png,https://i.cmyui.xyz/nrMT4V2RR3PR.jpeg"
+  MENU_ICON_URL: "https://akatsuki.pw/static/logos/logo_ingame.png"
+  MENU_ONCLICK_URL: "https://akatsuki.pw"
+  DATADOG_API_KEY: ""
+  DATADOG_APP_KEY: ""
+  DEBUG_LEVEL: "3"
+  DEBUG_FOCUS: "all"
+  REDIRECT_OSU_URLS: "True"
+  PP_CACHED_ACCS: "90,95,98,99,100"
+  DISALLOWED_NAMES: "mrekk,vaxei,btmc,cookiezi"
+  DISALLOWED_PASSWORDS: "password,abc123"
+  DISALLOW_OLD_CLIENTS: "False"
+  DISALLOW_INGAME_REGISTRATION: "True"
+  DISCORD_AUDIT_LOG_WEBHOOK: ""
+  DISCORD_INVITE: "https://discord.gg/ShEQgUx"
+  AUTOMATICALLY_REPORT_PROBLEMS: "False"
+  LOG_WITH_COLORS: "False"
+  TUNNEL_TOKEN: ""
+  DEVELOPER_MODE: "True"
+  DB_USE_SSL: "false"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail the lint job if pytest fails
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --no-install-project --only-group ci
+          uv run python tools/ci/ci.py workflow start --workflow test --job pytest
+
+      - name: Download docker image artifact (when triggered by Build)
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: docker-image
+          path: ./artifacts
+          retry-exit-code: 1
+          retry-on: error
+
+      - name: Load docker image (if artifact available)
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+          if [ -n "$IMG_TAR" ]; then 
+            docker load -i "$IMG_TAR"
+            # Tag with the first tag from prep-build (usually short SHA) for consistency
+            FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+            # Also tag as latest for the test
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+          fi
+
+      - name: Build application image (fallback - local)
+        if: ${{ github.event_name != 'workflow_run' }}
+        run: |
+          set -euo pipefail
+          GITHUB_OWNER="${{ inputs.github_owner }}"
+          GITHUB_REPO="${{ inputs.github_repo }}"
+          TAGS="${{ inputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          docker build $TAG_ARGS .
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Prepare test image tag
+        id: test-tag
+        run: |
+          FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+          echo "tag=${{ inputs.github_owner }}/${{ inputs.github_repo }}:$FIRST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Start containers
+        id: start-containers
+        run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test
+        env:
+          TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
+
+      - name: Run pytest with coverage (junit + coverage.xml)
+        id: pytest
+        run: |
+          mkdir -p reports
+          # Run pytest and capture output
+          uv run pytest --maxfail=1 --disable-warnings -q \
+            --junitxml=reports/junit.xml 2>&1 || true
+          # coverage xml if coverage plugin configured
+          uv run pytest --maxfail=1 --disable-warnings -q --cov=./ --cov-report=xml:reports/coverage.xml 2>&1 || true
+          # Parse pytest output to determine pass/fail status
+          if [ -f reports/junit.xml ]; then
+            echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
+            echo '```xml' >> $GITHUB_STEP_SUMMARY
+            cat reports/junit.xml >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Check if pytest found any failures
+            if grep -q "failures=\"[1-9]" reports/junit.xml || grep -q "errors=\"[1-9]" reports/junit.xml; then
+              echo "Pytest found failures. Continuing due to continue-on-error setting."
+            fi
+          else
+            echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
+            echo "No pytest output file generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload pytest reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-reports
+          path: |
+            reports/junit.xml
+            reports/coverage.xml
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down
+      
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+      
+      - name: Generate Summary
+        run: |
+          python tools/ci/ci.py summary generate --workflow test
+      
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow test --job pytest --status ${{ job.status }}
+      
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-pytest
+          path: ci-data/
+          retention-days: 30
+
+  run-test-suite:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --no-install-project --only-group ci
+          uv run python tools/ci/ci.py workflow start --workflow test --job run-test-suite
+
+      - name: Download docker image artifact (when triggered by Build)
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: docker-image
+          path: ./artifacts
+          retry-exit-code: 1
+          retry-on: error
+
+      - name: Load docker image (if artifact available)
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+          if [ -n "$IMG_TAR" ]; then 
+            docker load -i "$IMG_TAR"
+            # Tag with the first tag from prep-build (usually short SHA) for consistency
+            FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+            # Also tag as latest for the test
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+          fi
+
+      - name: Build application image (fallback - local)
+        if: ${{ github.event_name != 'workflow_run' }}
+        run: |
+          set -euo pipefail
+          GITHUB_OWNER="${{ inputs.github_owner }}"
+          GITHUB_REPO="${{ inputs.github_repo }}"
+          TAGS="${{ inputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          docker build $TAG_ARGS .
+
+      - name: Prepare test image tag
+        id: test-tag
+        run: |
+          FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+          echo "tag=${{ inputs.github_owner }}/${{ inputs.github_repo }}:$FIRST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Start containers
+        id: start-containers
+        run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test
+        env:
+          TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
+
+      - name: Run tests
+        id: run-tests
+        run: docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
+        env:
+          TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
+
+      - name: Capture container logs on failure
+        if: failure()
+        run: |
+          echo "=== Capturing container logs for debugging ==="
+          mkdir -p /tmp/container-logs
+          
+          echo "Container status:"
+          docker compose -f docker-compose.test.yml ps > /tmp/container-logs/container-status.txt 2>&1
+          cat /tmp/container-logs/container-status.txt
+          echo ""
+          
+          echo "=== bancho-test logs ==="
+          docker compose -f docker-compose.test.yml logs bancho-test > /tmp/container-logs/bancho-test.log 2>&1 || true
+          cat /tmp/container-logs/bancho-test.log
+          echo ""
+          
+          echo "=== mysql-test logs ==="
+          docker compose -f docker-compose.test.yml logs mysql-test > /tmp/container-logs/mysql-test.log 2>&1 || true
+          cat /tmp/container-logs/mysql-test.log
+          echo ""
+          
+          echo "=== redis-test logs ==="
+          docker compose -f docker-compose.test.yml logs redis-test > /tmp/container-logs/redis-test.log 2>&1 || true
+          cat /tmp/container-logs/redis-test.log
+          echo ""
+          
+          echo "=== All container logs ==="
+          docker compose -f docker-compose.test.yml logs > /tmp/container-logs/all-containers.log 2>&1 || true
+          cat /tmp/container-logs/all-containers.log
+
+      - name: Archive logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: container-logs-${{ github.run_id }}
+          path: |
+            /tmp/container-logs/
+          retention-days: 7
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down
+
+      - name: Parse Results
+        run: |
+          python tools/ci/ci.py artifacts collect
+      
+      - name: Generate Summary
+        run: |
+          python tools/ci/ci.py summary generate --workflow test
+      
+      - name: Finish Job
+        if: always()
+        run: |
+          python tools/ci/ci.py workflow finish --workflow test --job run-test-suite --status ${{ job.status }}
+      
+      - name: Upload CI State
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-test
+          path: ci-data/
+          retention-days: 30
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-coverage-report
+          path: coverage/

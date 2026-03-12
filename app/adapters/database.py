@@ -99,7 +99,7 @@ class Database:
         self,
         query: MySQLQuery,
         params: MySQLParams = None,
-    ) -> list[MySQLRow]:
+    ) -> list[MySQLRow] | None:
         if isinstance(query, ClauseElement):
             query, params = self._compile(query)
         try:
@@ -179,7 +179,7 @@ class Database:
 
         return val
 
-    async def execute(self, query: MySQLQuery, params: MySQLParams = None) -> int:
+    async def execute(self, query: MySQLQuery, params: MySQLParams = None) -> int | None:
         if isinstance(query, ClauseElement):
             query, params = self._compile(query)
 
