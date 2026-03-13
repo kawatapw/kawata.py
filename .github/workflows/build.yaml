@@ -43,7 +43,15 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           uv sync --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow build
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow build
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-build-start
+          path: ci-data/
+          retention-days: 30
 
   build:
     needs: start
@@ -59,6 +67,13 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
       - name: Start Job
         run: |
           chmod +x tools/ci/scripts/ci-bootstrap.sh
@@ -66,7 +81,7 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           uv sync --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow build --job build
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow build --job build
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -105,8 +120,9 @@ jobs:
           path: /tmp/artifacts/docker-image-${{ github.sha }}.tar
       
       - name: Parse Results
+        if: always()
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Upload poetry version artifact
         run: echo "${{ inputs.version }}" > /tmp/poetry-version.txt
@@ -118,20 +134,24 @@ jobs:
           path: /tmp/poetry-version.txt
 
       - name: Generate Summary
+        if: always()
         run: |
-          python tools/ci/ci.py summary generate --workflow build
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow build \
+            --artifact-dir ./all-artifacts
       
       - name: Upload CI State
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-build
+          name: ci-state-build-build
           path: ci-data/
           retention-days: 30
 
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow build --job build --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow build --job build --status ${{ job.status }}
       
   finish:
     runs-on: ubuntu-latest
@@ -153,6 +173,24 @@ jobs:
       - name: Install CI Tool
         run: |
           pip install -r tools/ci/requirements.txt
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (build)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-build
+          path: ci-data/
+          if-no-artifact-found: warn
       - name: Finish Workflow
         run: |
-          python tools/ci/ci.py workflow finish --workflow build --job finish --status ${{ job.status }}
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow build --status ${{ job.status }}

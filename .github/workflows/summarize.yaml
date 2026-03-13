@@ -31,8 +31,8 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow summarize --job summarize
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow summarize --job summarize
 
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -46,7 +46,7 @@ jobs:
           IFS=',' read -ra WORKFLOW_NAMES <<< "${{ inputs.workflow_names }}"
           for workflow in "${WORKFLOW_NAMES[@]}"; do
             echo "Generating summary for workflow: $workflow"
-            python tools/ci/ci.py summary generate \
+            uv run --only-group ci python tools/ci/ci.py summary generate \
               --run-id ${{ inputs.run_id }} \
               --artifact-dir ./all-artifacts \
               --workflow "$workflow"
@@ -54,7 +54,7 @@ jobs:
 
       - name: Parse Results
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Upload CI State
         uses: actions/upload-artifact@v7
@@ -66,4 +66,4 @@ jobs:
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow summarize --job summarize --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow summarize --job summarize --status ${{ job.status }}

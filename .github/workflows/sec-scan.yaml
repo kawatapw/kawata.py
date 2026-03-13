@@ -1,0 +1,398 @@
+name: Security Scan 
+# Checks for branches to run on are not working?
+# Trivy cannot load docker image for kawata.py?
+
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: "The version from project"
+        required: true
+        type: string
+      tag_list:
+        description: "Space-separated list of tags"
+        required: true
+        type: string
+      github_owner:
+        description: "The GitHub owner"
+        required: true
+        type: string
+      github_repo:
+        description: "The GitHub repo"
+        required: true
+        type: string
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow sec-scan
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-sec-scan-start
+          path: ci-data/
+          retention-days: 30
+
+  # safety:
+    # needs: [start]
+    # if: |
+    #   ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }} ||
+    #   contains(github.ref, 'refs/heads/master') ||
+    #   contains(github.ref, 'refs/heads/latest') ||
+    #   contains(github.ref, 'refs/heads/BE-Master') ||
+    #   contains(github.ref, 'refs/heads/BE-Prod') ||
+    #   contains(github.ref, 'refs/heads/BE-Staging') ||
+    #   startsWith(github.ref, 'refs/tags/')
+    # runs-on: ubuntu-latest
+    # continue-on-error: true
+    # steps:
+    #   - name: Checkout
+    #     uses: actions/checkout@v6
+    #     with:
+    #       fetch-depth: 0  # Fetch all history for proper diff analysis
+
+    #   - name: Setup Python
+    #     uses: actions/setup-python@v5
+    #     with:
+    #       python-version: '3.11'
+
+    #   - name: Start Job
+    #     run: |
+    #       chmod +x tools/ci/scripts/ci-bootstrap.sh
+    #       tools/ci/scripts/ci-bootstrap.sh
+    #       curl -LsSf https://astral.sh/uv/install.sh | sh
+    #       echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    #       uv sync --only-group ci
+    #       uv run --only-group ci python tools/ci/ci.py workflow start --workflow sec-scan --job safety
+
+    #   - name: Install dependencies
+    #     run: uv sync --all-extras --dev
+
+    #   - name: Run safety (requirements)
+    #     env:
+    #       SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
+    #     run: |
+    #       # Use safety scan (new command) with API key for CI authentication
+    #       # If no API key is set, scan will run with limited functionality
+    #       if [ -n "$SAFETY_API_KEY" ]; then
+    #         uv run safety scan --key "$SAFETY_API_KEY" --output json > safety-report.json || true
+    #       else
+    #         # Fallback: run without API key (may have limited results)
+    #         uv run safety scan --output json > safety-report.json || true
+    #       fi
+
+    #   - name: Upload safety report
+    #     if: always()
+    #     uses: actions/upload-artifact@v7
+    #     with:
+    #       name: safety-report
+    #       path: safety-report.json
+
+    #   - name: Parse Results
+    #     if: always()
+    #     run: |
+    #       uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+    #   - name: Generate Summary
+    #     if: always()
+    #     run: |
+    #       uv run --only-group ci python tools/ci/ci.py summary generate --workflow sec-scan
+
+    #   - name: Upload CI State
+    #     if: always()
+    #     uses: actions/upload-artifact@v7
+    #     with:
+    #       name: ci-state-sec-scan-safety
+    #       path: ci-data/
+    #       retention-days: 30
+
+    #   - name: Finish Job
+    #     if: always()
+    #     run: |
+    #       uv run --only-group ci python tools/ci/ci.py workflow finish --workflow sec-scan --job safety --status ${{ job.status }}
+
+  bandit:
+    needs: [start]
+    if: |
+      ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }} ||
+      contains(github.ref, 'refs/heads/master') ||
+      contains(github.ref, 'refs/heads/latest') ||
+      contains(github.ref, 'refs/heads/BE-Master') ||
+      contains(github.ref, 'refs/heads/BE-Prod') ||
+      contains(github.ref, 'refs/heads/BE-Staging') ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Fetch all history for proper diff analysis
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-sec-scan-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow sec-scan --job bandit
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run bandit (security lint)
+        id: bandit
+        run: |
+          mkdir -p reports
+          # Run bandit and capture output (configuration from pyproject.toml)
+          uv run bandit -c ./pyproject.toml -r . -f json -o reports/bandit.json || true
+          # Parse and display the output using our parser
+          if [ -f reports/bandit.json ]; then
+            python3 tools/parse_bandit.py reports/bandit.json >> $GITHUB_STEP_SUMMARY
+            BANDIT_EXIT_CODE=$?
+            # Check exit code from parser (1 if high/medium severity issues found)
+            if [ $BANDIT_EXIT_CODE -eq 1 ]; then
+              echo "Bandit found security issues. Failing job."
+              exit 1
+            fi
+          else
+            echo "## Bandit Results" >> $GITHUB_STEP_SUMMARY
+            echo "❌ No bandit output file generated" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bandit-report
+          path: reports/bandit.json
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow sec-scan \
+            --artifact-dir ./all-artifacts
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-sec-scan-bandit
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow sec-scan --job bandit --status ${{ job.status }}
+
+  # trivy:
+    # needs: [start]
+    # if: |
+    #   ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }} ||
+    #   contains(github.ref, 'refs/heads/master') ||
+    #   contains(github.ref, 'refs/heads/latest') ||
+    #   contains(github.ref, 'refs/heads/BE-Master') ||
+    #   contains(github.ref, 'refs/heads/BE-Prod') ||
+    #   contains(github.ref, 'refs/heads/BE-Staging') ||
+    #   startsWith(github.ref, 'refs/tags/')
+    # runs-on: ubuntu-latest
+    # continue-on-error: true
+    # steps:
+    #   - name: Checkout (for logs/paths)
+    #     uses: actions/checkout@v6
+
+    #   - name: Setup Python
+    #     uses: actions/setup-python@v5
+    #     with:
+    #       python-version: '3.11'
+
+    #   - name: Start Job
+    #     run: |
+    #       chmod +x tools/ci/scripts/ci-bootstrap.sh
+    #       tools/ci/scripts/ci-bootstrap.sh
+    #       curl -LsSf https://astral.sh/uv/install.sh | sh
+    #       echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    #       uv sync --only-group ci
+    #       uv run --only-group ci python tools/ci/ci.py workflow start --workflow sec-scan --job trivy
+
+
+    #   - name: Download docker image artifact (when triggered by Build)
+    #     if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
+    #     uses: actions/download-artifact@v8
+    #     with:
+    #       run-id: ${{ github.event.workflow_run.id }}
+    #       name: docker-image
+    #       path: ./artifacts
+    #       retry-exit-code: 1
+    #       retry-on: error
+
+    #   - name: Load docker image (if artifact available)
+    #     if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
+    #     run: |
+    #       IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+    #       if [ -n "$IMG_TAR" ]; then 
+    #         docker load -i "$IMG_TAR"
+    #         # Tag with the first tag from prep-build (usually short SHA) for consistency
+    #         FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+    #         docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+    #         # Also tag as latest for the test
+    #         docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+    #       fi
+
+    #   - name: Build application image (fallback - local)
+    #     if: ${{ github.event_name != 'workflow_run' }}
+    #     run: |
+    #       set -euo pipefail
+    #       GITHUB_OWNER="${{ inputs.github_owner }}"
+    #       GITHUB_REPO="${{ inputs.github_repo }}"
+    #       TAGS="${{ inputs.tag_list }}"
+    #       TAG_ARGS=""
+    #       for TAG in $TAGS; do
+    #         TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+    #       done
+    #       docker build $TAG_ARGS .
+
+    #   - name: Run Trivy scan and produce SARIF
+    #     run: |
+    #       set -euo pipefail
+    #       if [ "${{ github.event_name }}" = "workflow_run" ] || [ "${{ github.event_name }}" = "workflow_call" ]; then
+    #         # Try to find the downloaded artifact tar file
+    #         IMG_TAR=$(find ./artifacts -name "*.tar" -type f | head -n1)
+    #         if [ -n "$IMG_TAR" ] && [ -f "$IMG_TAR" ]; then
+    #           docker run --rm -v "$PWD":/data aquasec/trivy:latest image --input "/data/$IMG_TAR" --format sarif --output /data/trivy-results.sarif
+    #         else
+    #           # Fallback: pull image from registry if artifact not found
+    #           FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+    #           IMG="${{ inputs.github_owner }}/${{ inputs.github_repo }}:$FIRST_TAG"
+    #           docker run --rm -v "$PWD":/data aquasec/trivy:latest image "${IMG}" --format sarif --output /data/trivy-results.sarif || true
+    #         fi
+    #       else
+    #         # Use the first tag from prep-build for local scan
+    #         FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+    #         IMG="${{ inputs.github_owner }}/${{ inputs.github_repo }}:$FIRST_TAG"
+    #         docker run --rm -v "$PWD":/data aquasec/trivy:latest image "${IMG}" --format sarif --output /data/trivy-results.sarif || true
+    #       fi
+
+    #   - name: Upload Trivy SARIF to Code Scanning
+    #     if: ${{ hashFiles('trivy-results.sarif') != '' }}
+    #     uses: github/codeql-action/upload-sarif@v4
+    #     with:
+    #       sarif_file: 'trivy-results.sarif'
+
+    #   - name: Upload Trivy SARIF artifact
+    #     if: ${{ hashFiles('trivy-results.sarif') != '' }}
+    #     uses: actions/upload-artifact@v7
+    #     with:
+    #       name: trivy-results
+    #       path: trivy-results.sarif
+
+    #   - name: Parse Results
+    #     if: always()
+    #     run: |
+    #       uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+    #   - name: Generate Summary
+    #     if: always()
+    #     run: |
+    #       uv run --only-group ci python tools/ci/ci.py summary generate --workflow sec-scan
+
+    #   - name: Upload CI State
+    #     if: always()
+    #     uses: actions/upload-artifact@v7
+    #     with:
+    #       name: ci-state-sec-scan-trivy
+    #       path: ci-data/
+    #       retention-days: 30
+
+    #   - name: Finish Job
+    #     if: always()
+    #     run: |
+    #       uv run --only-group ci python tools/ci/ci.py workflow finish --workflow sec-scan --job trivy --status ${{ job.status }}
+
+  finish:
+    needs: [start, bandit] #  safety, trivy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Bootstrap Timing
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CI Tool
+        run: |
+          pip install -r tools/ci/requirements.txt
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-sec-scan-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (bandit)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-sec-scan-bandit
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Finish Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow sec-scan --status ${{ job.status }}

@@ -11,14 +11,22 @@ class PytestParser(Parser):
         """Parse pytest XML content."""
         root = ET.fromstring(content)
 
+        # Find the testsuite element (may be root or nested)
+        testsuite = root
+        if root.tag == 'testsuites':
+            # Root is testsuites, find first testsuite
+            testsuite = root.find('testsuite')
+            if testsuite is None:
+                testsuite = root
+
         # Extract test summary
         summary = {
-            'total': int(root.get('tests', 0)),
-            'passed': int(root.get('passed', 0)),
-            'failed': int(root.get('failed', 0)),
-            'skipped': int(root.get('skipped', 0)),
-            'errors': int(root.get('errors', 0)),
-            'duration': float(root.get('time', 0))
+            'total': int(testsuite.get('tests', 0)),
+            'passed': int(testsuite.get('passed', 0)),
+            'failed': int(testsuite.get('failures', 0)),
+            'skipped': int(testsuite.get('skipped', 0)),
+            'errors': int(testsuite.get('errors', 0)),
+            'duration': float(testsuite.get('time', 0))
         }
 
         # Extract test cases
