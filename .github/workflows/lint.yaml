@@ -28,8 +28,8 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow lint
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow lint
 
   mypy:
     needs: [start]
@@ -52,8 +52,8 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow lint --job mypy
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow lint --job mypy
 
       - name: Install dependencies
         run: |
@@ -130,8 +130,8 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow lint --job ruff
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow lint --job ruff
 
       - name: Install dependencies
         run: |
@@ -213,5 +213,5 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow finish --workflow lint --job finish --status ${{ job.status }}
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job finish --status ${{ job.status }}

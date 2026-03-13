@@ -93,8 +93,8 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow test --job pytest
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow test --job pytest
 
       - name: Download docker image artifact (when triggered by Build)
         if: ${{ github.event_name == 'workflow_run' }}
@@ -233,8 +233,8 @@ jobs:
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv sync --no-install-project --only-group ci
-          uv run python tools/ci/ci.py workflow start --workflow test --job run-test-suite
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow test --job run-test-suite
 
       - name: Download docker image artifact (when triggered by Build)
         if: ${{ github.event_name == 'workflow_run' }}
