@@ -58,25 +58,28 @@ jobs:
 
       - name: Download Trivy SARIF
         id: collect
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           run-id: ${{ github.event.workflow_run.id }}
           name: trivy-results
-          path: ./artifacts || true
+          path: ./artifacts
+          if-no-artifact-found: warn
 
       - name: Download safety report (if any)
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           run-id: ${{ github.event.workflow_run.id }}
           name: safety-report
-          path: ./artifacts || true
+          path: ./artifacts
+          if-no-artifact-found: warn
 
       - name: Download coverage (if any)
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           run-id: ${{ github.event.workflow_run.id }}
           name: code-coverage-report
-          path: ./artifacts || true
+          path: ./artifacts
+          if-no-artifact-found: warn
 
       - name: Emit outputs
         id: emit
@@ -140,6 +143,13 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           uv sync --no-install-project --only-group ci
           python tools/ci/ci.py workflow start --workflow release --job create_release
+
+      - name: Download CI State (collect_artifacts)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-release-collect
+          path: ci-data/
+          if-no-artifact-found: warn
 
       - name: Generate source archive
         run: tar -czf source-code.tar.gz --exclude='.git' --exclude='*.tar.gz' .

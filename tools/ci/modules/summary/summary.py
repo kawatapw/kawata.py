@@ -73,7 +73,8 @@ def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
     if context.step_summary_path:
         summary_path = Path(context.step_summary_path)
         summary_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(summary_path, 'a') as f:
+        # Use write mode to avoid duplicates when summary is generated multiple times
+        with open(summary_path, 'w') as f:
             f.write(summary)
 
     return {

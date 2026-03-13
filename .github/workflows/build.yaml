@@ -49,7 +49,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-build
+          name: ci-state-build-start
           path: ci-data/
           retention-days: 30
 
@@ -67,10 +67,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-build
+          name: ci-state-build-start
           path: ci-data/
           if-no-artifact-found: warn
 
@@ -136,13 +136,15 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
-          uv run --only-group ci python tools/ci/ci.py summary generate --workflow build
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow build \
+            --artifact-dir ./all-artifacts
       
       - name: Upload CI State
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-build
+          name: ci-state-build-build
           path: ci-data/
           retention-days: 30
 
@@ -171,10 +173,17 @@ jobs:
       - name: Install CI Tool
         run: |
           pip install -r tools/ci/requirements.txt
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-build
+          name: ci-state-build-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (build)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-build
           path: ci-data/
           if-no-artifact-found: warn
       - name: Finish Workflow

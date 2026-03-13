@@ -102,7 +102,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-test
+          name: ci-state-test-start
           path: ci-data/
           retention-days: 30
 
@@ -248,10 +248,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-test
+          name: ci-state-test-start
           path: ci-data/
           if-no-artifact-found: warn
 
@@ -376,7 +376,9 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
-          uv run --only-group ci python tools/ci/ci.py summary generate --workflow test
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow test \
+            --artifact-dir ./all-artifacts
       
       - name: Finish Job
         if: always()
@@ -386,7 +388,7 @@ jobs:
       - name: Upload CI State
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-test
+          name: ci-state-test-run-test-suite
           path: ci-data/
           retention-days: 30
 
@@ -410,12 +412,20 @@ jobs:
       - name: Install CI Tool
         run: |
           pip install -r tools/ci/requirements.txt
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-test
+          name: ci-state-test-start
           path: ci-data/
           if-no-artifact-found: warn
+
+      - name: Download CI State (run-test-suite)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-test-run-test-suite
+          path: ci-data/
+          if-no-artifact-found: warn
+
       - name: Finish Workflow
         run: |
           chmod +x tools/ci/scripts/ci-bootstrap.sh

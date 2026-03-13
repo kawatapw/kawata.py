@@ -32,7 +32,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-lint
+          name: ci-state-lint-start
           path: ci-data/
           retention-days: 30
 
@@ -51,10 +51,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-lint
+          name: ci-state-lint-start
           path: ci-data/
           if-no-artifact-found: warn
 
@@ -114,7 +114,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-lint
+          name: ci-state-lint-mypy
           path: ci-data/
           retention-days: 30
 
@@ -138,10 +138,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-lint
+          name: ci-state-lint-start
           path: ci-data/
           if-no-artifact-found: warn
 
@@ -201,13 +201,15 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
-          uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow lint \
+            --artifact-dir ./all-artifacts
       
       - name: Upload CI State
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-state-lint
+          name: ci-state-lint-ruff
           path: ci-data/
           retention-days: 30
 
@@ -231,10 +233,24 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download CI State
+      - name: Download CI State (start)
         uses: actions/download-artifact@v4
         with:
-          name: ci-state-lint
+          name: ci-state-lint-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (mypy)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-mypy
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (ruff)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-ruff
           path: ci-data/
           if-no-artifact-found: warn
 
