@@ -338,7 +338,7 @@ jobs:
     #       uv run --only-group ci python tools/ci/ci.py workflow finish --workflow sec-scan --job trivy --status ${{ job.status }}
 
   finish:
-    needs: [start, safety, bandit, trivy]
+    needs: [start, bandit] #  safety, trivy
     runs-on: ubuntu-latest
     if: always()
     steps:
