@@ -250,7 +250,7 @@ jobs:
           uv run --only-group ci python tools/ci/ci.py workflow start --workflow test --job run-test-suite
 
       - name: Download docker image artifact (when triggered by Build)
-        if: ${{ github.event_name == 'workflow_run' }}
+        if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
         uses: actions/download-artifact@v8
         with:
           run-id: ${{ github.event.workflow_run.id }}
@@ -260,7 +260,7 @@ jobs:
           retry-on: error
 
       - name: Load docker image (if artifact available)
-        if: ${{ github.event_name == 'workflow_run' }}
+        if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
         run: |
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
           if [ -n "$IMG_TAR" ]; then 

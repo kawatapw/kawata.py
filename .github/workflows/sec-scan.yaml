@@ -85,7 +85,7 @@ jobs:
 
       - name: Run safety (requirements)
         run: |
-          uv run safety check --json --output safety-report.json || true
+          uv run safety check --output json > safety-report.json || true
 
       - name: Upload safety report
         if: always()
@@ -234,13 +234,42 @@ jobs:
           uv sync --only-group ci
           uv run --only-group ci python tools/ci/ci.py workflow start --workflow sec-scan --job trivy
 
-      - name: Download docker image artifact from Build
+
+      - name: Download docker image artifact (when triggered by Build)
         if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
         uses: actions/download-artifact@v8
         with:
-          run-id: ${{ github.event.workflow_run.id || '' }}
+          run-id: ${{ github.event.workflow_run.id }}
           name: docker-image
           path: ./artifacts
+          retry-exit-code: 1
+          retry-on: error
+
+      - name: Load docker image (if artifact available)
+        if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
+        run: |
+          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+          if [ -n "$IMG_TAR" ]; then 
+            docker load -i "$IMG_TAR"
+            # Tag with the first tag from prep-build (usually short SHA) for consistency
+            FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+            # Also tag as latest for the test
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+          fi
+
+      - name: Build application image (fallback - local)
+        if: ${{ github.event_name != 'workflow_run' }}
+        run: |
+          set -euo pipefail
+          GITHUB_OWNER="${{ inputs.github_owner }}"
+          GITHUB_REPO="${{ inputs.github_repo }}"
+          TAGS="${{ inputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          docker build $TAG_ARGS .
 
       - name: Run Trivy scan and produce SARIF
         run: |
