@@ -333,18 +333,24 @@ jobs:
         if: always()
         run: docker compose down
 
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-coverage-report
+          path: coverage/
+
       - name: Parse Results
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
       
       - name: Generate Summary
         run: |
-          python tools/ci/ci.py summary generate --workflow test
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow test
       
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow test --job run-test-suite --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow test --job run-test-suite --status ${{ job.status }}
       
       - name: Upload CI State
         uses: actions/upload-artifact@v7
@@ -352,9 +358,3 @@ jobs:
           name: ci-state-test
           path: ci-data/
           retention-days: 30
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v7
-        with:
-          name: code-coverage-report
-          path: coverage/

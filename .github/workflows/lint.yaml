@@ -90,11 +90,11 @@ jobs:
 
       - name: Parse Results
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Generate Summary
         run: |
-          python tools/ci/ci.py summary generate --workflow lint
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
       
       - name: Upload CI State
         uses: actions/upload-artifact@v7
@@ -106,7 +106,7 @@ jobs:
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow lint --job mypy --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job mypy --status ${{ job.status }}
       
 
   ruff:
@@ -174,11 +174,11 @@ jobs:
 
       - name: Parse Results
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Generate Summary
         run: |
-          python tools/ci/ci.py summary generate --workflow lint
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
       
       - name: Upload CI State
         uses: actions/upload-artifact@v7
@@ -190,7 +190,7 @@ jobs:
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow lint --job ruff --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job ruff --status ${{ job.status }}
 
   finish:
     runs-on: ubuntu-latest
