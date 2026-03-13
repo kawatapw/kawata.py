@@ -1,9 +1,6 @@
 name: Lint
 
 on:
-  pull_request:
-    paths:
-      - "**.py"
   workflow_dispatch:
   workflow_call:
 
@@ -110,7 +107,6 @@ jobs:
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job mypy --status ${{ job.status }}
-      
 
   ruff:
     needs: [start]
