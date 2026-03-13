@@ -45,6 +45,14 @@ jobs:
           uv sync --only-group ci
           uv run --only-group ci python tools/ci/ci.py workflow start --workflow build
 
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-build
+          path: ci-data/
+          retention-days: 30
+
   build:
     needs: start
     runs-on: ubuntu-latest
@@ -58,6 +66,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Download CI State
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build
+          path: ci-data/
+          if-no-artifact-found: warn
 
       - name: Start Job
         run: |
@@ -156,6 +171,12 @@ jobs:
       - name: Install CI Tool
         run: |
           pip install -r tools/ci/requirements.txt
+      - name: Download CI State
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build
+          path: ci-data/
+          if-no-artifact-found: warn
       - name: Finish Workflow
         run: |
           chmod +x tools/ci/scripts/ci-bootstrap.sh
