@@ -1,4 +1,5 @@
 """GitHub job summary generator."""
+import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -6,6 +7,52 @@ from jinja2 import Environment, FileSystemLoader
 from core.context import Context
 from core.storage import get_backend
 from modules.parsers.registry import parse_file, detect_parser, list_parsers
+
+
+def _find_state_in_artifacts(artifact_path: Path, workflow_name: str, run_id: str) -> Dict[str, Any]:
+    """Find workflow state in downloaded artifacts.
+    
+    When artifacts are downloaded, they are stored in subdirectories named after the artifact.
+    State files are stored in ci-data/state/workflow-*.json within those subdirectories.
+    """
+    print(f"DEBUG: Looking for state in artifacts at {artifact_path}")
+    print(f"DEBUG: Looking for workflow_name={workflow_name}, run_id={run_id}")
+    
+    # Look for state files in all subdirectories
+    for state_file in artifact_path.rglob('**/state/workflow-*.json'):
+        print(f"DEBUG: Found state file: {state_file}")
+        try:
+            with open(state_file, 'r') as f:
+                state = json.load(f)
+                print(f"DEBUG: State file run_id={state.get('run_id')}, workflow={state_file.stem}")
+                # Check if this state matches our workflow or run_id
+                if state.get('run_id') == run_id:
+                    print(f"DEBUG: Found matching state by run_id")
+                    return state
+                # Also check by workflow name
+                state_workflow = state_file.stem.replace('workflow-', '')
+                if state_workflow == workflow_name:
+                    print(f"DEBUG: Found matching state by workflow name")
+                    return state
+        except Exception as e:
+            print(f"DEBUG: Error reading state file {state_file}: {e}")
+            continue
+    
+    # Also try to find any state file with matching run_id
+    for state_file in artifact_path.rglob('**/state/*.json'):
+        print(f"DEBUG: Found state file (any): {state_file}")
+        try:
+            with open(state_file, 'r') as f:
+                state = json.load(f)
+                if state.get('run_id') == run_id:
+                    print(f"DEBUG: Found matching state by run_id (any)")
+                    return state
+        except Exception as e:
+            print(f"DEBUG: Error reading state file {state_file}: {e}")
+            continue
+    
+    print(f"DEBUG: No matching state found")
+    return {}
 
 
 def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
@@ -16,17 +63,31 @@ def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
     workflow_name = args.workflow or context.workflow_name
     run_id = args.run_id or context.run_id
     
+    print(f"DEBUG: generate() called with workflow_name={workflow_name}, run_id={run_id}")
+    print(f"DEBUG: args.artifact_dir={getattr(args, 'artifact_dir', None)}")
+    
     # Try to load state for the specific workflow
     state = backend.get_state(f"workflow-{workflow_name}")
+    print(f"DEBUG: State from backend.get_state: {state is not None}")
     
     # If no state found for specific workflow, try to find any state for this run
     if not state and run_id:
         all_states = backend.load_all_states()
+        print(f"DEBUG: Found {len(all_states)} states in backend")
         for key, s in all_states.items():
             if s.get('run_id') == run_id:
                 state = s
                 workflow_name = key.replace('workflow-', '')
+                print(f"DEBUG: Found matching state by run_id: {key}")
                 break
+    
+    # If still no state found and artifact_dir is provided, try to find state in artifacts
+    if not state and args.artifact_dir:
+        artifact_path = Path(args.artifact_dir)
+        print(f"DEBUG: Looking for state in artifacts at {artifact_path}")
+        if artifact_path.exists():
+            state = _find_state_in_artifacts(artifact_path, workflow_name, run_id)
+            print(f"DEBUG: State from artifacts: {state is not None}")
     
     # Prepare template data
     template_data = {
@@ -46,6 +107,8 @@ def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
     }
     
     if state:
+        print(f"DEBUG: State found, updating template data")
+        print(f"DEBUG: State status={state.get('status')}, duration={state.get('duration')}")
         template_data.update({
             'status': state['status'].upper(),
             'duration': format_duration(state.get('duration', 0)),
@@ -54,13 +117,19 @@ def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
             'commit': state.get('commit', 'N/A'),
             'errors': state.get('errors', [])
         })
+    else:
+        print(f"DEBUG: No state found, using default template data")
     
     # Parse artifacts if artifact directory is provided
     if args.artifact_dir:
         artifact_path = Path(args.artifact_dir)
+        print(f"DEBUG: Parsing artifacts from {artifact_path}")
         if artifact_path.exists():
             artifact_results = parse_artifacts_structured(artifact_path)
             template_data.update(artifact_results)
+            print(f"DEBUG: Artifact results: test_results={len(artifact_results.get('test_results', ''))}, lint_results={len(artifact_results.get('lint_results', ''))}, security_results={len(artifact_results.get('security_results', ''))}")
+        else:
+            print(f"DEBUG: Artifact path does not exist: {artifact_path}")
     
     # Load and render template
     template_dir = Path(__file__).parent.parent.parent / 'templates'
@@ -98,6 +167,11 @@ def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
     for f in artifact_path.rglob('*'):
         if f.is_file():
             result['artifacts'].append(str(f.relative_to(artifact_path)))
+    
+    # Debug: Print all found files
+    print(f"DEBUG: Found {len(result['artifacts'])} files in {artifact_path}")
+    for artifact in result['artifacts'][:10]:  # Limit to first 10
+        print(f"DEBUG:   - {artifact}")
     
     # Define report categories and their associated parsers
     report_categories = {
@@ -145,6 +219,9 @@ def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
                     # Detect parser type
                     parser_type = detect_parser(str(f))
                     
+                    # Debug: Print what we're parsing
+                    print(f"DEBUG: Parsing {f.name} with parser {parser_type} for category {category}")
+                    
                     # Parse the file
                     parsed = parse_file(str(f), parser_type)
                     
@@ -154,9 +231,13 @@ def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
                         category_content += formatted
                         found_reports = True
                         processed_files.add(f)
+                        print(f"DEBUG: Successfully parsed {f.name}")
+                    else:
+                        print(f"DEBUG: No formatted output for {f.name}")
                 except Exception as e:
                     category_content += f"⚠️ Error parsing {f.name}: {e}\n"
                     processed_files.add(f)
+                    print(f"DEBUG: Error parsing {f.name}: {e}")
         
         # Add category content if reports were found
         if found_reports:
