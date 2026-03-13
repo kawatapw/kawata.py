@@ -347,16 +347,19 @@ jobs:
         run: docker compose down
 
       - name: Archive code coverage results
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: code-coverage-report
           path: coverage/
 
       - name: Parse Results
+        if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py artifacts collect
       
       - name: Generate Summary
+        if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py summary generate --workflow test
       

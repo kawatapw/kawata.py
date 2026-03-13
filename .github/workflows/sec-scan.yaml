@@ -84,8 +84,17 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run safety (requirements)
+        env:
+          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
         run: |
-          uv run safety check --output json > safety-report.json || true
+          # Use safety scan (new command) with API key for CI authentication
+          # If no API key is set, scan will run with limited functionality
+          if [ -n "$SAFETY_API_KEY" ]; then
+            uv run safety scan --key "$SAFETY_API_KEY" --output json > safety-report.json || true
+          else
+            # Fallback: run without API key (may have limited results)
+            uv run safety scan --output json > safety-report.json || true
+          fi
 
       - name: Upload safety report
         if: always()
