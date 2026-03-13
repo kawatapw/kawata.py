@@ -89,14 +89,17 @@ jobs:
           echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
 
       - name: Parse Results
+        if: always()
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Generate Summary
+        if: always()
         run: |
-          python tools/ci/ci.py summary generate --workflow release
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow release
 
       - name: Upload CI State
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: ci-state-release-collect
@@ -106,7 +109,7 @@ jobs:
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow release --job collect_artifacts --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow release --job collect_artifacts --status ${{ job.status }}
 
   create_release:
     needs: [collect_artifacts]

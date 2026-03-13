@@ -62,7 +62,8 @@ dev = [
     "types-pyyaml==6.0.12.12",
     "sqlalchemy2-stubs==0.0.2a38",
     "bandit==1.9.4",
-    "ruff==0.15.5"
+    "ruff==0.15.5",
+    "safety==3.7.0"
 ]
 
 [dependency-groups]

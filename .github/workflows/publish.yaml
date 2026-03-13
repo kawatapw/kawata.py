@@ -90,14 +90,17 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Parse Results
+        if: always()
         run: |
-          python tools/ci/ci.py artifacts collect
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Generate Summary
+        if: always()
         run: |
-          python tools/ci/ci.py summary generate --workflow publish
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow publish
 
       - name: Upload CI State
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: ci-state-publish
@@ -107,4 +110,4 @@ jobs:
       - name: Finish Job
         if: always()
         run: |
-          python tools/ci/ci.py workflow finish --workflow publish --job push --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow publish --job push --status ${{ job.status }}

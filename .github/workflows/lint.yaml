@@ -89,14 +89,17 @@ jobs:
           path: reports/mypy.txt
 
       - name: Parse Results
+        if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Generate Summary
+        if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
       
       - name: Upload CI State
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: ci-state-lint
@@ -173,14 +176,17 @@ jobs:
             reports/ruff-format.txt
 
       - name: Parse Results
+        if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py artifacts collect
 
       - name: Generate Summary
+        if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
       
       - name: Upload CI State
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: ci-state-lint
@@ -214,4 +220,4 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           uv sync --only-group ci
-          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job finish --status ${{ job.status }}
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --status ${{ job.status }}

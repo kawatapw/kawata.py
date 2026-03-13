@@ -75,145 +75,157 @@ env:
   DB_USE_SSL: "false"
 
 jobs:
-  pytest:
+  start:
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail the lint job if pytest fails
+    if: always()
     steps:
-      - name: Checkout repository
+      - name: Checkout Repo
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Start Job
+      - name: Start Workflow
         run: |
           chmod +x tools/ci/scripts/ci-bootstrap.sh
           tools/ci/scripts/ci-bootstrap.sh
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           uv sync --only-group ci
-          uv run --only-group ci python tools/ci/ci.py workflow start --workflow test --job pytest
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow test
 
-      - name: Download docker image artifact (when triggered by Build)
-        if: ${{ github.event_name == 'workflow_run' }}
-        uses: actions/download-artifact@v8
-        with:
-          run-id: ${{ github.event.workflow_run.id }}
-          name: docker-image
-          path: ./artifacts
-          retry-exit-code: 1
-          retry-on: error
-
-      - name: Load docker image (if artifact available)
-        if: ${{ github.event_name == 'workflow_run' }}
-        run: |
-          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
-          if [ -n "$IMG_TAR" ]; then 
-            docker load -i "$IMG_TAR"
-            # Tag with the first tag from prep-build (usually short SHA) for consistency
-            FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
-            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
-            # Also tag as latest for the test
-            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
-          fi
-
-      - name: Build application image (fallback - local)
-        if: ${{ github.event_name != 'workflow_run' }}
-        run: |
-          set -euo pipefail
-          GITHUB_OWNER="${{ inputs.github_owner }}"
-          GITHUB_REPO="${{ inputs.github_repo }}"
-          TAGS="${{ inputs.tag_list }}"
-          TAG_ARGS=""
-          for TAG in $TAGS; do
-            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
-          done
-          docker build $TAG_ARGS .
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras --dev
-
-      - name: Prepare test image tag
-        id: test-tag
-        run: |
-          FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
-          echo "tag=${{ inputs.github_owner }}/${{ inputs.github_repo }}:$FIRST_TAG" >> $GITHUB_OUTPUT
-
-      - name: Start containers
-        id: start-containers
-        run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test
-        env:
-          TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
-
-      - name: Run pytest with coverage (junit + coverage.xml)
-        id: pytest
-        run: |
-          mkdir -p reports
-          # Run pytest and capture output
-          uv run pytest --maxfail=1 --disable-warnings -q \
-            --junitxml=reports/junit.xml 2>&1 || true
-          # coverage xml if coverage plugin configured
-          uv run pytest --maxfail=1 --disable-warnings -q --cov=./ --cov-report=xml:reports/coverage.xml 2>&1 || true
-          # Parse pytest output to determine pass/fail status
-          if [ -f reports/junit.xml ]; then
-            echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
-            echo '```xml' >> $GITHUB_STEP_SUMMARY
-            cat reports/junit.xml >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            # Check if pytest found any failures
-            if grep -q "failures=\"[1-9]" reports/junit.xml || grep -q "errors=\"[1-9]" reports/junit.xml; then
-              echo "Pytest found failures. Continuing due to continue-on-error setting."
-            fi
-          else
-            echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
-            echo "No pytest output file generated" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload pytest reports
-        uses: actions/upload-artifact@v7
-        with:
-          name: pytest-reports
-          path: |
-            reports/junit.xml
-            reports/coverage.xml
-
-      - name: Stop containers
-        if: always()
-        run: docker compose down
-      
-      - name: Parse Results
-        run: |
-          python tools/ci/ci.py artifacts collect
-      
-      - name: Generate Summary
-        run: |
-          python tools/ci/ci.py summary generate --workflow test
-      
-      - name: Finish Job
-        if: always()
-        run: |
-          python tools/ci/ci.py workflow finish --workflow test --job pytest --status ${{ job.status }}
-      
-      - name: Upload CI State
-        uses: actions/upload-artifact@v7
-        with:
-          name: ci-state-pytest
-          path: ci-data/
-          retention-days: 30
+  # pytest:
+    #  runs-on: ubuntu-latest
+    #  continue-on-error: true  # Don't fail the lint job if pytest fails
+    #  steps:
+    #    - name: Checkout repository
+    #      uses: actions/checkout@v6
+    #
+    #    - name: Setup Python
+    #      uses: actions/setup-python@v5
+    #      with:
+    #        python-version: '3.11'
+    #
+    #    - name: Start Job
+    #      run: |
+    #        chmod +x tools/ci/scripts/ci-bootstrap.sh
+    #        tools/ci/scripts/ci-bootstrap.sh
+    #        curl -LsSf https://astral.sh/uv/install.sh | sh
+    #        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    #        uv sync --only-group ci
+    #        uv run --only-group ci python tools/ci/ci.py workflow start --workflow test --job pytest
+    #
+    #    - name: Download docker image artifact (when triggered by Build)
+    #      if: ${{ github.event_name == 'workflow_run' }}
+    #      uses: actions/download-artifact@v8
+    #      with:
+    #        run-id: ${{ github.event.workflow_run.id }}
+    #        name: docker-image
+    #        path: ./artifacts
+    #        retry-exit-code: 1
+    #        retry-on: error
+    #
+    #    - name: Load docker image (if artifact available)
+    #      if: ${{ github.event_name == 'workflow_run' }}
+    #      run: |
+    #        IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+    #        if [ -n "$IMG_TAR" ]; then 
+    #          docker load -i "$IMG_TAR"
+    #          # Tag with the first tag from prep-build (usually short SHA) for consistency
+    #          FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+    #          docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+    #          # Also tag as latest for the test
+    #          docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+    #        fi
+    #
+    #    - name: Build application image (fallback - local)
+    #      if: ${{ github.event_name != 'workflow_run' }}
+    #      run: |
+    #        set -euo pipefail
+    #        GITHUB_OWNER="${{ inputs.github_owner }}"
+    #        GITHUB_REPO="${{ inputs.github_repo }}"
+    #        TAGS="${{ inputs.tag_list }}"
+    #        TAG_ARGS=""
+    #        for TAG in $TAGS; do
+    #          TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+    #        done
+    #        docker build $TAG_ARGS .
+    #
+    #    - name: Install dependencies
+    #      run: |
+    #        uv sync --all-extras --dev
+    #
+    #    - name: Prepare test image tag
+    #      id: test-tag
+    #      run: |
+    #        FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+    #        echo "tag=${{ inputs.github_owner }}/${{ inputs.github_repo }}:$FIRST_TAG" >> $GITHUB_OUTPUT
+    #
+    #    - name: Start containers
+    #      id: start-containers
+    #      run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test
+    #      env:
+    #        TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
+    #
+    #    - name: Run pytest with coverage (junit + coverage.xml)
+    #      id: pytest
+    #      run: |
+    #        mkdir -p reports
+    #        # Run pytest and capture output
+    #        uv run pytest --maxfail=1 --disable-warnings -q \
+    #          --junitxml=reports/junit.xml 2>&1 || true
+    #        # coverage xml if coverage plugin configured
+    #        uv run pytest --maxfail=1 --disable-warnings -q --cov=./ --cov-report=xml:reports/coverage.xml 2>&1 || true
+    #        # Parse pytest output to determine pass/fail status
+    #        if [ -f reports/junit.xml ]; then
+    #          echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
+    #          echo '```xml' >> $GITHUB_STEP_SUMMARY
+    #          cat reports/junit.xml >> $GITHUB_STEP_SUMMARY
+    #          echo '```' >> $GITHUB_STEP_SUMMARY
+    #          # Check if pytest found any failures
+    #          if grep -q "failures=\"[1-9]" reports/junit.xml || grep -q "errors=\"[1-9]" reports/junit.xml; then
+    #            echo "Pytest found failures. Continuing due to continue-on-error setting."
+    #          fi
+    #        else
+    #          echo "## Pytest Results" >> $GITHUB_STEP_SUMMARY
+    #          echo "No pytest output file generated" >> $GITHUB_STEP_SUMMARY
+    #        fi
+    #
+    #    - name: Upload pytest reports
+    #      uses: actions/upload-artifact@v7
+    #      with:
+    #        name: pytest-reports
+    #        path: |
+    #          reports/junit.xml
+    #          reports/coverage.xml
+    #
+    #    - name: Stop containers
+    #      if: always()
+    #      run: docker compose down
+    #    
+    #    - name: Parse Results
+    #      run: |
+    #        uv run --only-group ci python tools/ci/ci.py artifacts collect
+    #    
+    #    - name: Generate Summary
+    #      run: |
+    #        uv run --only-group ci python tools/ci/ci.py summary generate --workflow test
+    #    
+    #    - name: Finish Job
+    #      if: always()
+    #      run: |
+    #        uv run --only-group ci python tools/ci/ci.py workflow finish --workflow test --job pytest --status ${{ job.status }}
+    #    
+    #    - name: Upload CI State
+    #      uses: actions/upload-artifact@v7
+    #      with:
+    #        name: ci-state-pytest
+    #        path: ci-data/
+    #        retention-days: 30
 
   run-test-suite:
     runs-on: ubuntu-latest
@@ -358,3 +370,32 @@ jobs:
           name: ci-state-test
           path: ci-data/
           retention-days: 30
+
+  finish:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [start, run-test-suite]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Bootstrap Timing
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CI Tool
+        run: |
+          pip install -r tools/ci/requirements.txt
+      - name: Finish Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow test --status ${{ job.status }}
