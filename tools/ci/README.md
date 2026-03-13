@@ -195,7 +195,93 @@ The summary module will:
 - Look up workflow state for the run (or gracefully mark the workflow as **SKIPPED** if it never ran)
 - Print high-level timing and status
 - Enumerate downloaded artifacts
-- Parse standard reports (pytest JUnit XML, mypy, ruff, Trivy, Safety, coverage) when present
+- Parse standard reports using the parser registry (see below)
+- Generate rich markdown output using Jinja2 templates
+
+### Supported Report Parsers
+
+The CI tool includes parsers for the following report formats:
+
+| Parser | Formats | Description |
+|--------|---------|-------------|
+| **pytest** | JUnit XML | Test results from pytest |
+| **mypy** | Text output | Type checking errors and notes |
+| **ruff** | Text, JSON | Linting violations |
+| **bandit** | JSON | Security scan results |
+| **trivy** | SARIF, JSON | Vulnerability scan results |
+| **safety** | JSON | Dependency vulnerability scan |
+| **generic** | Any | Fallback for unrecognized formats |
+
+### Parser Auto-Detection
+
+The parser registry automatically detects the appropriate parser using:
+
+1. **Filename patterns**: Files containing `mypy`, `ruff`, `trivy`, `safety`, `bandit`, `junit`, or `pytest` in the name
+2. **File extensions**: `.xml` → pytest, `.sarif` → trivy
+3. **Content analysis**: JSON files are inspected for SARIF schema, Safety structure, Bandit format, etc.
+
+You can also explicitly specify a parser:
+
+```bash
+python tools/ci/ci.py summary generate \
+  --workflow build \
+  --artifact-dir path/to/artifacts \
+  --parser mypy  # Force mypy parser
+```
+
+### Template System
+
+The summary module uses Jinja2 templates for generating markdown output. The default template is located at `tools/ci/templates/workflow_summary.md`.
+
+You can customize the template by:
+
+1. Modifying the default template
+2. Creating a custom template and specifying it via configuration
+
+Template variables available:
+
+- `workflow_name`: Name of the workflow
+- `status`: Workflow status (SUCCESS, FAILURE, SKIPPED)
+- `duration`: Formatted duration string
+- `start_time`: Workflow start time
+- `completed_time`: Workflow completion time
+- `run_id`: GitHub Actions run ID
+- `commit`: Commit SHA
+- `test_results`: Formatted test results
+- `lint_results`: Formatted lint results
+- `security_results`: Formatted security scan results
+- `coverage_results`: Formatted coverage results
+- `artifacts`: List of artifact filenames
+- `errors`: List of error dictionaries
+
+### Custom Parsers
+
+You can create custom parsers by:
+
+1. Creating a new parser class that inherits from `Parser`
+2. Implementing the `parse()` and `get_type()` methods
+3. Registering the parser using `register_parser()`
+
+Example:
+
+```python
+from modules.parsers.registry import Parser, register_parser
+
+class MyCustomParser(Parser):
+    def parse(self, content: str) -> Dict[str, Any]:
+        # Parse content and return structured data
+        return {
+            'type': 'custom',
+            'summary': {...},
+            'data': [...]
+        }
+    
+    def get_type(self) -> str:
+        return 'custom'
+
+# Register the parser
+register_parser('custom', MyCustomParser)
+```
 
 ### 6. Finish workflow (always)
 
@@ -288,4 +374,7 @@ This is useful for debugging configuration, storage, and report generation outsi
 - **Storage-agnostic**: All modules talk through the `core.storage` interface; swapping storage backends only requires configuration.
 - **GitHub-aware but not GitHub-bound**: The context object understands GitHub Actions but degrades gracefully when run elsewhere.
 - **Error visibility**: Errors are centralized in `core.errors` and, when possible, surfaced in GitHub job summaries for easier debugging.
+- **Extensible parser system**: The parser registry supports auto-detection and custom parsers for any log format.
+- **Template-based output**: Summary generation uses Jinja2 templates for flexible, customizable markdown output.
+- **Comprehensive tool support**: Built-in parsers for mypy, ruff, bandit, trivy, safety, and pytest with automatic format detection.
 
