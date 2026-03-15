@@ -1,3 +1,69 @@
+"""
+Commands Module - In-Game Command Processing and Management
+
+This module implements the comprehensive command processing system for the osu!
+server application, providing a rich set of in-game commands for players,
+moderators, administrators, and developers. It handles command parsing, privilege
+validation, and execution of various server operations through chat commands.
+
+The module defines a flexible command framework with support for regular commands,
+command sets (like multiplayer commands), privilege-based access control, and
+extensive functionality covering user management, multiplayer operations,
+tournament management, and administrative tasks.
+
+Key Features:
+    - Flexible command registration with privilege levels
+    - Command sets for organized functionality (mp, pool, clan)
+    - Privilege-based access control for all commands
+    - Support for command aliases and hidden commands
+    - Comprehensive multiplayer match management
+    - Tournament pool and scrim management
+    - User moderation and administration tools
+    - Performance calculation and beatmap management
+    - Server monitoring and debugging utilities
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Beatmap system in app/objects/beatmap.py
+    - Repository layer in app/repositories/
+    - Performance calculation in app/usecases/performance.py
+    - Packet handling in app/packets.py
+    - Settings management in app/settings.py
+
+Command Categories:
+    - User Commands: help, roll, block, reconnect, recent, top
+    - Nominator Commands: map, request, requests
+    - Moderator Commands: silence, unsilence, notes, addnote
+    - Administrator Commands: restrict, unrestrict, alert, user
+    - Developer Commands: stealth, recalc, debug, reload, py
+    - Multiplayer Commands: mp start, mp abort, mp map, mp mods
+    - Tournament Commands: mp scrim, mp ban, mp loadpool
+
+Usage Pattern:
+    # Commands are registered using decorators
+    @command(Privileges.UNRESTRICTED)
+    async def my_command(ctx: Context) -> str | None:
+        '''Command documentation.'''
+        return "Command response"
+    
+    # Command sets for grouped functionality
+    mp_commands = CommandSet("mp", "Multiplayer commands.")
+    
+    @mp_commands.add(Privileges.UNRESTRICTED)
+    async def mp_start(ctx: Context, match: Match) -> str | None:
+        '''Start the match.'''
+        pass
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Match management and multiplayer
+    - app/objects/beatmap.py: Beatmap data and operations
+    - app/repositories/: Database access layer
+    - app/usecases/performance.py: Performance calculation
+    - app/packets.py: Packet creation and handling
+"""
+
 from __future__ import annotations
 
 import importlib.metadata

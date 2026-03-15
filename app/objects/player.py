@@ -1,3 +1,98 @@
+"""
+Player Module - osu! Player Data Model and Management
+
+This module defines the Player class, which represents a player in the osu! server
+application. The Player class is the central data model for user management,
+handling all aspects of player state including authentication, privileges, social
+interactions, gameplay statistics, and real-time communication.
+
+The Player class manages the complete lifecycle of player sessions from login to
+logout, including privilege management, social features (friends, blocks, clans),
+multiplayer participation, spectator mode, and packet-based communication with
+the osu! client. It integrates with multiple subsystems to provide a comprehensive
+player experience.
+
+Key Features:
+    - Complete player session management with token-based authentication
+    - Hierarchical privilege system with dynamic updates
+    - Social features including friends, blocks, and clan membership
+    - Multiplayer match participation and management
+    - Spectator mode with real-time updates
+    - Channel-based communication system
+    - Gameplay statistics tracking across all modes
+    - Anti-cheat integration with client validation
+    - Real-time packet queue management
+    - Administrative actions (restrict, silence, etc.)
+
+Integration Points:
+    - Authentication in app/api/domains/cho.py
+    - Privilege management in app/constants/privileges.py
+    - Social features in app/repositories/users.py
+    - Multiplayer in app/objects/match.py
+    - Spectator mode in app/objects/channel.py
+    - Statistics in app/repositories/stats.py
+    - Anti-cheat in app/constants/clientflags.py
+    - Packet handling in app/packets.py
+
+Player States:
+    - Online/Offline: Token-based session tracking
+    - Restricted/Unrestricted: Privilege-based access control
+    - Silenced/Unsilenced: Communication restrictions
+    - In Match/Spectating: Gameplay participation states
+    - Bot/Tourney Client: Special client types
+
+Privilege System:
+    - Server privileges: Administrative and moderation permissions
+    - Client privileges: Client-side permission display
+    - Clan privileges: Clan-specific permissions
+    - Dynamic privilege updates with client notification
+
+Social Features:
+    - Friends list with relationship management
+    - Block list for communication filtering
+    - Clan membership with role-based permissions
+    - Direct messaging and channel communication
+
+Multiplayer Integration:
+    - Match joining and leaving with validation
+    - Slot management and team assignment
+    - Host transfer and referee capabilities
+    - Match state synchronization
+
+Spectator System:
+    - Spectator channel management
+    - Real-time spectator updates
+    - Stealth mode for administrative observation
+    - Spectator list maintenance
+
+Usage Pattern:
+    # Create player instance
+    player = Player(
+        id=12345,
+        name="PlayerName",
+        priv=Privileges.UNRESTRICTED,
+        pw_bcrypt=hashed_password,
+        token=Player.generate_token()
+    )
+    
+    # Handle player actions
+    player.join_match(match, password)
+    player.add_spectator(other_player)
+    player.enqueue(packet_data)
+    
+    # Administrative actions
+    await player.restrict(admin, "Reason")
+    await player.silence(admin, duration, "Reason")
+
+Related Files:
+    - app/api/domains/cho.py: Client connection handling
+    - app/objects/match.py: Multiplayer match management
+    - app/objects/channel.py: Channel communication
+    - app/packets.py: Packet creation and handling
+    - app/repositories/users.py: Database operations for players
+    - app/repositories/stats.py: Statistics management
+"""
+
 from __future__ import annotations
 
 import asyncio

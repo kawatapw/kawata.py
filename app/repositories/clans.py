@@ -1,3 +1,85 @@
+"""
+Clans Repository - Database Operations for Clan Management
+
+This module provides database operations for managing player clans in the osu!
+server application. It implements the repository pattern for clan data access,
+providing a clean abstraction layer between the application logic and database
+operations for clan storage, retrieval, and management.
+
+The repository handles all CRUD operations for clans, including creation,
+retrieval, updating, and deletion of clan records. Clans are social groups
+that players can create and join, providing a sense of community and
+collaboration within the osu! server.
+
+Key Features:
+    - Complete CRUD operations for clan data
+    - Unique constraint enforcement for clan names and tags
+    - Owner-based clan management
+    - Type-safe data access with TypedDict definitions
+    - Support for pagination and filtering
+    - Creation timestamp tracking
+    - Integration with the application state management system
+
+Integration Points:
+    - Clan management in app/api/v2/clans.py
+    - Player clan membership in app/objects/player.py
+    - Clan privileges in app/constants/privileges.py
+    - Database connection in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - id: Primary key with auto-increment
+    - name: Clan display name (max 16 characters)
+    - tag: Clan tag for display (max 6 characters, unique)
+    - owner: Player ID of the clan owner (unique)
+    - created_at: Timestamp of clan creation
+
+Clan Structure:
+    - id: Unique identifier for the clan
+    - name: Display name of the clan
+    - tag: Short tag for clan identification
+    - owner: Player ID of the clan owner
+    - created_at: When the clan was created
+
+Clan Management:
+    - Clans are created by players who become the owner
+    - Only one clan per owner (enforced by unique constraint)
+    - Clan tags must be unique across all clans
+    - Clan names are not unique (multiple clans can have same name)
+
+Usage Pattern:
+    # Create a new clan
+    clan = await create(
+        name="My Clan",
+        tag="MC",
+        owner=player_id
+    )
+    
+    # Fetch clan by ID, name, tag, or owner
+    clan = await fetch_one(id=1)
+    clan = await fetch_one(name="My Clan")
+    clan = await fetch_one(tag="MC")
+    clan = await fetch_one(owner=player_id)
+    
+    # Fetch clans with pagination
+    clans = await fetch_many(page=1, page_size=10)
+    
+    # Update clan
+    updated = await partial_update(
+        id=1,
+        name="Updated Clan Name"
+    )
+    
+    # Delete clan
+    deleted = await delete_one(id=1)
+
+Related Files:
+    - app/api/v2/clans.py: Clan API endpoints
+    - app/objects/player.py: Player clan membership
+    - app/constants/privileges.py: Clan privilege management
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

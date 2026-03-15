@@ -1,3 +1,86 @@
+"""
+Beatmap Module - osu! Beatmap and BeatmapSet Data Models
+
+This module defines the Beatmap and BeatmapSet classes, which represent osu! beatmaps
+and beatmap sets respectively. These classes provide comprehensive data models for
+managing beatmap information, including metadata, difficulty attributes, ranked status,
+and caching mechanisms for efficient data retrieval.
+
+The module implements a sophisticated three-tier caching system (cache, database, osu!api)
+that prioritizes performance while maintaining data freshness. It handles beatmap updates,
+status changes, and provides high-level APIs for fetching beatmap data by MD5 hash or ID.
+
+Key Features:
+    - Comprehensive beatmap data model with all osu! attributes
+    - Three-tier caching system (RAM cache, database, osu!api)
+    - Automatic beatmap update detection and synchronization
+    - Ranked status management with multiple conversion utilities
+    - Beatmap set management with individual map tracking
+    - File management for .osu files with MD5 verification
+    - Retry logic for API requests with exponential backoff
+
+Integration Points:
+    - Score submission handling in app/api/domains/osu.py
+    - Leaderboard generation in app/api/v2/players.py
+    - Beatmap search in app/api/v2/maps.py
+    - Database operations in app/repositories/maps.py
+    - Cache management in app/state/cache.py
+
+Caching Strategy:
+    - Level 1: In-memory cache (fastest, limited by RAM)
+    - Level 2: Database storage (persistent, moderate speed)
+    - Level 3: osu!api requests (slowest, most up-to-date)
+    - Cache invalidation based on beatmap update timestamps
+    - Automatic cache population on first access
+
+Beatmap Attributes:
+    - md5: File hash for integrity verification
+    - id: Unique beatmap identifier
+    - set_id: Parent beatmap set identifier
+    - artist, title, version, creator: Metadata strings
+    - last_update: Timestamp of last modification
+    - total_length: Duration in seconds
+    - max_combo: Maximum possible combo
+    - status: Ranked status (Pending, Ranked, Approved, etc.)
+    - frozen: Whether status should be preserved during updates
+    - plays, passes: Play statistics
+    - mode: Game mode (osu!, taiko, catch, mania)
+    - bpm, cs, od, ar, hp, diff: Difficulty attributes
+
+Ranked Status Management:
+    - Multiple conversion utilities for different APIs
+    - Support for osu!api, osu!direct, and string formats
+    - Status preservation for frozen beatmaps
+    - Automatic status updates from official sources
+
+Usage Pattern:
+    - Use Beatmap.from_md5() or Beatmap.from_bid() for high-level access
+    - These methods handle caching and updates automatically
+    - BeatmapSet.from_bsid() for fetching entire beatmap sets
+    - Lower-level methods available for advanced use cases
+
+Example Usage:
+    # Fetch beatmap by MD5 hash
+    beatmap = await Beatmap.from_md5("abc123...")
+    if beatmap:
+        print(f"Beatmap: {beatmap.full_name}")
+        print(f"Status: {beatmap.status}")
+    
+    # Fetch beatmap by ID
+    beatmap = await Beatmap.from_bid(12345)
+    
+    # Fetch entire beatmap set
+    beatmap_set = await BeatmapSet.from_bsid(67890)
+    for bmap in beatmap_set.maps:
+        print(f"Map: {bmap.version}")
+
+Related Files:
+    - app/repositories/maps.py: Database operations for beatmaps
+    - app/state/cache.py: Cache management for beatmap data
+    - app/api/domains/osu.py: Score submission with beatmap validation
+    - app/api/v2/maps.py: Beatmap search and listing endpoints
+"""
+
 from __future__ import annotations
 
 import functools

@@ -1,3 +1,92 @@
+"""
+Privileges Module - User Permission and Access Control Constants
+
+This module defines privilege constants and utilities for managing user permissions
+and access control throughout the osu! server application. It provides a comprehensive
+hierarchical permission system that controls what actions users can perform, what
+information they can access, and what administrative capabilities they possess.
+
+The module contains three main privilege classes:
+1. Privileges: Server-side user permissions for administrative and moderation functions
+2. ClientPrivileges: Client-side permissions sent to the osu! client for UI display
+3. ClanPrivileges: Clan-specific permissions for clan management
+
+Key Features:
+    - Hierarchical permission system with inheritance
+    - Bitwise flag operations for efficient permission checking
+    - Group-based permission management (STAFF, MODERATOR, etc.)
+    - Conversion utilities between integer and privilege representations
+    - Support for both individual and combined privilege checking
+
+Integration Points:
+    - User authentication in app/api/domains/cho.py
+    - Administrative functions in app/api/v2/players.py
+    - Moderation tools in app/api/domains/osu.py
+    - Clan management in app/repositories/clans.py
+    - Database storage in app/repositories/users.py
+
+Permission Hierarchy:
+    - BANNED (0): No permissions, user is restricted
+    - UNRESTRICTED (1): Basic user permissions
+    - VERIFIED (2): Has logged in to the server in-game
+    - SUPPORTER (4): Financial supporter of the server
+    - AccessPanel (8): Access to administrative panel
+    - ManageUsers (16): Can manage user accounts
+    - BanUsers (32): Can ban users
+    - SilenceUsers (64): Can silence users
+    - WipeUsers (128): Can wipe user data
+    - ManageBeatmaps (256): Can manage beatmap rankings
+    - ManageBadges (8192): Can manage user badges
+    - ViewPanelLog (16384): Can view administrative logs
+    - ManagePrivs (32768): Can manage user privileges
+    - SendAlerts (65536): Can send in-game alerts
+    - ChatMod (131072): Chat moderation permissions
+    - KickUsers (262144): Can kick users from server
+    - TOURNEY_MANAGER (1048576): Can manage tournament matches
+    - ManageClans (134217728): Can manage clan operations
+    - ViewSensitiveInfo (268435456): Can view sensitive user data
+    - IsBot (1073741824): Bot account flag
+    - WHITELISTED (2147483648): Trusted user with anticheat bypass
+    - PREMIUM (4294967296): Premium donor status
+    - ALUMNI (8589934592): Notable user status
+    - DEVELOPER (17179869184): Full server management access
+
+Permission Groups:
+    - NOMINATOR: Beatmap nomination permissions
+    - SUPPORT: Basic moderation permissions
+    - MODERATOR: Extended moderation permissions
+    - ADMINISTRATOR: Full administrative permissions
+    - DONATOR: Supporter and premium combined
+    - STAFF: All staff permissions combined
+
+Usage Pattern:
+    - Privileges are stored as bitwise integers in user data
+    - Permission checking uses bitwise AND operations
+    - Group permissions are combinations of individual privileges
+    - The GetPriv() function converts between integer and privilege representations
+
+Example Usage:
+    # Check if user has specific permission
+    if user.privileges & Privileges.BanUsers:
+        ban_user(target_user)
+    
+    # Check if user has all permissions in a group
+    if user.privileges & Privileges.MODERATOR == Privileges.MODERATOR:
+        grant_moderator_access()
+    
+    # Convert integer to privilege list
+    priv_list = GetPriv(user.privileges)
+    
+    # Convert privilege list to integer
+    priv_int = GetPriv([Privileges.BanUsers, Privileges.SilenceUsers])
+
+Related Files:
+    - app/objects/player.py: Player class storing privilege data
+    - app/api/domains/cho.py: Client connection with privilege validation
+    - app/api/v2/players.py: Player management with privilege checks
+    - app/repositories/users.py: Database operations for privilege storage
+"""
+
 from __future__ import annotations
 
 from enum import IntEnum

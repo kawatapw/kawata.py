@@ -1,3 +1,86 @@
+"""
+Services Module - Application Service Initialization and Management
+
+This module provides initialization and management for external services used
+by the osu! server application. It handles the setup and configuration of
+database connections, HTTP clients, caching systems, monitoring tools, and
+geolocation services that are essential for server operation.
+
+The module serves as the central hub for service management, providing global
+access to initialized services through the application state system. It includes
+utilities for IP resolution, geolocation fetching, dependency management, and
+database migration handling.
+
+Key Features:
+    - Database connection management with MySQL/PyMySQL
+    - HTTP client for external API requests
+    - Redis caching integration
+    - Datadog monitoring and metrics
+    - IP address resolution with caching
+    - Geolocation fetching from multiple sources
+    - Dependency version checking and updates
+    - SQL migration management
+    - Strange occurrence logging and reporting
+
+Integration Points:
+    - Database operations in app/repositories/
+    - Cache management in app/state/cache.py
+    - Settings configuration in app/settings.py
+    - Application state in app/state/__init__.py
+    - Logging system in app/logging.py
+
+Service Components:
+    - http_client: Async HTTP client for external requests
+    - database: MySQL database connection wrapper
+    - redis: Redis cache connection
+    - datadog: Optional monitoring and metrics
+    - ip_resolver: IP address resolution with caching
+
+Geolocation Features:
+    - Cloudflare header parsing for geolocation
+    - Nginx header parsing for geolocation
+    - ip-api.com fallback for IP-based geolocation
+    - Country code mapping and validation
+    - Latitude/longitude coordinate handling
+
+Dependency Management:
+    - Version parsing and comparison
+    - PyPI API integration for update checking
+    - Automatic update notification
+    - Requirements.txt parsing
+
+Database Migration:
+    - Version tracking in startups table
+    - SQL migration file parsing
+    - Incremental migration execution
+    - Error handling and rollback support
+
+Usage Pattern:
+    # Access services through app.state
+    from app.state import services
+    
+    # Use HTTP client
+    response = await services.http_client.get(url)
+    
+    # Use database
+    result = await services.database.fetch_one(query)
+    
+    # Use Redis cache
+    await services.redis.set(key, value)
+    
+    # Get geolocation
+    geoloc = await services.fetch_geoloc(ip, headers)
+    
+    # Check for updates
+    await services.check_for_dependency_updates()
+
+Related Files:
+    - app/state/__init__.py: Application state management
+    - app/settings.py: Configuration settings
+    - app/adapters/database.py: Database adapter
+    - app/logging.py: Logging utilities
+"""
+
 from __future__ import annotations
 
 import ipaddress

@@ -1,3 +1,87 @@
+"""
+Comments Repository - Database Operations for User Comments
+
+This module provides database operations for managing user comments in the osu!
+server application. It implements the repository pattern for comment data access,
+providing a clean abstraction layer between the application logic and database
+operations for comment storage, retrieval, and management.
+
+The repository handles operations for storing and retrieving comments on various
+targets including replays, beatmaps, and songs. Comments are associated with
+specific timestamps and can include optional color customization for display.
+
+Key Features:
+    - Comment creation and storage for multiple target types
+    - Support for replay, beatmap, and song comments
+    - Timestamp-based comment positioning
+    - Optional color customization for comments
+    - User privilege integration for comment display
+    - Type-safe data access with TypedDict definitions
+    - Integration with user management system
+
+Integration Points:
+    - Comment display in app/api/v2/players.py
+    - Replay viewing in app/api/domains/osu.py
+    - Beatmap display in app/api/v2/maps.py
+    - User management in app/repositories/users.py
+    - Database connection in app/state/services.py
+
+Database Schema:
+    - id: Primary key with auto-increment
+    - target_id: ID of the target (score, beatmap, or song)
+    - target_type: Type of target (replay, map, or song)
+    - userid: User ID who made the comment
+    - time: Timestamp position in the target (float)
+    - comment: Comment text (max 80 characters)
+    - colour: Optional hex color code (6 characters)
+
+Target Types:
+    - REPLAY: Comments on specific replay scores
+    - BEATMAP: Comments on beatmap difficulties
+    - SONG: Comments on song/mapset level
+
+Comment Structure:
+    - id: Unique identifier for the comment
+    - target_id: ID of the target being commented on
+    - target_type: Type of target (replay, map, song)
+    - userid: User who made the comment
+    - time: Position in the target where comment appears
+    - comment: The actual comment text
+    - colour: Optional display color for the comment
+
+Usage Pattern:
+    # Create a new comment
+    comment = await create(
+        target_id=12345,
+        target_type=TargetType.REPLAY,
+        userid=67890,
+        time=45.5,
+        comment="Great play!",
+        colour="FF0000"
+    )
+    
+    # Fetch comments for a replay
+    comments = await fetch_all_relevant_to_replay(
+        score_id=12345,
+        map_set_id=None,
+        map_id=None
+    )
+    
+    # Fetch comments for a beatmap
+    comments = await fetch_all_relevant_to_replay(
+        score_id=None,
+        map_set_id=None,
+        map_id=12345
+    )
+
+Related Files:
+    - app/api/v2/players.py: Player profile with comments
+    - app/api/domains/osu.py: Replay viewing with comments
+    - app/api/v2/maps.py: Beatmap display with comments
+    - app/repositories/users.py: User management integration
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from enum import StrEnum

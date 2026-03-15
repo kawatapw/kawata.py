@@ -1,3 +1,75 @@
+"""
+Logging Module - Comprehensive Logging and Error Handling System
+
+This module provides a comprehensive logging and error handling system for the
+osu! server application, implementing structured logging with multiple output
+formats, color-coded console output, and advanced error tracking capabilities.
+It serves as the central logging infrastructure for the entire application.
+
+The module integrates Python's standard logging with structlog for structured
+logging, providing both human-readable console output and machine-parseable
+JSON logs. It includes custom formatters, handlers, and utilities for
+debugging, monitoring, and error reporting.
+
+Key Features:
+    - Structured logging with structlog integration
+    - Color-coded console output with ANSI escape codes
+    - JSON-formatted log output for machine processing
+    - Custom log levels (VERBOSE, DBGLV2, DBGLV1)
+    - Debug filtering based on configuration
+    - Error catching decorator for exception handling
+    - Request formatting for HTTP logging
+    - IP address resolution and caching
+    - Stack trace capture and formatting
+    - Circular reference detection in serialization
+
+Integration Points:
+    - Settings configuration in app/settings.py
+    - IP resolution for geolocation in app/state/services.py
+    - FastAPI request handling in app/api/
+    - Error handling throughout the application
+    - Debug configuration in app/settings.py
+
+Log Levels:
+    - DEBUG (10): Detailed diagnostic information
+    - VERBOSE (11): Extended diagnostic information
+    - DBGLV2 (14): Debug level 2 information
+    - DBGLV1 (16): Debug level 1 information
+    - INFO (20): General operational information
+    - WARNING (30): Potential issues or important notices
+    - ERROR (40): Error conditions that need attention
+    - CRITICAL (50): Critical errors that may cause shutdown
+
+Usage Pattern:
+    # Basic logging
+    from app.logging import log, Ansi
+    log("Server started", Ansi.LGREEN)
+    
+    # Error logging with context
+    log("Database connection failed", Ansi.LRED, extra={
+        "error": str(e),
+        "host": db_host,
+        "port": db_port
+    })
+    
+    # Debug logging with filtering
+    log("Processing request", Ansi.LBLUE, extra={
+        "filter": {"debugLevel": 2, "debugFocus": "requests"}
+    })
+    
+    # Error catching decorator
+    @error_catcher
+    async def risky_function():
+        # Function that might raise exceptions
+        pass
+
+Related Files:
+    - app/settings.py: Logging configuration settings
+    - app/state/services.py: IP resolution and geolocation
+    - app/api/: HTTP request logging
+    - app/utils.py: Utility functions for logging
+"""
+
 from __future__ import annotations
 
 import sys
@@ -220,7 +292,7 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
     return serializable_record
 
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
-    def format(self, record: logging.LogRecord) -> bytes:
+    def format(self, record: logging.LogRecord) -> str:
         # Convert only keys and values that are not of type str, int, float, bool, or None
         record.__dict__ = {
             str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k:
@@ -233,7 +305,7 @@ class BytesJsonFormatter(jsonlogger.JsonFormatter):
             record.args = None
 
         string_record = super().format(record)
-        return string_record.encode('utf-8') + b'\n'
+        return string_record
 
 
 console_logger = logging.getLogger('console')

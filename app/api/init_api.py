@@ -1,3 +1,60 @@
+"""
+API Initialization Module - FastAPI Application Setup and Configuration
+
+This module initializes and configures the FastAPI application for the osu! server,
+providing the core ASGI application setup including middleware configuration,
+exception handling, route registration, and application lifecycle management.
+
+The module creates a custom FastAPI application class (BanchoAPI) that extends
+the standard FastAPI functionality to support osu!-specific requirements such
+as custom OpenAPI schema generation and host-based routing for multiple domains.
+
+Key Features:
+    - Custom FastAPI application class with extended OpenAPI support
+    - Application lifecycle management with startup/shutdown hooks
+    - Middleware stack configuration for request/response processing
+    - Exception handling for validation and client disconnect errors
+    - Host-based routing for multiple domain support
+    - Service initialization and shutdown coordination
+    - Background task management integration
+
+Integration Points:
+    - Background loops in app/bg_loops.py
+    - Settings configuration in app/settings.py
+    - Application state in app/state/
+    - Utility functions in app/utils.py
+    - API routing in app/api/
+    - Domain-specific routers in app/api/domains/
+    - Middleware stack in app/api/middlewares.py
+    - Logging system in app/logging.py
+    - Object collections in app/objects/collections.py
+
+Application Lifecycle:
+    1. Startup: Initialize services, databases, caches, and background tasks
+    2. Runtime: Handle HTTP requests through middleware and route handlers
+    3. Shutdown: Gracefully close connections and cancel background tasks
+
+Route Structure:
+    - c.{domain}: CHO protocol endpoints (multiple subdomains)
+    - osu.{domain}: osu! web API endpoints
+    - b.{domain}: Beatmap-related endpoints
+    - api.{domain}: Developer API endpoints
+
+Usage Pattern:
+    # The application is automatically initialized when imported
+    from app.api.init_api import asgi_app
+    
+    # The app can be run with uvicorn or similar ASGI server
+    # uvicorn app.api.init_api:asgi_app --host 0.0.0.0 --port 8000
+
+Related Files:
+    - app/api/__init__.py: API router initialization
+    - app/api/domains/: Domain-specific route handlers
+    - app/api/middlewares.py: Middleware implementations
+    - app/state/: Application state management
+    - app/bg_loops.py: Background task management
+"""
+
 # #!/usr/bin/env python3.11
 from __future__ import annotations
 

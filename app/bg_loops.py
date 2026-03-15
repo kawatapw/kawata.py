@@ -1,3 +1,64 @@
+"""
+Background Loops Module - Asynchronous Housekeeping Task Management
+
+This module provides background housekeeping tasks for the osu! server application,
+implementing asynchronous loops that perform periodic maintenance operations such
+as removing expired privileges, disconnecting inactive players, and updating bot
+status. These tasks run continuously in the background to maintain server health
+and enforce business rules.
+
+The module uses asyncio to create and manage background tasks that operate
+independently of the main request handling loop. Each task is designed to be
+resilient and self-contained, with appropriate error handling and logging to
+ensure server stability.
+
+Key Features:
+    - Asynchronous background task management
+    - Expired privilege removal and enforcement
+    - Ghost player detection and disconnection
+    - Bot status updates and maintenance
+    - Debug level monitoring and adjustment
+    - Configurable task intervals and thresholds
+    - Comprehensive logging and error handling
+
+Integration Points:
+    - Player session management in app/state/sessions.py
+    - Privilege system in app/constants/privileges.py
+    - Packet handling in app/packets.py
+    - Database operations in app/state/services.py
+    - Logging system in app/logging.py
+    - Settings configuration in app/settings.py
+
+Housekeeping Tasks:
+    - _remove_expired_donation_privileges: Remove expired donor privileges
+    - _disconnect_ghosts: Disconnect inactive players
+    - _update_bot_status: Update bot status and clear caches
+    - DebugLevelWatcher.watch: Monitor and adjust debug levels
+
+Task Intervals:
+    - Expired privileges: Every 30 minutes
+    - Ghost disconnection: Every 100 seconds (OSU_CLIENT_MIN_PING_INTERVAL / 3)
+    - Bot status update: Every 5 minutes
+    - Debug level watch: Every 1 second
+
+Usage Pattern:
+    # Initialize all housekeeping tasks
+    await initialize_housekeeping_tasks()
+    
+    # Tasks run automatically in the background
+    # No manual intervention required
+    
+    # Monitor task status through logging
+    # Tasks log their activities for debugging
+
+Related Files:
+    - app/state/sessions.py: Session and player management
+    - app/constants/privileges.py: Privilege definitions
+    - app/packets.py: Packet creation utilities
+    - app/logging.py: Logging utilities
+    - app/settings.py: Server configuration
+"""
+
 from __future__ import annotations
 
 import asyncio

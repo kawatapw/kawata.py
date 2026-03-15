@@ -1,3 +1,110 @@
+"""
+Stats Repository - Database Operations for Player Statistics Management
+
+This module provides database operations for managing player statistics in the
+osu! server application. It implements the repository pattern for statistics
+data access, providing a clean abstraction layer between the application logic
+and database operations for statistics storage, retrieval, and management.
+
+The repository handles all CRUD operations for player statistics, including
+creation, retrieval, updating, and management of statistics records across
+all osu! game modes. It tracks comprehensive gameplay metrics including
+scores, performance points, accuracy, play counts, and grade distributions.
+
+Key Features:
+    - Complete CRUD operations for player statistics
+    - Support for all osu! game modes (vanilla, relax, autopilot)
+    - Comprehensive statistics tracking (scores, PP, accuracy, etc.)
+    - Grade distribution tracking (XH, X, SH, S, A counts)
+    - Replay view counting for popularity metrics
+    - Batch operations for multi-mode statistics
+    - Type-safe data access with TypedDict definitions
+    - Integration with player and score management systems
+
+Integration Points:
+    - Player statistics in app/objects/player.py
+    - Score submission in app/api/domains/osu.py
+    - Leaderboard generation in app/api/v2/players.py
+    - Performance calculation in app/usecases/performance.py
+    - Database connection in app/state/services.py
+
+Database Schema:
+    - id: Player ID (foreign key to users table)
+    - mode: Game mode (0-8 for different mode combinations)
+    - tscore: Total score across all plays
+    - rscore: Ranked score (best scores on ranked maps)
+    - pp: Performance points
+    - plays: Total number of plays
+    - playtime: Total playtime in seconds
+    - acc: Average accuracy percentage
+    - max_combo: Maximum combo achieved
+    - total_hits: Total number of hits across all plays
+    - replay_views: Number of times replays were viewed
+    - xh_count: Number of XH (SS with Hidden) grades
+    - x_count: Number of X (SS) grades
+    - sh_count: Number of SH (S with Hidden) grades
+    - s_count: Number of S grades
+    - a_count: Number of A grades
+
+Statistics Structure:
+    - id: Player identifier
+    - mode: Game mode identifier
+    - tscore: Total score
+    - rscore: Ranked score
+    - pp: Performance points
+    - plays: Play count
+    - playtime: Total playtime
+    - acc: Average accuracy
+    - max_combo: Maximum combo
+    - total_hits: Total hits
+    - replay_views: Replay view count
+    - xh_count, x_count, sh_count, s_count, a_count: Grade counts
+
+Game Modes:
+    - 0: Vanilla osu!standard
+    - 1: Vanilla osu!taiko
+    - 2: Vanilla osu!catch
+    - 3: Vanilla osu!mania
+    - 4: Relax osu!standard
+    - 5: Relax osu!taiko
+    - 6: Relax osu!catch
+    - 8: Autopilot osu!standard
+
+Usage Pattern:
+    # Create statistics for a specific mode
+    stat = await create(player_id=12345, mode=0)
+    
+    # Create statistics for all modes
+    stats = await create_all_modes(player_id=12345)
+    
+    # Fetch statistics for a player and mode
+    stat = await fetch_one(player_id=12345, mode=0)
+    
+    # Fetch statistics with filtering
+    stats = await fetch_many(
+        player_id=12345,
+        mode=0,
+        page=1,
+        page_size=10
+    )
+    
+    # Update statistics
+    updated = await partial_update(
+        player_id=12345,
+        mode=0,
+        pp=1000,
+        plays=500,
+        acc=95.5
+    )
+
+Related Files:
+    - app/objects/player.py: Player class with statistics
+    - app/api/domains/osu.py: Score submission with stat updates
+    - app/api/v2/players.py: Player profile with statistics display
+    - app/usecases/performance.py: Performance calculation
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from typing import TypedDict

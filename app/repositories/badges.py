@@ -1,3 +1,80 @@
+"""
+Badges Repository - Database Operations for Badge Management
+
+This module provides database operations for managing badges and badge styles
+in the osu! server application. It implements the repository pattern for badge
+data access, providing a clean abstraction layer between the application logic
+and database operations for badge storage, retrieval, and management.
+
+The repository handles all CRUD operations for badges, including creation,
+retrieval, updating, and deletion of badge records. It also manages badge
+styles that define the visual appearance of badges on player profiles.
+
+Key Features:
+    - Complete CRUD operations for badge data
+    - Badge style management for visual customization
+    - Type-safe data access with TypedDict definitions
+    - Support for pagination and filtering
+    - Integration with badge style system
+    - Database connection management through app state
+
+Integration Points:
+    - Badge display in app/api/v2/players.py
+    - Badge assignment in app/api/v2/players.py
+    - Badge styling in app/objects/badge_style.py
+    - Database connection in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - badges table: id, name, description, priority
+    - badge_styles table: id, badge_id, type, value
+    - Foreign key relationship between badges and badge_styles
+
+Badge Structure:
+    - id: Unique identifier for the badge
+    - name: Display name of the badge
+    - description: Description of what the badge represents
+    - priority: Display priority (higher values shown first)
+    - badge_styles: List of style configurations for visual appearance
+
+Badge Style Types:
+    - color: Text or element color values
+    - border: Border styling properties
+    - background: Background color or image properties
+    - font: Font family and styling properties
+    - size: Dimension and sizing properties
+
+Usage Pattern:
+    # Create a new badge
+    badge = await create(
+        name="First Place",
+        description="Awarded for achieving first place",
+        priority=10
+    )
+    
+    # Fetch badge by ID or name
+    badge = await fetch_one(id=1)
+    badge = await fetch_one(name="First Place")
+    
+    # Fetch badge styles
+    styles = await fetch_styles(badge_id=1)
+    
+    # Update badge
+    updated = await update(
+        id=1,
+        description="Updated description"
+    )
+    
+    # Delete badge
+    deleted = await delete(id=1)
+
+Related Files:
+    - app/objects/badge.py: Badge data model
+    - app/objects/badge_style.py: Badge style data model
+    - app/api/v2/players.py: Player profile display with badges
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 import textwrap

@@ -1,3 +1,61 @@
+"""
+ClientFlags Module - Anti-Cheat Flag Constants for osu! Client Detection
+
+This module defines bitwise flag constants used by the osu! anti-cheat system to detect
+and flag suspicious client behavior. These flags are sent by the osu! client to the
+server and indicate various types of potential cheating or anomalous behavior.
+
+The module contains two main flag classes:
+1. ClientFlags: Legacy anti-cheat flags from osu! client versions up to 2016
+2. LastFMFlags: Updated anti-cheat flags from osu! client version 2019
+
+These flags are used throughout the codebase to:
+- Detect and flag suspicious player behavior
+- Validate score submissions for potential cheating
+- Monitor client-side anomalies and timing discrepancies
+- Identify known cheat software signatures
+
+Integration Points:
+    - Score submission validation in app/api/domains/osu.py
+    - Player session monitoring in app/objects/player.py
+    - Anti-cheat analysis in app/usecases/achievements.py
+    - Database logging in app/repositories/scores.py
+
+Usage Pattern:
+    - Flags are received from the osu! client during gameplay
+    - They are stored as bitwise integers in player session data
+    - Multiple flags can be combined using bitwise OR operations
+    - Flag checking uses bitwise AND operations: (flags & ClientFlags.SPEED_HACK_DETECTED)
+
+Security Considerations:
+    - Many legacy flags are outdated and prone to false positives
+    - Flags should be used as indicators, not definitive proof of cheating
+    - The CLEAN flag (0) indicates no suspicious behavior detected
+    - Flag combinations can indicate more sophisticated cheating methods
+
+Historical Context:
+    - ClientFlags: Original anti-cheat system from early osu! versions
+    - LastFMFlags: Updated system from 2019 with improved detection methods
+    - Some flags target specific known cheat software (e.g., AQN)
+    - Flags are maintained for backward compatibility and historical analysis
+
+Example Usage:
+    # Check if speed hack was detected
+    if player.client_flags & ClientFlags.SPEED_HACK_DETECTED:
+        flag_player_for_review()
+    
+    # Check for multiple cheat indicators
+    suspicious_flags = ClientFlags.SPEED_HACK_DETECTED | ClientFlags.RAW_MOUSE_DISCREPANCY
+    if player.client_flags & suspicious_flags:
+        investigate_player(player)
+
+Related Files:
+    - app/objects/player.py: Player class storing client flags
+    - app/api/domains/osu.py: Score submission handling with flag validation
+    - app/usecases/achievements.py: Achievement validation using flag data
+    - app/repositories/scores.py: Database storage of flag information
+"""
+
 from __future__ import annotations
 
 from enum import IntFlag

@@ -1,3 +1,85 @@
+"""
+Score Module - osu! Score Data Model and Processing
+
+This module defines the Score class and related enumerations for representing
+and processing osu! gameplay scores. The Score class handles all aspects of
+score management including parsing from client submissions, calculating performance
+metrics, determining submission status, and managing score data persistence.
+
+The Score class provides comprehensive functionality for handling scores across
+all osu! game modes, including accuracy calculation, performance point (PP)
+computation, leaderboard placement determination, and score validation. It
+integrates with the beatmap system for map-specific calculations and the
+player system for user-specific score tracking.
+
+Key Features:
+    - Complete score data model for all osu! game modes
+    - Score parsing from osu! client submission format
+    - Performance point (PP) and star rating calculation
+    - Accuracy calculation with mode-specific formulas
+    - Leaderboard placement determination
+    - Score status management (failed, submitted, best)
+    - Online checksum validation for anti-cheat
+    - Integration with beatmap and player systems
+    - Database persistence and retrieval
+
+Integration Points:
+    - Score submission in app/api/domains/osu.py
+    - Performance calculation in app/usecases/performance.py
+    - Beatmap data in app/objects/beatmap.py
+    - Player statistics in app/objects/player.py
+    - Database operations in app/repositories/scores.py
+    - Anti-cheat validation in app/constants/clientflags.py
+
+Score Components:
+    - Basic metrics: score, max_combo, accuracy
+    - Hit counts: n300, n100, n50, nmiss, ngeki, nkatu
+    - Performance: pp (performance points), sr (star rating)
+    - Metadata: mods, mode, grade, status
+    - Timing: client_time, server_time, time_elapsed
+    - Validation: client_flags, client_checksum
+
+Grade System:
+    - N: No pass
+    - F: Failed
+    - D: Poor performance
+    - C: Below average
+    - B: Average
+    - A: Good
+    - S: Excellent
+    - SH: Excellent with Hidden mod
+    - X: Perfect (SS)
+    - XH: Perfect with Hidden mod
+
+Submission Status:
+    - FAILED: Score did not pass the map
+    - SUBMITTED: Score was submitted but not the best
+    - BEST: Score is the player's best on the map
+
+Usage Pattern:
+    # Parse score from client submission
+    score = Score.from_submission(submission_data)
+    
+    # Calculate performance metrics
+    pp, sr = score.calculate_performance(beatmap_id)
+    
+    # Determine submission status
+    await score.calculate_status()
+    
+    # Calculate accuracy
+    accuracy = score.calculate_accuracy()
+    
+    # Get leaderboard placement
+    placement = await score.calculate_placement()
+
+Related Files:
+    - app/api/domains/osu.py: Score submission handling
+    - app/usecases/performance.py: Performance calculation
+    - app/objects/beatmap.py: Beatmap data for score context
+    - app/objects/player.py: Player statistics tracking
+    - app/repositories/scores.py: Database operations for scores
+"""
+
 from __future__ import annotations
 
 import functools

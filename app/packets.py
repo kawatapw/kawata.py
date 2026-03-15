@@ -1,3 +1,63 @@
+"""
+Packets Module - osu! Bancho Protocol Packet Handling
+
+This module implements the complete osu! Bancho protocol packet system for the
+osu! server application. It provides comprehensive packet reading, writing, and
+handling functionality for communication between the osu! client and server.
+
+The module defines all packet types, data structures, and serialization methods
+required for the Bancho protocol. It handles both client-to-server packets
+(incoming) and server-to-client packets (outgoing), with support for all
+standard osu! multiplayer, chat, and gameplay features.
+
+Key Features:
+    - Complete Bancho protocol packet implementation
+    - Client and server packet type definitions
+    - Binary packet serialization and deserialization
+    - Score frame and replay frame handling
+    - Multiplayer match state management
+    - Chat message and channel management
+    - Spectator mode packet handling
+    - Group and tournament support
+    - Performance-optimized packet writing
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Channel management in app/objects/channel.py
+    - Session management in app/state/sessions.py
+    - Logging system in app/logging.py
+    - Group management in app/objects/group.py
+
+Packet Categories:
+    - ClientPackets: Packets sent from osu! client to server
+    - ServerPackets: Packets sent from server to osu! client
+    - ScoreFrame: Score update data during gameplay
+    - ReplayFrame: Replay data for spectator mode
+    - MultiplayerMatch: Match state and configuration
+
+Usage Pattern:
+    # Reading packets from client
+    with memoryview(await request.body()) as body_view:
+        for packet in BanchoPacketReader(body_view, packet_map):
+            await packet.handle(player)
+    
+    # Writing packets to client
+    packet_data = write(ServerPackets.USER_STATS, ...)
+    player.enqueue(packet_data)
+    
+    # Creating specific packets
+    stats_packet = user_stats(player)
+    message_packet = send_message(sender, msg, recipient, sender_id)
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Multiplayer match handling
+    - app/objects/channel.py: Chat channel management
+    - app/state/sessions.py: Session and player collections
+    - app/logging.py: Logging utilities
+"""
+
 from __future__ import annotations
 
 import random

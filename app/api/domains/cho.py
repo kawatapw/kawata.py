@@ -1,4 +1,85 @@
-"""cho: handle cho packets from the osu! client"""
+"""
+CHO Domain Module - osu! Client Packet Handling and Authentication
+
+This module implements the core CHO (Chat/Osu) protocol handler for the osu! server
+application. It manages all client-server communication including authentication,
+chat messaging, multiplayer match management, spectator mode, and various gameplay
+features. The module serves as the primary interface between the osu! client and
+the server's internal systems.
+
+The CHO protocol is the main communication protocol used by the osu! client to
+interact with the server. This module handles packet parsing, authentication,
+session management, and routing of client requests to appropriate handlers.
+It implements the complete login flow, chat system, multiplayer functionality,
+and various other features required for a fully functional osu! private server.
+
+Key Features:
+    - Complete osu! client authentication and session management
+    - Real-time chat messaging with channel support
+    - Multiplayer match creation, joining, and management
+    - Spectator mode with frame streaming
+    - Beatmap information and performance calculation
+    - User presence and status broadcasting
+    - Anti-cheat integration and validation
+    - Rate limiting and security measures
+    - Comprehensive error handling and logging
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Channel management in app/objects/channel.py
+    - Packet handling in app/packets.py
+    - Database operations in app/repositories/
+    - Performance calculation in app/usecases/performance.py
+    - Anti-cheat validation in app/constants/clientflags.py
+
+Authentication Flow:
+    1. Client sends login request without osu-token header
+    2. Server parses login data (username, password, client info)
+    3. Validates client version and hardware information
+    4. Authenticates user credentials against database
+    5. Creates player session and generates token
+    6. Returns login response with session token
+
+Packet Handling:
+    - All client packets are processed through the bancho_handler endpoint
+    - Packets are parsed using BanchoPacketReader
+    - Each packet type has a dedicated handler class
+    - Handlers are registered using the @register decorator
+    - Restricted players have limited packet access
+
+Security Features:
+    - Password hashing with bcrypt
+    - Session token generation and validation
+    - Hardware fingerprinting for anti-cheat
+    - Rate limiting on login attempts
+    - Input validation and sanitization
+    - Restricted player limitations
+
+Usage Pattern:
+    # Login endpoint (POST /)
+    # Handles both login requests and packet processing
+    
+    # Health check endpoint (GET /health)
+    # Returns server health status
+    
+    # Server info endpoints (GET /infos, GET /)
+    # Returns server information and status
+    
+    # Online users endpoint (GET /online)
+    # Returns list of online players
+    
+    # Matches endpoint (GET /matches)
+    # Returns list of active multiplayer matches
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Multiplayer match handling
+    - app/objects/channel.py: Chat channel management
+    - app/packets.py: Packet definitions and utilities
+    - app/repositories/: Database access layer
+    - app/usecases/performance.py: Performance calculation
+"""
 
 from __future__ import annotations
 

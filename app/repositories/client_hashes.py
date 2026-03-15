@@ -1,3 +1,85 @@
+"""
+Client Hashes Repository - Database Operations for Anti-Cheat Hardware Tracking
+
+This module provides database operations for tracking client hardware hashes
+in the osu! server application. It implements the repository pattern for client
+hash data access, providing a clean abstraction layer between the application
+logic and database operations for hardware fingerprint storage and retrieval.
+
+The repository handles operations for storing and querying client hardware
+information used for anti-cheat detection and multi-account identification.
+It tracks various hardware identifiers including osu! installation path,
+network adapters, uninstall IDs, and disk serial numbers.
+
+Key Features:
+    - Hardware fingerprint storage and tracking
+    - Multi-account detection through hardware matching
+    - Upsert operations for efficient hash updates
+    - Occurrence counting for repeated hardware usage
+    - Wine/Linux compatibility handling
+    - Type-safe data access with TypedDict definitions
+    - Integration with user management system
+
+Integration Points:
+    - Anti-cheat detection in app/api/domains/cho.py
+    - Multi-account detection in app/usecases/achievements.py
+    - User management in app/repositories/users.py
+    - Database connection in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - userid: User ID (foreign key to users table)
+    - osupath: MD5 hash of osu! installation path (32 chars)
+    - adapters: MD5 hash of network adapters (32 chars)
+    - uninstall_id: MD5 hash of uninstall ID (32 chars)
+    - disk_serial: MD5 hash of disk serial number (32 chars)
+    - latest_time: Timestamp of last occurrence
+    - occurrences: Number of times this hash combination was seen
+
+Hardware Identifiers:
+    - osupath: Hash of osu! installation directory path
+    - adapters: Hash of network adapter MAC addresses
+    - uninstall_id: Hash of Windows uninstall registry entry
+    - disk_serial: Hash of disk serial number
+    - All identifiers are MD5 hashed for privacy
+
+Anti-Cheat Features:
+    - Multi-account detection through hardware matching
+    - Wine/Linux compatibility (different detection logic)
+    - Occurrence tracking for suspicious patterns
+    - Integration with user privilege system
+
+Usage Pattern:
+    # Create or update client hash
+    client_hash = await create(
+        userid=12345,
+        osupath="abc123...",
+        adapters="def456...",
+        uninstall_id="ghi789...",
+        disk_serial="jkl012..."
+    )
+    
+    # Check for hardware matches (multi-account detection)
+    matches = await fetch_any_hardware_matches_for_user(
+        userid=12345,
+        running_under_wine=False,
+        adapters="def456...",
+        uninstall_id="ghi789...",
+        disk_serial="jkl012..."
+    )
+    
+    # Process matches for anti-cheat
+    for match in matches:
+        if match["priv"] & Privileges.UNRESTRICTED:
+            flag_for_review(match["userid"])
+
+Related Files:
+    - app/api/domains/cho.py: Client connection with hash validation
+    - app/usecases/achievements.py: Achievement validation with hash checks
+    - app/repositories/users.py: User management integration
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

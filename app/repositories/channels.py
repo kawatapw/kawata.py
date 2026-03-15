@@ -1,3 +1,91 @@
+"""
+Channels Repository - Database Operations for Channel Management
+
+This module provides database operations for managing chat channels in the osu!
+server application. It implements the repository pattern for channel data access,
+providing a clean abstraction layer between the application logic and database
+operations for channel storage, retrieval, and management.
+
+The repository handles all CRUD operations for channels, including creation,
+retrieval, updating, and deletion of channel records. It manages both persistent
+channels (like #osu) and temporary instance channels (like multiplayer and
+spectator rooms) with appropriate access control settings.
+
+Key Features:
+    - Complete CRUD operations for channel data
+    - Privilege-based access control management
+    - Auto-join channel configuration
+    - Type-safe data access with TypedDict definitions
+    - Support for pagination and filtering
+    - Unique constraint enforcement for channel names
+    - Integration with the application state management system
+
+Integration Points:
+    - Channel management in app/objects/channel.py
+    - Player channel interactions in app/objects/player.py
+    - Session management in app/state/sessions.py
+    - Database connection in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - id: Primary key with auto-increment
+    - name: Channel name (unique, max 32 characters)
+    - topic: Channel topic/description (max 256 characters)
+    - read_priv: Minimum privilege required to read messages
+    - write_priv: Minimum privilege required to send messages
+    - auto_join: Whether players automatically join this channel
+
+Channel Types:
+    - Public channels: Persistent channels like #osu, #announce
+    - Private channels: Direct messages between players
+    - Multiplayer channels: Temporary rooms for multiplayer matches
+    - Spectator channels: Temporary rooms for spectating sessions
+    - Group channels: Channels for specific player groups
+
+Access Control:
+    - read_priv: Minimum privilege required to read messages
+    - write_priv: Minimum privilege required to send messages
+    - Privilege checking uses bitwise AND operations
+    - UNRESTRICTED privilege allows all users to access
+
+Usage Pattern:
+    # Create a new channel
+    channel = await create(
+        name="#osu",
+        topic="General discussion",
+        read_priv=Privileges.UNRESTRICTED,
+        write_priv=Privileges.UNRESTRICTED,
+        auto_join=True
+    )
+    
+    # Fetch channel by ID or name
+    channel = await fetch_one(id=1)
+    channel = await fetch_one(name="#osu")
+    
+    # Fetch channels with filtering
+    channels = await fetch_many(
+        read_priv=Privileges.UNRESTRICTED,
+        auto_join=True,
+        page=1,
+        page_size=10
+    )
+    
+    # Update channel
+    updated = await partial_update(
+        name="#osu",
+        topic="Updated topic"
+    )
+    
+    # Delete channel
+    deleted = await delete_one(name="#osu")
+
+Related Files:
+    - app/objects/channel.py: Channel data model
+    - app/objects/player.py: Player channel interactions
+    - app/state/sessions.py: Session management with channels
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from typing import TypedDict

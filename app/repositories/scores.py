@@ -1,3 +1,128 @@
+"""
+Scores Repository - Database Operations for Score Management
+
+This module provides database operations for managing gameplay scores in the
+osu! server application. It implements the repository pattern for score data
+access, providing a clean abstraction layer between the application logic and
+database operations for score storage, retrieval, and management.
+
+The repository handles all CRUD operations for scores, including creation,
+retrieval, updating, and management of score records. It supports comprehensive
+score data including performance metrics, hit counts, mods, and anti-cheat
+information for all osu! game modes.
+
+Key Features:
+    - Complete CRUD operations for score data
+    - Comprehensive score metadata storage
+    - Performance point (PP) and accuracy tracking
+    - Anti-cheat flag and checksum management
+    - Score status management (failed, submitted, best)
+    - Integration with beatmap and player systems
+    - Cheat value tracking and analysis
+    - Pinned score support for highlighting
+
+Integration Points:
+    - Score submission in app/api/domains/osu.py
+    - Leaderboard generation in app/api/v2/players.py
+    - Performance calculation in app/usecases/performance.py
+    - Beatmap management in app/objects/beatmap.py
+    - Player statistics in app/objects/player.py
+    - Database connection in app/state/services.py
+
+Database Schema:
+    - id: Primary key with auto-increment
+    - map_md5: Beatmap MD5 hash (foreign key to maps table)
+    - score: Total score value
+    - pp: Performance points earned
+    - acc: Accuracy percentage
+    - max_combo: Maximum combo achieved
+    - mods: Bitwise mods applied
+    - n300, n100, n50, nmiss, ngeki, nkatu: Hit counts
+    - grade: Letter grade (N, F, D, C, B, A, S, SH, X, XH)
+    - status: Submission status (failed, submitted, best)
+    - mode: Game mode (osu!, taiko, catch, mania)
+    - play_time: When the score was played
+    - time_elapsed: Time taken to complete the map
+    - client_flags: Anti-cheat flags from client
+    - userid: Player who set the score
+    - perfect: Whether the score is a full combo
+    - online_checksum: Anti-cheat checksum
+
+Score Structure:
+    - id: Unique identifier for the score
+    - map_md5: Beatmap that was played
+    - score: Total score value
+    - pp: Performance points earned
+    - acc: Accuracy percentage
+    - max_combo: Maximum combo achieved
+    - mods: Bitwise mods applied
+    - mods_readable: Human-readable mod string
+    - n300, n100, n50, nmiss, ngeki, nkatu: Hit counts
+    - grade: Letter grade
+    - status: Submission status
+    - mode: Game mode
+    - play_time: When the score was played
+    - time_elapsed: Time taken to complete
+    - client_flags: Anti-cheat flags
+    - userid: Player who set the score
+    - perfect: Whether it's a full combo
+    - online_checksum: Anti-cheat checksum
+    - pinned: Whether the score is pinned
+    - cheat_values: Anti-cheat analysis data
+
+Usage Pattern:
+    # Create a new score
+    score = await create(
+        map_md5="abc123...",
+        score=1000000,
+        pp=100.5,
+        acc=95.5,
+        max_combo=500,
+        mods=0,
+        n300=300,
+        n100=50,
+        n50=10,
+        nmiss=5,
+        ngeki=0,
+        nkatu=0,
+        grade="A",
+        status=2,
+        mode=0,
+        play_time=datetime.now(),
+        time_elapsed=180,
+        client_flags=0,
+        user_id=12345,
+        perfect=0,
+        online_checksum="def456..."
+    )
+    
+    # Fetch score by ID
+    score = await fetch_one(id=12345)
+    
+    # Fetch scores with filtering
+    scores = await fetch_many(
+        map_md5="abc123...",
+        status=2,
+        mode=0,
+        page=1,
+        page_size=10
+    )
+    
+    # Update score
+    updated = await partial_update(
+        id=12345,
+        pp=150.0,
+        status=2
+    )
+
+Related Files:
+    - app/objects/score.py: Score data model
+    - app/api/domains/osu.py: Score submission handling
+    - app/usecases/performance.py: Performance calculation
+    - app/objects/beatmap.py: Beatmap data for score context
+    - app/objects/player.py: Player statistics tracking
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

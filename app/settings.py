@@ -1,3 +1,68 @@
+"""
+Settings Module - Application Configuration and Environment Management
+
+This module provides centralized configuration management for the osu! server
+application, loading and validating all environment variables and settings
+required for server operation. It serves as the single source of truth for
+all application configuration, ensuring consistent access to settings across
+the entire codebase.
+
+The module loads configuration from environment variables (typically from a
+.env file) and provides typed access to all settings with appropriate defaults
+and validation. It handles database connections, Redis configuration, API keys,
+debug settings, and various server operational parameters.
+
+Key Features:
+    - Centralized configuration management from environment variables
+    - Type-safe configuration access with automatic conversion
+    - Database and Redis connection string generation
+    - Debug and development mode configuration
+    - Security settings and restrictions
+    - External service integration (Discord, Datadog)
+    - Performance tuning parameters
+    - Version information from pyproject.toml
+
+Integration Points:
+    - Database connections in app/adapters/database.py
+    - Redis connections in app/state/services.py
+    - API authentication in app/api/
+    - Debug logging in app/logging.py
+    - External services in app/discord.py
+
+Configuration Categories:
+    - Application: Host, port, service name, container name
+    - Database: MySQL connection parameters and DSN
+    - Redis: Redis connection parameters and DSN
+    - API: osu! API key, bot API key, domain settings
+    - Debug: Debug level, focus, logging colors
+    - Security: Disallowed names, passwords, client restrictions
+    - External: Discord webhooks, Datadog monitoring
+    - Performance: Cached accuracies, mirror endpoints
+
+Usage Pattern:
+    # Access configuration values
+    from app import settings
+    
+    # Database connection
+    db_dsn = settings.DB_DSN
+    
+    # Debug settings
+    debug_level = settings.DEBUG_LEVEL
+    
+    # API keys
+    api_key = settings.OSU_API_KEY
+    
+    # Feature flags
+    if settings.DEVELOPER_MODE:
+        enable_developer_features()
+
+Related Files:
+    - app/settings_utils.py: Configuration parsing utilities
+    - app/adapters/database.py: Database connection using DB_DSN
+    - app/state/services.py: Service initialization using settings
+    - app/logging.py: Logging configuration using debug settings
+"""
+
 from __future__ import annotations
 
 import os

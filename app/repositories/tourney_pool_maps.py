@@ -1,3 +1,92 @@
+"""
+Tourney Pool Maps Repository - Database Operations for Tournament Map Pool Management
+
+This module provides database operations for managing tournament map pool entries
+in the osu! server application. It implements the repository pattern for tournament
+pool map data access, providing a clean abstraction layer between the application
+logic and database operations for map pool storage, retrieval, and management.
+
+The repository handles operations for storing and managing beatmaps that are part
+of tournament map pools. Each entry represents a specific beatmap with associated
+mods and slot information, allowing tournament organizers to create structured
+map pools for competitive play.
+
+Key Features:
+    - Map pool entry creation and storage
+    - Pool-based map organization and retrieval
+    - Mod and slot-based filtering for map selection
+    - Batch operations for pool management
+    - Type-safe data access with TypedDict definitions
+    - Integration with tournament and beatmap management systems
+
+Integration Points:
+    - Tournament management in app/objects/match.py
+    - Map pool handling in app/api/v2/tournaments.py
+    - Beatmap management in app/objects/beatmap.py
+    - Database connection in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - map_id: Beatmap ID (foreign key to maps table)
+    - pool_id: Tournament pool ID (foreign key to tourney_pools table)
+    - mods: Bitwise mods applied to the map
+    - slot: Slot position in the pool (for ordering)
+
+Map Pool Entry Structure:
+    - map_id: Beatmap identifier
+    - pool_id: Tournament pool identifier
+    - mods: Mods applied to the map
+    - slot: Position/slot in the pool
+
+Tournament Map Pool Features:
+    - Organized map pools for tournament play
+    - Mod combinations for competitive balance
+    - Slot-based ordering for consistent presentation
+    - Pool-based organization for different tournament stages
+
+Usage Pattern:
+    # Add a map to a pool
+    pool_map = await create(
+        map_id=12345,
+        pool_id=1,
+        mods=0,
+        slot=1
+    )
+    
+    # Get all maps in a pool
+    maps = await fetch_many(pool_id=1)
+    
+    # Get maps by mod and slot
+    maps = await fetch_many(
+        pool_id=1,
+        mods=0,
+        slot=1
+    )
+    
+    # Get specific map by pool and pick
+    pool_map = await fetch_by_pool_and_pick(
+        pool_id=1,
+        mods=0,
+        slot=1
+    )
+    
+    # Remove a map from a pool
+    deleted = await delete_map_from_pool(
+        pool_id=1,
+        map_id=12345
+    )
+    
+    # Clear entire pool
+    deleted_maps = await delete_all_in_pool(pool_id=1)
+
+Related Files:
+    - app/objects/match.py: Match management with tournament pools
+    - app/api/v2/tournaments.py: Tournament API endpoints
+    - app/objects/beatmap.py: Beatmap data model
+    - app/repositories/tourney_pools.py: Tournament pool management
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from typing import TypedDict

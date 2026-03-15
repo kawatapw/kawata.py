@@ -1,3 +1,85 @@
+"""
+Group Module - Player Group Management System
+
+This module defines the Group class, which represents a player group in the osu!
+server application. Groups are temporary social constructs that allow players to
+organize for multiplayer matches, spectating sessions, or other collaborative
+activities. Each group has a leader, members, and an associated private channel
+for communication.
+
+The Group class manages the complete lifecycle of player groups including creation,
+invitation, membership management, leadership delegation, and disbandment. It
+integrates with the packet system to provide real-time updates to group members
+and supports both standard osu! clients and enhanced group-capable clients.
+
+Key Features:
+    - Automatic group creation with unique token generation
+    - Private channel creation for group communication
+    - Invitation system with player notification
+    - Membership management with join/leave functionality
+    - Leadership delegation capabilities
+    - Integration with multiplayer match system
+    - Real-time packet updates for group members
+    - Support for enhanced group-capable clients
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Channel management in app/objects/channel.py
+    - Packet handling in app/packets.py
+    - Session management in app/state/sessions.py
+    - Match system in app/objects/match.py
+
+Group Structure:
+    - lead: The player who created and leads the group
+    - players: List of current group members
+    - invites: List of players who have been invited
+    - token: Unique identifier for the group
+    - channel: Private channel for group communication
+    - Match: Associated multiplayer match (if any)
+
+Group Lifecycle:
+    1. Creation: Leader creates group, gets unique token and channel
+    2. Invitation: Leader invites other players to join
+    3. Joining: Invited players accept and become members
+    4. Communication: Members use private channel for coordination
+    5. Match Creation: Group can create multiplayer matches
+    6. Leadership: Leader can delegate leadership to another member
+    7. Disbandment: Group is dissolved and channel removed
+
+Packet Integration:
+    - group_join(): Sent when player joins group
+    - group_leave(): Sent when player leaves group
+    - group_invite(): Sent when player is invited
+    - group_users(): Sent to update group member list
+    - notification(): Sent for group events
+
+Usage Pattern:
+    # Create a group
+    group = Group(lead_player)
+    
+    # Invite a player
+    group.invite(target_player)
+    
+    # Add player to group (after invitation)
+    group.add_player(player)
+    
+    # Remove player from group
+    group.remove_player(player)
+    
+    # Delegate leadership
+    group.delegate(new_leader)
+    
+    # Disband group
+    group.disband()
+
+Related Files:
+    - app/objects/player.py: Player class with group interactions
+    - app/objects/channel.py: Channel class for group communication
+    - app/packets.py: Packet creation for group updates
+    - app/state/sessions.py: Session management with group tracking
+    - app/objects/match.py: Match system integration
+"""
+
 import uuid
 from app.constants.aeris_features import AerisFeatures
 from app.objects.channel import Channel

@@ -1,4 +1,52 @@
-""" bancho.py's v2 apis for interacting with client specific data """
+"""
+Client API v2 - Client-Specific Data Endpoints
+
+This module provides v2 API endpoints for retrieving client-specific data
+in the osu! server application. It implements RESTful endpoints for accessing
+changelog information with advanced filtering and pagination capabilities.
+
+The module uses the v2 API response format with standardized success and
+failure responses, providing consistent error handling and metadata
+for paginated results. It supports filtering by change type, category,
+and time range for flexible changelog queries.
+
+Key Features:
+    - Paginated changelog listing with configurable page sizes
+    - Filtering by change type (0-2)
+    - Category-based filtering
+    - Time-based filtering with Unix timestamp support
+    - Standardized v2 API response format
+    - Type-safe response models using Pydantic
+    - Integration with database for data access
+
+Integration Points:
+    - Database access in app/state/services.py
+    - Response formatting in app/api/v2/common/responses.py
+    - Logging in app/logging.py
+    - FastAPI router for endpoint registration
+
+Endpoints:
+    - GET /changelog: List changelog entries with filtering and pagination
+
+Usage Pattern:
+    # List changelog with pagination
+    GET /api/v2/changelog?page=1&page_size=50
+    
+    # Filter by change type
+    GET /api/v2/changelog?change_type=1
+    
+    # Filter by category
+    GET /api/v2/changelog?category=feature
+    
+    # Filter by time range
+    GET /api/v2/changelog?unix_from=1640995200
+
+Related Files:
+    - app/state/services.py: Database connection management
+    - app/api/v2/common/responses.py: Response formatting utilities
+    - app/logging.py: Logging utilities
+"""
+
 from __future__ import annotations
 import textwrap
 from typing import Any

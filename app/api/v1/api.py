@@ -1,4 +1,87 @@
-"""api: bancho.py's developer api for interacting with server state"""
+"""
+API v1 Module - Legacy Developer API for Server State Interaction
+
+This module provides the legacy v1 API endpoints for interacting with the osu!
+server application state. These endpoints offer developer-friendly access to
+player information, beatmap data, scores, leaderboards, and other server
+functionality through RESTful HTTP requests.
+
+The v1 API is designed for external integrations, third-party applications,
+and developer tools that need to query server data. It provides both
+unauthorized endpoints for public data and authorized endpoints that require
+valid API keys for sensitive operations.
+
+Key Features:
+    - Player information and statistics retrieval
+    - Beatmap data and score lookup
+    - Leaderboard and ranking queries
+    - Replay file access and download
+    - Multiplayer match information
+    - Clan and tournament pool data
+    - Badge and achievement information
+    - Performance point calculation
+    - API key authentication for sensitive operations
+
+Integration Points:
+    - Player data in app/objects/player.py
+    - Beatmap management in app/objects/beatmap.py
+    - Score tracking in app/repositories/scores.py
+    - Statistics in app/repositories/stats.py
+    - User management in app/repositories/users.py
+    - Clan system in app/repositories/clans.py
+    - Tournament pools in app/repositories/tourney_pools.py
+
+API Endpoints:
+    - GET /search_players: Search for players by name
+    - GET /get_player_count: Get online/total player counts
+    - GET /get_player_info: Get detailed player information
+    - GET /get_player_status: Get player online status
+    - GET /get_player_scores: Get player's recent/best scores
+    - GET /get_player_most_played: Get player's most played maps
+    - GET /get_map_info: Get beatmap information
+    - GET /get_map_scores: Get top scores for a beatmap
+    - GET /get_score_info: Get detailed score information
+    - GET /get_replay: Download replay file
+    - GET /get_match: Get multiplayer match information
+    - GET /get_leaderboard: Get global/country leaderboards
+    - GET /get_top_players: Get top 3 players per mode
+    - GET /get_clan: Get clan information
+    - GET /get_mappool: Get tournament pool information
+    - GET /get_friends: Get player's friends list
+    - GET /get_badges: Get player's badges
+    - POST /update_map_status: Update beatmap status (authorized)
+    - GET /calculate_pp: Calculate performance points (authorized)
+
+Authentication:
+    - Most endpoints are unauthorized (public access)
+    - Sensitive operations require API key in Authorization header
+    - API keys are validated against stored keys in app.state.sessions.api_keys
+    - BOT_API_KEY is required for administrative operations
+
+Usage Pattern:
+    # Search for players
+    GET /api/v1/search_players?q=player_name
+    
+    # Get player information
+    GET /api/v1/get_player_info?scope=all&id=12345
+    
+    # Get player scores
+    GET /api/v1/get_player_scores?scope=best&id=12345&mode=0&limit=10
+    
+    # Get beatmap information
+    GET /api/v1/get_map_info?id=12345
+    
+    # Calculate PP (requires API key)
+    GET /api/v1/calculate_pp?id=12345&acc=95&mods=0
+    Authorization: Bearer your_api_key
+
+Related Files:
+    - app/objects/player.py: Player data model
+    - app/objects/beatmap.py: Beatmap data model
+    - app/repositories/: Data access layer
+    - app/usecases/performance.py: PP calculation
+    - app/state/sessions.py: Session and API key management
+"""
 
 from __future__ import annotations
 

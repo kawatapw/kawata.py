@@ -1,3 +1,81 @@
+"""
+User Achievements Repository - Database Operations for Player Achievement Tracking
+
+This module provides database operations for tracking player achievements in the
+osu! server application. It implements the repository pattern for user achievement
+data access, providing a clean abstraction layer between the application logic
+and database operations for achievement tracking and management.
+
+The repository handles operations for storing and retrieving which achievements
+players have unlocked. It maintains a simple relationship between users and
+achievements, allowing the system to track progress and display unlocked
+achievements on player profiles.
+
+Key Features:
+    - User achievement creation and storage
+    - Achievement retrieval by user or achievement ID
+    - Pagination support for large achievement lists
+    - Type-safe data access with TypedDict definitions
+    - Integration with achievement and user management systems
+    - Simple many-to-many relationship tracking
+
+Integration Points:
+    - Achievement validation in app/usecases/achievements.py
+    - Achievement display in app/api/v2/players.py
+    - User management in app/repositories/users.py
+    - Achievement data in app/repositories/achievements.py
+    - Database connection in app/state/services.py
+
+Database Schema:
+    - userid: User ID (foreign key to users table)
+    - achid: Achievement ID (foreign key to achievements table)
+    - Composite primary key (userid, achid)
+
+User Achievement Structure:
+    - userid: User who unlocked the achievement
+    - achid: Achievement that was unlocked
+
+Achievement Tracking:
+    - Simple many-to-many relationship between users and achievements
+    - No additional metadata (unlocked timestamp could be added)
+    - Efficient lookup by user or achievement
+    - Pagination support for displaying achievement lists
+
+Usage Pattern:
+    # Record achievement unlock
+    user_achievement = await create(
+        user_id=12345,
+        achievement_id=1
+    )
+    
+    # Get all achievements for a user
+    achievements = await fetch_many(user_id=12345)
+    
+    # Get all users who unlocked an achievement
+    users = await fetch_many(achievement_id=1)
+    
+    # Get achievements with pagination
+    achievements = await fetch_many(
+        user_id=12345,
+        page=1,
+        page_size=10
+    )
+    
+    # Check if user has specific achievement
+    user_achievements = await fetch_many(
+        user_id=12345,
+        achievement_id=1
+    )
+    has_achievement = len(user_achievements) > 0
+
+Related Files:
+    - app/repositories/achievements.py: Achievement definitions
+    - app/usecases/achievements.py: Achievement validation logic
+    - app/objects/achievement.py: Achievement data model
+    - app/repositories/users.py: User management integration
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from typing import TypedDict

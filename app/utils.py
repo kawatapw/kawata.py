@@ -1,3 +1,68 @@
+"""
+Utility Functions Module - Common Utilities and Helper Functions
+
+This module provides a comprehensive collection of utility functions and helper
+methods used throughout the osu! server application. It includes functions for
+file handling, network operations, debugging, logging, and various other
+common operations that support the core functionality of the server.
+
+The module serves as a central repository for shared functionality, reducing
+code duplication and providing consistent implementations of common operations.
+It includes utilities for achievement image downloading, network connectivity
+checking, stack trace analysis, and various debugging and logging helpers.
+
+Key Features:
+    - Achievement image downloading from osu! servers
+    - Network connectivity checking
+    - Stack trace analysis and formatting
+    - Debug level monitoring and adjustment
+    - File type detection (JPEG, PNG)
+    - Request data extraction utilities
+    - Database encoding helpers
+    - Startup dialog and system checks
+    - Persistent volume management
+
+Integration Points:
+    - Achievement system in app/usecases/achievements.py
+    - Logging system in app/logging.py
+    - Settings configuration in app/settings.py
+    - Database operations in app/adapters/database.py
+    - API request handling in app/api/
+    - File system operations throughout the application
+
+Utility Categories:
+    - File Operations: Achievement downloads, avatar management
+    - Network Utilities: Connectivity checking, HTTP requests
+    - Debug Utilities: Stack traces, debug level management
+    - Request Utilities: Form data, body, and file extraction
+    - Database Utilities: Encoding helpers for MySQL
+    - System Utilities: Admin checks, startup dialogs
+
+Usage Pattern:
+    # Download achievement images
+    download_achievement_images(achievements_path)
+    
+    # Check internet connectivity
+    if has_internet_connectivity():
+        # Perform online operations
+        pass
+    
+    # Get stack trace for debugging
+    stack_info = get_appropriate_stacktrace()
+    
+    # Extract request data
+    form_data = await get_form_data("SCORE", request)
+    body = await get_request_body("SCORE", request)
+    files = await get_request_files("SCORE", request)
+
+Related Files:
+    - app/logging.py: Logging utilities and formatters
+    - app/settings.py: Configuration settings
+    - app/api/: API request handling
+    - app/usecases/achievements.py: Achievement processing
+    - app/adapters/database.py: Database operations
+"""
+
 from __future__ import annotations
 
 import ctypes

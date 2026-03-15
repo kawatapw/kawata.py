@@ -1,4 +1,93 @@
-"""osu: handle connections from web, api, and beyond?"""
+"""
+OSU Domain Module - osu! Web API and Score Submission Handler
+
+This module implements the core osu! web API endpoints and score submission
+handling for the osu! server application. It provides comprehensive functionality
+for beatmap information retrieval, score submission processing, leaderboard
+management, user registration, and various other osu! client interactions.
+
+The module serves as the primary interface between the osu! client and the
+server's game logic, handling all web-based API requests including score
+submissions, beatmap information queries, user authentication, and various
+utility endpoints required for full osu! client compatibility.
+
+Key Features:
+    - Score submission processing with anti-cheat validation
+    - Beatmap information retrieval and caching
+    - Leaderboard generation with multiple filtering options
+    - User registration and account management
+    - Replay file handling and storage
+    - Achievement system integration
+    - Comment and rating systems
+    - Screenshot upload and management
+    - osu!direct search functionality
+    - Client update checking and redirection
+
+Integration Points:
+    - Score processing in app/objects/score.py
+    - Beatmap management in app/objects/beatmap.py
+    - Player management in app/objects/player.py
+    - Achievement system in app/usecases/achievements.py
+    - Database operations in app/repositories/
+    - Anti-cheat validation in app/constants/clientflags.py
+    - Performance calculation in app/usecases/performance.py
+
+API Endpoints:
+    - POST /web/osu-submit-modular.php: Score submission (legacy)
+    - POST /web/osu-submit-modular-selector.php: Score submission (modern)
+    - GET /web/osu-getbeatmapinfo.php: Beatmap information
+    - GET /web/osu-search.php: osu!direct search
+    - GET /web/osu-search-set.php: Beatmap set search
+    - GET /web/osu-getreplay.php: Replay file retrieval
+    - GET /web/osu-getfriends.php: Friends list
+    - GET /web/osu-getfavourites.php: Favourites list
+    - GET /web/osu-addfavourite.php: Add favourite
+    - POST /web/osu-comment.php: Comment system
+    - GET /web/osu-rate.php: Beatmap rating
+    - POST /users: User registration
+    - GET /ss/{id}.{ext}: Screenshot retrieval
+    - GET /d/{set_id}: Beatmap download
+
+Score Submission Flow:
+    1. Client submits score data with replay file
+    2. Server validates authentication and session
+    3. Score data is decrypted and parsed
+    4. Anti-cheat checks are performed
+    5. Beatmap and player data are retrieved
+    6. Score is validated and processed
+    7. Performance points are calculated
+    8. Achievements are checked and awarded
+    9. Statistics are updated
+    10. Response charts are generated and sent
+
+Security Features:
+    - Session token validation
+    - Score checksum verification
+    - Anti-cheat flag processing
+    - Hardware hash validation
+    - Rate limiting on submissions
+    - Input validation and sanitization
+
+Usage Pattern:
+    # Score submission endpoint
+    POST /web/osu-submit-modular-selector.php
+    Headers: osu-token, User-Agent
+    Body: multipart form with score data and replay
+    
+    # Beatmap information
+    GET /web/osu-getbeatmapinfo.php?u=username&h=pass&f[]=filename
+    
+    # Leaderboard retrieval
+    GET /web/osu-osz2-getscores.php?us=username&ha=pass&c=map_md5
+
+Related Files:
+    - app/objects/score.py: Score data model and processing
+    - app/objects/beatmap.py: Beatmap data and caching
+    - app/objects/player.py: Player session management
+    - app/usecases/achievements.py: Achievement validation
+    - app/repositories/scores.py: Score database operations
+    - app/usecases/performance.py: Performance calculation
+"""
 
 from __future__ import annotations
 
