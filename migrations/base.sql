@@ -302,8 +302,7 @@ create table scores
 	client_flags int not null,
 	userid int not null,
 	perfect tinyint(1) not null,
-	online_checksum char(32) not null,
-	r_replay_id int(11) not null
+	online_checksum char(32) not null
 );
 create index scores_map_md5_index
 	on scores (map_md5);
@@ -480,13 +479,6 @@ create index users_clan_priv_index
 create index users_country_index
 	on users (country);
 
-create table users_ordr
-(
-	userid int(11) not null,
-	skin varchar(256) not null default 'loki_s_ultimatum_v5_fix',
-	primary key (userid)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
 create table wiped_scores
 (
 	id bigint unsigned auto_increment
@@ -511,8 +503,7 @@ create table wiped_scores
 	client_flags int not null,
 	userid int not null,
 	perfect tinyint(1) not null,
-	online_checksum char(32) not null,
-	r_replay_id int(11) not null
+	online_checksum char(32) not null
 );
 create index wiped_scores_map_md5_index
 	on wiped_scores (map_md5);
@@ -561,9 +552,6 @@ alter table user_badges
 
 alter table user_customisations
 	add constraint FK_user_customizations foreign key (userid) references users (id) on delete cascade;
-
-alter table users_ordr
-	add constraint fk_users_ordr foreign key (userid) references users (id) on delete cascade;
 
 insert into users (id, name, safe_name, priv, country, silence_end, email, pw_bcrypt, creation_time, latest_activity)
 values (1, 'BanchoBot', 'banchobot', 1, 'ca', 0, 'bot@akatsuki.pw',

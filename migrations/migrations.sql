@@ -672,3 +672,12 @@ DROP TABLE IF EXISTS logs;
 
 -- Step 4: Rename the new table to logs
 RENAME TABLE logs_new TO logs;
+
+-- Remove users_ordr table (feature removed)
+DROP TABLE IF EXISTS users_ordr;
+
+-- Remove r_replay_id column from scores table (feature removed)
+ALTER TABLE scores DROP COLUMN r_replay_id;
+
+-- Remove r_replay_id column from wiped_scores table (feature removed)
+ALTER TABLE wiped_scores DROP COLUMN r_replay_id;
