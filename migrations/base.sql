@@ -135,16 +135,19 @@ create table relationships
 
 create table logs
 (
-	`id` varchar(64) not null,
-	`mod` int(16) not null comment 'if type = 0, `from` = player && `to` = player\r\nif type = 1, `from` = player && `to` = map',
-	`target` int(16) not null,
-	`action` varchar(32) not null,
-	`reason` varchar(2048) charset utf8mb3 default null,
-	`time` datetime not null default CURRENT_TIMESTAMP on update current_timestamp(),
-	`type` tinyint(1) not null default 0,
-	primary key (id),
-	key type (type)
-);
+	id          int auto_increment primary key,
+	from_id     int not null comment 'moderator user id',
+	to_id       int not null comment 'target user or map id',
+	action      varchar(32) not null,
+	msg         varchar(2048) charset utf8mb3 default null,
+	created_at  datetime not null default CURRENT_TIMESTAMP,
+	action_type tinyint not null default 0 comment '0=user, 1=map, 2=badge',
+	index idx_logs_action (action),
+	index idx_logs_to_id (to_id),
+	index idx_logs_from_id (from_id),
+	index idx_logs_created (created_at),
+	index idx_logs_type_created (action_type, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 create table mail
 (

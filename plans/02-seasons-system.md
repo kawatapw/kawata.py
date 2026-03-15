@@ -1,9 +1,11 @@
 # Seasons System Plan
 
 ## Overview
+
 Implement a flexible seasons system that uses datetime-based filtering rather than storing season_id on scores. Seasons support multiple schedule types including a unique 28-day calendar system.
 
 ## Key Design Decisions
+
 - **Datetime-based filtering**: Seasons filter scores by `play_time` datetime range, no `season_id` column on scores table
 - **Aggregated stats**: Season stats are calculated and stored in `season_stats` table (not computed on-the-fly)
 - **Multiple schedule types**: Manual, custom intervals, world seasons, half-year, third-year, quarter-year, and 28-day calendar
@@ -13,6 +15,7 @@ Implement a flexible seasons system that uses datetime-based filtering rather th
 ## Database Schema
 
 ### season_schedules Table
+
 ```sql
 CREATE TABLE season_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,6 +30,7 @@ CREATE TABLE season_schedules (
 ```
 
 ### seasons Table
+
 ```sql
 CREATE TABLE seasons (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -47,6 +51,7 @@ CREATE TABLE seasons (
 ```
 
 ### season_config Table
+
 ```sql
 CREATE TABLE season_config (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -59,6 +64,7 @@ CREATE TABLE season_config (
 ```
 
 ### season_stats Table
+
 ```sql
 CREATE TABLE season_stats (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -92,32 +98,39 @@ CREATE TABLE season_stats (
 ## Schedule Types
 
 ### Manual
+
 - Admin manually starts/ends seasons
 - No automatic scheduling
 
 ### Custom
+
 - Configurable interval in days (e.g., every 30 days)
 - Auto-start new season when previous ends
 
 ### Seasonal (World Seasons)
+
 - Spring: March 20 - June 20
 - Summer: June 21 - September 22
 - Fall: September 23 - December 20
 - Winter: December 21 - March 19
 
 ### Half Year
+
 - 2 seasons per year
 - January-June, July-December
 
 ### Third Year
+
 - 3 seasons per year
 - January-April, May-August, September-December
 
 ### Quarter Year
+
 - 4 seasons per year
 - Q1: January-March, Q2: April-June, Q3: July-September, Q4: October-December
 
 ### 28-Day Calendar
+
 - 13 months of 28 days = 364 days
 - New Year's Day is separate (day 365)
 - Seasons: Every 4 months (3 seasons of 4 months + 1 special month)
@@ -126,6 +139,7 @@ CREATE TABLE season_stats (
 ## Schedule Configuration Examples
 
 ### Custom (30 days)
+
 ```json
 {
     "interval_days": 30,
@@ -134,6 +148,7 @@ CREATE TABLE season_stats (
 ```
 
 ### 28-Day Calendar
+
 ```json
 {
     "month_length": 28,
@@ -146,6 +161,7 @@ CREATE TABLE season_stats (
 ## Code Changes
 
 ### New Repository
+
 File: [`app/repositories/seasons.py`](app/repositories/seasons.py)
 
 ```python
@@ -176,6 +192,7 @@ async def fetch_stats(season_id: int, user_id: int | None = None, mode: int | No
 ```
 
 ### Season Management Commands
+
 ```python
 @command(Privileges.ADMINISTRATOR)
 async def season_create(ctx: Context) -> str | None:
@@ -199,6 +216,7 @@ async def season_schedule(ctx: Context) -> str | None:
 ```
 
 ### Background Task
+
 ```python
 # In app/bg_loops.py
 async def check_season_schedules() -> None:
@@ -210,6 +228,7 @@ async def check_season_schedules() -> None:
 ```
 
 ### Leaderboard Filtering
+
 ```python
 # In app/repositories/scores.py
 async def fetch_many(
@@ -257,6 +276,7 @@ async def fetch_many(
    - Test leaderboard filtering
 
 ## Testing Checklist
+
 - [ ] All schedule types work correctly
 - [ ] 28-day calendar calculates correctly
 - [ ] New Year's Day special season works

@@ -12,11 +12,11 @@ other moderation activities. Each log entry includes information about who
 performed the action, who was affected, and the reason for the action.
 
 Key Features:
-    - Administrative action logging with unique hash identification
+    - Administrative action logging with auto-increment identification
     - Moderator and administrator action tracking
     - Target user identification for affected players
     - Action type categorization (restrict, silence, etc.)
-    - Reason storage for audit trail purposes
+    - Message storage for audit trail purposes
     - Timestamp tracking for action timing
     - Type-safe data access with TypedDict definitions
 
@@ -28,22 +28,22 @@ Integration Points:
     - Application state in app/state/__init__.py
 
 Database Schema:
-    - id: SHA256 hash of log content (primary key)
-    - mod: User ID of the moderator/administrator who performed the action
-    - target: User ID of the player who was affected by the action
+    - id: Auto-increment integer (primary key)
+    - from_id: User ID of the moderator/administrator who performed the action
+    - to_id: User ID of the player who was affected by the action
     - action: Type of action performed (restrict, silence, unrestrict, etc.)
-    - reason: Reason for the action (max 2048 characters)
-    - time: Timestamp when the action was performed
-    - type: Additional type information for the action
+    - msg: Message/reason for the action (max 2048 characters)
+    - created_at: Timestamp when the action was performed
+    - action_type: Type of action (0=user, 1=map, 2=badge)
 
 Log Entry Structure:
-    - id: Unique hash identifier for the log entry
-    - _from: Moderator/administrator who performed the action
-    - to: Player who was affected by the action
+    - id: Auto-increment identifier for the log entry
+    - from_id: Moderator/administrator who performed the action
+    - to_id: Player who was affected by the action
     - action: Type of action performed
     - msg: Reason for the action
-    - time: When the action was performed
-    - type: Additional type information
+    - created_at: When the action was performed
+    - action_type: Type of action (0=user, 1=map, 2=badge)
 
 Action Types:
     - restrict: Player was restricted from the server
@@ -55,25 +55,25 @@ Action Types:
 Usage Pattern:
     # Log a restriction action
     log = await create(
-        _from=admin_id,
-        to=player_id,
+        from_id=admin_id,
+        to_id=player_id,
         action="restrict",
         msg="Cheating detected"
     )
     
     # Log a silence action
     log = await create(
-        _from=moderator_id,
-        to=player_id,
+        from_id=moderator_id,
+        to_id=player_id,
         action="silence",
         msg="Inappropriate language",
-        type=1
+        action_type=1
     )
     
     # Process log entries for audit
-    log_hash = log["id"]
-    moderator = log["_from"]
-    target = log["to"]
+    log_id = log["id"]
+    moderator = log["from_id"]
+    target = log["to_id"]
     action = log["action"]
     reason = log["msg"]
 
@@ -108,62 +108,55 @@ from sqlalchemy import Text
 class LogTable(Base):
     __tablename__ = "logs"
 
-    id = Column("id", Text, nullable=False, primary_key=True)
-    mod = Column("mod", Integer, nullable=False)
-    target = Column("target", Integer, nullable=False)
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    from_id = Column("from_id", Integer, nullable=False)
+    to_id = Column("to_id", Integer, nullable=False)
     action = Column("action", String(32), nullable=False)
-    reason = Column("reason", String(2048, collation="utf8"), nullable=True)
-    time = Column("time", DateTime, nullable=False, onupdate=func.now())
-    type = Column("type", TinyInt, nullable=False, default=False)
+    msg = Column("msg", String(2048, collation="utf8"), nullable=True)
+    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
+    action_type = Column("action_type", TinyInt, nullable=False, default=0)
 
 READ_PARAMS = (
     LogTable.id,
-    LogTable.mod.label("from"),
-    LogTable.target.label("to"),
+    LogTable.from_id,
+    LogTable.to_id,
     LogTable.action,
-    LogTable.reason.label("msg"),
-    LogTable.time,
-    LogTable.type,
+    LogTable.msg,
+    LogTable.created_at,
+    LogTable.action_type,
 )
 
 class Log(TypedDict):
-    id: str
-    _from: int
-    to: int
+    id: int
+    from_id: int
+    to_id: int
     action: str
     msg: str | None
-    time: datetime
-    type: bool
-
-import hashlib
+    created_at: datetime
+    action_type: int
 
 async def create(
-    _from: int,
-    to: int,
+    from_id: int,
+    to_id: int,
     action: str,
     msg: str,
-    type: int = 0,
+    action_type: int = 0,
 ) -> Log:
     """Create a new log entry in the database."""
     
-    # Generate a unique hash for the log entry
-    log_content = f"{_from}{to}{action}{msg}{type}"
-    log_hash = hashlib.sha256(log_content.encode()).hexdigest()
-
     insert_stmt = insert(LogTable).values(
         {
-            "id": log_hash,
-            "mod": _from,
-            "target": to,
+            "from_id": from_id,
+            "to_id": to_id,
             "action": action,
-            "reason": msg,
-            "time": func.now(),
-            "type": type,
+            "msg": msg,
+            "created_at": func.now(),
+            "action_type": action_type,
         },
     )
-    await app.state.services.database.execute(insert_stmt)
+    log_id = await app.state.services.database.execute(insert_stmt)
 
-    select_stmt = select(*READ_PARAMS).where(LogTable.id == log_hash)
+    select_stmt = select(*READ_PARAMS).where(LogTable.id == log_id)
     log = await app.state.services.database.fetch_one(select_stmt)
     assert log is not None
     return cast(Log, log)

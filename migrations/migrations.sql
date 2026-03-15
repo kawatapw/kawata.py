@@ -635,3 +635,40 @@ ADD CONSTRAINT FK_user_customizations FOREIGN KEY (userid) REFERENCES users (id)
 -- insert and update semantics.
 ALTER TABLE logs
     MODIFY `time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+-- Logs Table Overhaul: Transform to admin_v2_logs design
+-- Step 1: Create new table with the desired schema
+CREATE TABLE IF NOT EXISTS logs_new (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    from_id     INT NOT NULL COMMENT 'moderator user id',
+    to_id       INT NOT NULL COMMENT 'target user or map id',
+    action      VARCHAR(32) NOT NULL,
+    msg         VARCHAR(2048) CHARACTER SET utf8mb3 DEFAULT NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    action_type TINYINT NOT NULL DEFAULT 0 COMMENT '0=user, 1=map, 2=badge',
+    INDEX idx_logs_action (action),
+    INDEX idx_logs_to_id (to_id),
+    INDEX idx_logs_from_id (from_id),
+    INDEX idx_logs_created (created_at),
+    INDEX idx_logs_type_created (action_type, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Step 2: Copy data from old table to new table
+-- Note: The old table uses SHA256 hash as id, new table uses auto-increment
+-- We preserve the order by time to maintain chronological sequence
+INSERT INTO logs_new (from_id, to_id, action, msg, created_at, action_type)
+SELECT
+    CAST(`mod` AS SIGNED) as from_id,
+    CAST(`target` AS SIGNED) as to_id,
+    `action`,
+    `reason` as msg,
+    `time` as created_at,
+    CAST(`type` AS SIGNED) as action_type
+FROM logs
+ORDER BY `time` ASC;
+
+-- Step 3: Drop the old table
+DROP TABLE IF EXISTS logs;
+
+-- Step 4: Rename the new table to logs
+RENAME TABLE logs_new TO logs;

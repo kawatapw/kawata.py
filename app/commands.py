@@ -828,11 +828,11 @@ async def addnote(ctx: Context) -> str | None:
         return f'"{ctx.args[0]}" not found.'
 
     await logs_repo.create(
-        _from=ctx.player.id,
-        to=target.id,
+        from_id=ctx.player.id,
+        to_id=target.id,
         action="note",
         msg=" ".join(ctx.args[1:]),
-        type=3,
+        action_type=3,
     )
 
     return f"Added note to {target}."

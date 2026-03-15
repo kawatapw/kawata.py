@@ -569,8 +569,8 @@ class Player:
         await self.remove_privs(Privileges.UNRESTRICTED)
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="restrict",
             msg=reason,
         )
@@ -603,8 +603,8 @@ class Player:
         await self.add_privs(Privileges.UNRESTRICTED)
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="unrestrict",
             msg=reason,
         )
@@ -646,8 +646,8 @@ class Player:
         )
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="silence",
             msg=reason,
         )
@@ -674,8 +674,8 @@ class Player:
         )
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="unsilence",
             msg=reason,
         )
