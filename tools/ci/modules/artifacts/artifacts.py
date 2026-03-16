@@ -1,13 +1,14 @@
 """Artifact management module."""
+import argparse
 import json
 import os
 from pathlib import Path
 from typing import Dict, Any, List
-from core.context import Context
-from core.storage import get_backend
+from ...core.context import Context
+from ...core.storage import get_backend
 
 
-def collect(args, context: Context, config: Dict) -> Dict[str, Any]:
+def collect(args: argparse.Namespace, context: Context, config: Dict[str, Any]) -> Dict[str, Any]:
     """Collect artifacts from various sources."""
     backend = get_backend(config['storage'], config)
 

@@ -82,7 +82,7 @@ import app.bg_loops
 import app.settings
 import app.state
 import app.utils
-from app.api import api_router  # type: ignore[attr-defined]
+from app.api import api_router
 from app.api import domains
 from app.api import middlewares
 from app.logging import Ansi
@@ -252,7 +252,7 @@ def init_api() -> BanchoAPI:
     return asgi_app
 
 
-asgi_app = init_api()
+asgi_app: BanchoAPI = init_api()
 
 asgi_app.include_router(domains.osu.router)
 asgi_app.include_router(domains.cho.router)

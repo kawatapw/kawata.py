@@ -1,10 +1,11 @@
 """Report aggregation module."""
+import argparse
 from typing import Dict, Any, List
-from core.context import Context
-from core.storage import get_backend
+from ...core.context import Context
+from ...core.storage import get_backend
 
 
-def aggregate(args, context: Context, config: Dict) -> Dict[str, Any]:
+def aggregate(args: argparse.Namespace, context: Context, config: Dict[str, Any]) -> Dict[str, Any]:
     """Aggregate all workflow results into final report."""
     backend = get_backend(config['storage'], config)
 
@@ -19,7 +20,7 @@ def aggregate(args, context: Context, config: Dict) -> Dict[str, Any]:
             workflow_states[key] = state
 
     # Build final report
-    report = {
+    report: Dict[str, Any] = {
         'run_id': run_id,
         'commit': context.commit_sha,
         'repository': context.repository,

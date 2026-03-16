@@ -7,7 +7,7 @@ need to know about environment variable names or HTTP details.
 """
 import os
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 
 
 def get_github_token() -> Optional[str]:
@@ -78,7 +78,7 @@ def create_check_run(name: str, head_sha: str, status: str = 'in_progress',
     url = f"{get_api_url()}/repos/{repo}/check-runs"
     headers = get_github_headers()
 
-    data = {
+    data: Dict[str, Any] = {
         'name': name,
         'head_sha': head_sha,
         'status': status
@@ -90,7 +90,7 @@ def create_check_run(name: str, head_sha: str, status: str = 'in_progress',
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()
-        return response.json()
+        return cast(Optional[Dict[str, Any]], response.json())
     except Exception as e:
         print(f"Failed to create check run: {e}")
         return None
@@ -121,7 +121,7 @@ def update_check_run(check_run_id: int, name: str, status: str,
     url = f"{get_api_url()}/repos/{repo}/check-runs/{check_run_id}"
     headers = get_github_headers()
 
-    data = {
+    data: Dict[str, Any] = {
         'name': name,
         'status': status
     }
@@ -135,7 +135,7 @@ def update_check_run(check_run_id: int, name: str, status: str,
     try:
         response = requests.patch(url, headers=headers, json=data)
         response.raise_for_status()
-        return response.json()
+        return cast(Optional[Dict[str, Any]], response.json())
     except Exception as e:
         print(f"Failed to update check run: {e}")
         return None

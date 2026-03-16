@@ -7,7 +7,7 @@ and, when available, to the GitHub Actions job summary.
 import sys
 import traceback
 from typing import Dict, Any
-from core.context import Context
+from .context import Context
 
 
 class CIError(Exception):
@@ -41,7 +41,7 @@ class ModuleError(CIError):
         super().__init__(message, "module_error")
 
 
-def handle_error(error: Exception, context: Context, config: Dict) -> None:
+def handle_error(error: Exception, context: Context, config: Dict[str, Any]) -> None:
     """Render an error in a user-visible way and optionally annotate CI output.
 
     This helper prints a concise error message to stderr and, when debug

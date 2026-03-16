@@ -10,6 +10,7 @@ reasonable defaults and then applies overrides from, in order of priority:
 The final configuration dictionary is passed around to other modules and
 backends and is expected to be JSON-serializable.
 """
+import argparse
 import os
 from pathlib import Path
 from typing import Dict, Any
@@ -17,7 +18,7 @@ from typing import Dict, Any
 import yaml
 
 
-def load_config(args) -> Dict[str, Any]:
+def load_config(args: argparse.Namespace) -> Dict[str, Any]:
     """Load and resolve configuration for a single CI invocation.
 
     The configuration precedence is:
@@ -53,8 +54,9 @@ def load_config(args) -> Dict[str, Any]:
                 config = deep_merge(config, yaml_config)
 
     # Override with environment variables
-    if os.getenv('CI_STORAGE'):
-        config['storage'] = os.getenv('CI_STORAGE')
+    storage_env = os.getenv('CI_STORAGE')
+    if storage_env:
+        config['storage'] = storage_env
 
     # Override with CLI arguments
     if args.storage:
@@ -63,7 +65,7 @@ def load_config(args) -> Dict[str, Any]:
     return config
 
 
-def deep_merge(base: Dict, override: Dict) -> Dict:
+def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively merge two dictionaries.
 
     Values from ``override`` take precedence over values from ``base``.

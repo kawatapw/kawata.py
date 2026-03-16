@@ -1,12 +1,13 @@
 """GitHub job summary generator."""
+import argparse
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, cast
 from jinja2 import Environment, FileSystemLoader
-from core.context import Context
-from core.storage import get_backend
-from modules.parsers.registry import parse_file, detect_parser, list_parsers
+from ...core.context import Context
+from ...core.storage import get_backend
+from ..parsers.registry import parse_file, detect_parser, list_parsers
 
 
 def _find_state_in_artifacts(artifact_path: Path, workflow_name: str, run_id: str) -> Dict[str, Any]:
@@ -23,7 +24,7 @@ def _find_state_in_artifacts(artifact_path: Path, workflow_name: str, run_id: st
         print(f"DEBUG: Found state file: {state_file}")
         try:
             with open(state_file, 'r') as f:
-                state = json.load(f)
+                state = cast(Dict[str, Any], json.load(f))
                 print(f"DEBUG: State file run_id={state.get('run_id')}, workflow={state_file.stem}")
                 # Check if this state matches our workflow or run_id
                 if state.get('run_id') == run_id:
@@ -43,7 +44,7 @@ def _find_state_in_artifacts(artifact_path: Path, workflow_name: str, run_id: st
         print(f"DEBUG: Found state file (any): {state_file}")
         try:
             with open(state_file, 'r') as f:
-                state = json.load(f)
+                state = cast(Dict[str, Any], json.load(f))
                 if state.get('run_id') == run_id:
                     print(f"DEBUG: Found matching state by run_id (any)")
                     return state
@@ -55,7 +56,7 @@ def _find_state_in_artifacts(artifact_path: Path, workflow_name: str, run_id: st
     return {}
 
 
-def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
+def generate(args: argparse.Namespace, context: Context, config: Dict[str, Any]) -> Dict[str, Any]:
     """Generate GitHub job summary using Jinja2 templates."""
     backend = get_backend(config['storage'], config)
 
@@ -90,7 +91,7 @@ def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
             print(f"DEBUG: State from artifacts: {state is not None}")
     
     # Prepare template data
-    template_data = {
+    template_data: Dict[str, Any] = {
         'workflow_name': workflow_name,
         'run_id': run_id or 'N/A',
         'status': 'SKIPPED',
@@ -155,7 +156,7 @@ def generate(args, context: Context, config: Dict) -> Dict[str, Any]:
 
 def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
     """Parse artifacts and return structured data for template rendering."""
-    result = {
+    result: Dict[str, Any] = {
         'test_results': '',
         'lint_results': '',
         'security_results': '',
@@ -174,7 +175,7 @@ def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
         print(f"DEBUG:   - {artifact}")
     
     # Define report categories and their associated parsers
-    report_categories = {
+    report_categories: Dict[str, Dict[str, Any]] = {
         'test_results': {
             'parsers': ['pytest'],
             'files': ['junit.xml', 'pytest.xml', 'test-results.xml'],
@@ -198,6 +199,7 @@ def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
     
     # Process each category
     for category, config in report_categories.items():
+        config_dict: Dict[str, Any] = config
         category_content = ""
         found_reports = False
         
@@ -209,10 +211,10 @@ def parse_artifacts_structured(artifact_path: Path) -> Dict[str, Any]:
             filename = f.name.lower()
             
             # Check if file matches any expected filenames
-            matches_file = any(expected in filename for expected in config['files'])
+            matches_file = any(expected in filename for expected in config_dict['files'])
             
             # Check if file matches parser type in filename
-            matches_parser = any(parser in filename for parser in config['parsers'])
+            matches_parser = any(parser in filename for parser in config_dict['parsers'])
             
             if matches_file or matches_parser:
                 try:
@@ -258,7 +260,7 @@ def parse_artifacts(artifact_path: Path) -> str:
     summary += "\n"
     
     # Define report categories and their associated parsers
-    report_categories = {
+    report_categories: Dict[str, Dict[str, Any]] = {
         'Test Results': {
             'parsers': ['pytest'],
             'files': ['junit.xml', 'pytest.xml', 'test-results.xml'],

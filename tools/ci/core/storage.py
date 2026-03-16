@@ -17,6 +17,14 @@ class StorageBackend(ABC):
     and aggregation.
     """
 
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """Initialize the storage backend with configuration.
+
+        Args:
+            config: Configuration dictionary for the backend.
+        """
+        self.config = config
+
     @abstractmethod
     def save_workflow_result(self, result: Dict[str, Any]) -> None:
         """Persist a single workflow result entry.
@@ -105,7 +113,7 @@ class StorageBackend(ABC):
 _BACKENDS = {}
 
 
-def register_backend(name: str, backend_class):
+def register_backend(name: str, backend_class: type[StorageBackend]) -> None:
     """Register a concrete storage backend class.
 
     This is typically called from backend modules at import time.
@@ -118,7 +126,7 @@ def register_backend(name: str, backend_class):
     _BACKENDS[name] = backend_class
 
 
-def get_backend(name: str, config: Dict) -> StorageBackend:
+def get_backend(name: str, config: Dict[str, Any]) -> StorageBackend:
     """Instantiate a registered storage backend.
 
     Args:
@@ -137,5 +145,5 @@ def get_backend(name: str, config: Dict) -> StorageBackend:
 
 
 # Register artifact backend
-from storage.artifact_backend import ArtifactBackend
+from ..storage.artifact_backend import ArtifactBackend
 register_backend('artifact', ArtifactBackend)

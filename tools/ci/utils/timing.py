@@ -5,7 +5,7 @@ render them in a consistent, human-readable form in logs and reports.
 """
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 class Timer:
@@ -24,14 +24,14 @@ class Timer:
                 `get_result` for identification.
         """
         self.name = name
-        self.start_time = None
-        self.end_time = None
+        self.start_time: Optional[float] = None
+        self.end_time: Optional[float] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "Timer":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         self.end_time = time.time()
 
     @property

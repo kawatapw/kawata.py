@@ -8,7 +8,7 @@ capabilities such as workflow tracking, summary generation, and reports.
 import argparse
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse and return command-line arguments for the CI tool.
 
     The parsed object includes:

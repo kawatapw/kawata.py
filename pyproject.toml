@@ -1,6 +1,6 @@
 [project]
 name = "kawata-py"
-version = "5.3.0"
+version = "5.3.1"
 description = "A supercharged fork of an osu! server implementation optimized for maintainability in modern python"
 authors = [
     {name = "Akatsuki Team", email = "team@akatsuki.pw"},
@@ -103,6 +103,12 @@ module = [
     "cpuinfo.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tools.ci.*",
+]
+follow_imports = "skip"
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

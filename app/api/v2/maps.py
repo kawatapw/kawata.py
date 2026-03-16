@@ -70,7 +70,7 @@ from app.api.v2.common.responses import Success
 from app.api.v2.models.maps import Map
 from app.repositories import maps as maps_repo
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 @router.get("/maps")

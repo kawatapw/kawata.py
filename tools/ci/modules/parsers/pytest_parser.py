@@ -12,12 +12,12 @@ class PytestParser(Parser):
         root = ET.fromstring(content)
 
         # Find the testsuite element (may be root or nested)
-        testsuite = root
+        testsuite: ET.Element = root
         if root.tag == 'testsuites':
             # Root is testsuites, find first testsuite
-            testsuite = root.find('testsuite')
-            if testsuite is None:
-                testsuite = root
+            found = root.find('testsuite')
+            if found is not None:
+                testsuite = found
 
         # Extract test summary
         summary = {

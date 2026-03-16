@@ -51,7 +51,6 @@ Related Files:
     - app/api/: API endpoints using constants
 """
 
-# type: ignore
 # isort: dont-add-imports
 
 from . import clientflags

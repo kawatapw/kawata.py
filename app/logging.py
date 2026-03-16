@@ -292,10 +292,10 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
     return serializable_record
 
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: logging.LogRecord) -> bytes: # type: ignore[override]
         # Convert only keys and values that are not of type str, int, float, bool, or None
         record.__dict__ = {
-            str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k:
+            str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k: # type: ignore[redundant-expr]
             str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
             for k, v in record.__dict__.items()
         }
@@ -305,7 +305,7 @@ class BytesJsonFormatter(jsonlogger.JsonFormatter):
             record.args = None
 
         string_record = super().format(record)
-        return string_record
+        return string_record.encode('utf-8')
 
 
 console_logger = logging.getLogger('console')

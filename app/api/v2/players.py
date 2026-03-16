@@ -89,7 +89,7 @@ from app.api.v2.models.players import PlayerStatus
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 @router.get("/players")

@@ -8,8 +8,8 @@ re-use this directory to aggregate results across jobs.
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, Any, List
-from core.storage import StorageBackend
+from typing import Dict, Any, List, cast
+from ..core.storage import StorageBackend
 
 
 class ArtifactBackend(StorageBackend):
@@ -21,7 +21,7 @@ class ArtifactBackend(StorageBackend):
     - ``<prefix>/state`` – arbitrary workflow or run-level state
     """
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict[str, Any]):
         """Initialize the backend and ensure directory structure exists.
 
         Args:
@@ -74,7 +74,7 @@ class ArtifactBackend(StorageBackend):
         filename = self.state_dir / f"{key}.json"
         if filename.exists():
             with open(filename, 'r') as f:
-                return json.load(f)
+                return cast(Dict[str, Any], json.load(f))
         return {}
 
     def list_results(self, commit: str) -> List[str]:

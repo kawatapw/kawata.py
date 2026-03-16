@@ -1,16 +1,17 @@
 """Workflow lifecycle management."""
+import argparse
 from datetime import datetime
 from typing import Dict, Any
 
-from core.context import Context
-from core.storage import get_backend
+from ...core.context import Context
+from ...core.storage import get_backend
 
 
 def _workflow_key(workflow_name: str) -> str:
     return f"workflow-{workflow_name}"
 
 
-def start(args, context: Context, config: Dict) -> Dict[str, Any]:
+def start(args: argparse.Namespace, context: Context, config: Dict[str, Any]) -> Dict[str, Any]:
     """Start workflow or job tracking.
 
     Behaviour:
@@ -91,7 +92,7 @@ def start(args, context: Context, config: Dict) -> Dict[str, Any]:
     }
 
 
-def finish(args, context: Context, config: Dict) -> Dict[str, Any]:
+def finish(args: argparse.Namespace, context: Context, config: Dict[str, Any]) -> Dict[str, Any]:
     """Finish workflow or job tracking.
 
     Behaviour:

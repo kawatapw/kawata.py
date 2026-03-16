@@ -184,7 +184,7 @@ motds = [
     ":thinking:"
 ]
 
-router = APIRouter(tags=["Bancho API"])
+router: APIRouter = APIRouter(tags=["Bancho API"])
 
 @router.get("/health")
 async def health_check() -> Response:

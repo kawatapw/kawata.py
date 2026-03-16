@@ -50,7 +50,6 @@ Related Files:
     - app/api/middlewares.py: HTTP middleware configuration
 """
 
-# type: ignore
 # isort: dont-add-imports
 
 from fastapi import APIRouter

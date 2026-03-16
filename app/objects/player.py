@@ -472,6 +472,7 @@ class Player:
     @property
     def has_group_capability(self) -> bool:
         """Does the server and the client has group capabilities"""
+        from app.api.domains.packets.aeris import AERIS_SERVER_FEATURES
         return self.aeris_client \
             and AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0 \
                 and self.aeris_client_features & AerisFeatures.Groups > 0

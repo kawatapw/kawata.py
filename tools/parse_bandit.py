@@ -45,7 +45,7 @@ def parse_bandit_output(json_file: Path) -> Dict[str, Any]:
     project_results = [issue for issue in data.get("results", []) if is_project_file(issue.get("filename", ""))]
 
     # Extract summary information
-    summary = {
+    summary: Dict[str, Any] = {
         "total_issues": len(project_results),
         "high_severity": 0,
         "medium_severity": 0,
@@ -122,7 +122,7 @@ def format_summary(summary: Dict[str, Any]) -> str:
     return "".join(lines)
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     if len(sys.argv) != 2:
         print("Usage: parse_bandit.py <bandit_json_file>")

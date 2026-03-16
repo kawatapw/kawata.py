@@ -2,11 +2,12 @@
 import importlib
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add tools/ci to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-def load_module(module_name: str):
+def load_module(module_name: str) -> Any:
     """Load a module by name."""
     try:
         # Try to import the module directly

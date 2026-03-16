@@ -2,7 +2,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 from abc import ABC, abstractmethod
 
 
@@ -21,7 +21,7 @@ class Parser(ABC):
 
 
 # Parser registry
-_PARSERS: Dict[str, type] = {}
+_PARSERS: Dict[str, type[Parser]] = {}
 
 
 def register_parser(name: str, parser_class: type) -> None:
@@ -36,7 +36,7 @@ def get_parser(name: str) -> Parser:
     return _PARSERS[name]()
 
 
-def list_parsers() -> list:
+def list_parsers() -> list[str]:
     """List all registered parser names."""
     return list(_PARSERS.keys())
 

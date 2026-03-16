@@ -9,18 +9,19 @@ remains testable in the underlying packages.
 import sys
 import argparse
 from pathlib import Path
+from typing import Any
 
 # Add tools/ci to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.cli import parse_args
-from core.context import build_context
-from core.config import load_config
-from core.errors import handle_error
-from modules import load_module
+from .core.cli import parse_args
+from .core.context import build_context
+from .core.config import load_config
+from .core.errors import handle_error
+from .modules import load_module
 
 
-def print_json(result):
+def print_json(result: Any) -> None:
     """Render a Python object as pretty-printed JSON on stdout.
 
     Args:
@@ -30,7 +31,7 @@ def print_json(result):
     print(json.dumps(result, indent=2))
 
 
-def print_result(result):
+def print_result(result: Any) -> None:
     """Print a result object in a simple, human-readable form.
 
     Dictionary results are rendered as ``key: value`` lines; all other
@@ -47,7 +48,7 @@ def print_result(result):
         print(result)
 
 
-def main():
+def main() -> None:
     """Entry point for the `ci` CLI.
 
     This function is responsible for:
@@ -90,7 +91,7 @@ def main():
         sys.exit(1)
 
 
-def launch_tui():
+def launch_tui() -> None:
     """Launch the (placeholder) interactive TUI mode.
 
     Currently this is a stub that prints a short help message; it exists

@@ -67,7 +67,7 @@ from app.api.v2.common.responses import Success
 from app.api.v2.models.scores import Score
 from app.repositories import scores as scores_repo
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 @router.get("/scores")

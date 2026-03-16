@@ -2,14 +2,14 @@
 
 ## Overview
 
-Implement a flexible seasons system that uses datetime-based filtering rather than storing season_id on scores. Seasons support multiple schedule types including a unique 28-day calendar system. **Seasons are an optional feature** enabled via the `server_data` table.
+Implement a flexible seasons system that uses datetime-based filtering rather than storing season_id on scores. Seasons support multiple schedule types including a unique International Fixed Calendar system. **Seasons are an optional feature** enabled via the `server_data` table.
 
 ## Key Design Decisions
 
 - **Datetime-based filtering**: Seasons filter scores by `play_time` datetime range, no `season_id` column on scores table
 - **Season stats in existing table**: Add `season_id` column to existing `stats` table (not a separate table)
 - **Modular schedule type system**: Schedule types are implemented as separate modules in `app/schedule_types/`, making the system extensible with new season types
-- **Multiple schedule types**: Manual, custom intervals, world seasons, half-year, third-year, quarter-year, and 28-day calendar (all implemented as separate modules)
+- **Multiple schedule types**: Manual, custom intervals, world seasons, half-year, third-year, quarter-year, and International Fixed Calendar (all implemented as separate modules)
 - **Single active season type**: Only 1 season type is active/displayed by default, but all season types are viewable
 - **New Year's Day special**: 1-day season with top 3 players earning a badge (deferred to cosmetics overhaul)
 - **Optional feature**: Seasons enabled/disabled via `server_data` table entry
@@ -107,7 +107,7 @@ CREATE TABLE season_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
     description VARCHAR(256) DEFAULT NULL,
-    schedule_type ENUM('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', '28day_calendar') NOT NULL,
+    schedule_type ENUM('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', 'ifc_sched') NOT NULL,
     config JSON NOT NULL COMMENT 'Schedule-specific configuration',
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -168,7 +168,7 @@ CREATE TABLE season_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
     description VARCHAR(256) DEFAULT NULL,
-    schedule_type ENUM('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', '28day_calendar') NOT NULL,
+    schedule_type ENUM('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', 'ifc_sched') NOT NULL,
     config JSON NOT NULL COMMENT 'Schedule-specific configuration',
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -664,13 +664,13 @@ The seasonal module provides scheduling based on astronomical world seasons (spr
 - Timezone-aware date calculations
 - Automatic season name generation (e.g., "Spring 2024")
 
-#### 28-Day Calendar Module
+#### International Fixed Calendar Module
 
-The 28-day calendar module provides scheduling based on a custom 28-day month calendar system.
+The International Fixed Calendar module provides scheduling based on a custom 28-day month calendar system.
 
 **Schedule Types Provided**:
 
-- `28day_calendar` - Custom 28-day month calendar system
+- `ifc_sched` - Custom 28-day month calendar system
 
 **Configuration Schema**:
 
@@ -803,14 +803,14 @@ New schedule type modules can be created by implementing the `ScheduleTypeProvid
 from app.schedule_types.manual import ManualScheduleProvider
 from app.schedule_types.standard_calendar import StandardCalendarProvider
 from app.schedule_types.seasonal import SeasonalScheduleProvider
-from app.schedule_types.twenty_eight_day import TwentyEightDayScheduleProvider
+from app.schedule_types.international_fixed_calendar import IFCScheduleProvider
 
 # Registry of all available schedule type providers
 SCHEDULE_PROVIDERS: dict[str, type[ScheduleTypeProvider]] = {
     "manual": ManualScheduleProvider,
     "standard_calendar": StandardCalendarProvider,
     "seasonal": SeasonalScheduleProvider,
-    "28day_calendar": TwentyEightDayScheduleProvider,
+    "ifc_sched": IFCScheduleProvider,
 }
 
 def get_schedule_provider(provider_name: str) -> ScheduleTypeProvider | None:
@@ -1248,7 +1248,7 @@ class Score(BaseModel):
    - [`app/schedule_types/manual.py`](app/schedule_types/manual.py) - Manual season management
    - [`app/schedule_types/standard_calendar.py`](app/schedule_types/standard_calendar.py) - Standard calendar methods (custom, half_year, third_year, quarter_year)
    - [`app/schedule_types/seasonal.py`](app/schedule_types/seasonal.py) - World seasons (spring, summer, fall, winter)
-   - [`app/schedule_types/twenty_eight_day.py`](app/schedule_types/twenty_eight_day.py) - 28-day calendar system
+   - [`app/schedule_types/international_fixed_calendar.py`](app/schedule_types/international_fixed_calendar.py) - International Fixed Calendar system
 5. Implement `get_schedule_provider()` function for retrieving provider instances
 6. Implement `get_provider_for_schedule_type()` function for finding providers by schedule type
 7. Add configuration validation logic using provider schemas
@@ -1292,7 +1292,7 @@ class Score(BaseModel):
 **Test areas to cover**:
 
 - All schedule types work correctly
-- 28-day calendar calculates correctly
+- International Fixed Calendar calculates correctly
 - Season stats aggregate correctly
 - Leaderboard filtering by season works
 - Background task auto-starts/ends seasons

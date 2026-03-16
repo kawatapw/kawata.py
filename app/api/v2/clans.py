@@ -51,7 +51,7 @@ from app.api.v2.common.responses import Success
 from app.api.v2.models.clans import Clan
 from app.repositories import clans as clans_repo
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 @router.get("/clans")

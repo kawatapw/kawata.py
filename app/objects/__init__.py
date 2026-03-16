@@ -57,7 +57,6 @@ Related Files:
     - app/api/: API endpoints and handlers
 """
 
-# type: ignore
 # isort: dont-add-imports
 
 from . import achievement

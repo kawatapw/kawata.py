@@ -62,7 +62,7 @@ from app.api.v2.common.responses import Success
 from app.state.services import database
 from app.logging import log
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 READ_PARAMS = textwrap.dedent(
     """\

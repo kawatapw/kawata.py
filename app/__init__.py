@@ -66,7 +66,6 @@ Related Files:
     - app/utils.py: Utility functions
 """
 
-# type: ignore
 # isort: dont-add-imports
 
 from . import api
