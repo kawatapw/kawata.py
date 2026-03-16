@@ -1,0 +1,853 @@
+name: CI Pipeline
+
+on:
+  # Trigger on all pushes (including tags) to any branch
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  # Trigger on all pull requests
+  pull_request:
+    branches:
+      - '**'
+  # Manual trigger
+  workflow_dispatch:
+
+env:
+  APP_HOST: "0.0.0.0"
+  APP_PORT: "10000"
+  TZ: "America/Chicago"
+  SERVICE_NAME: "kawata"
+  CONTAINER_NAME: "bancho"
+  CONTAINER_VERSION: "BE-Test"
+  GITHUB_OWNER: "kawatapw"
+  GITHUB_REPO: "kawata.py"
+  CHEAT_SERVER: "true"
+  CLIENT_VERSION: ""
+  DOMAIN: "cmyui.xyz"
+  USINGROOTDOMAIN: "False"
+  DB_HOST: "mysql-test"
+  DB_NAME: "bancho"
+  DB_PASS: "lol123"
+  DB_PORT: "3306"
+  DB_USER: "cmyui"
+  REDIS_DB: "0"
+  REDIS_HOST: "redis"
+  REDIS_PASS: "pass"
+  REDIS_PORT: "6379"
+  REDIS_USER: "default"
+  OSU_API_KEY: ""
+  BOT_API_KEY: ""
+  DATA_DIRECTORY: "/srv/root/.data"
+  SSL_CERT_PATH: "/srv/root/certs/fullchain.crt"
+  SSL_KEY_PATH: "/srv/root/certs/privkey.pem"
+  MIRROR_SEARCH_ENDPOINT: "https://catboy.best/api/search"
+  MIRROR_DOWNLOAD_ENDPOINT: "https://catboy.best/d"
+  COMMAND_PREFIX: "!"
+  REQUEST_PENDING_ONLY: "True"
+  SEASONAL_BGS: "https://akatsuki.pw/static/flower.png,https://i.cmyui.xyz/nrMT4V2RR3PR.jpeg"
+  MENU_ICON_URL: "https://akatsuki.pw/static/logos/logo_ingame.png"
+  MENU_ONCLICK_URL: "https://akatsuki.pw"
+  DATADOG_API_KEY: ""
+  DATADOG_APP_KEY: ""
+  DEBUG_LEVEL: "3"
+  DEBUG_FOCUS: "all"
+  REDIRECT_OSU_URLS: "True"
+  PP_CACHED_ACCS: "90,95,98,99,100"
+  DISALLOWED_NAMES: "mrekk,vaxei,btmc,cookiezi"
+  DISALLOWED_PASSWORDS: "password,abc123"
+  DISALLOW_OLD_CLIENTS: "False"
+  DISALLOW_INGAME_REGISTRATION: "True"
+  DISCORD_AUDIT_LOG_WEBHOOK: ""
+  DISCORD_INVITE: "https://discord.gg/ShEQgUx"
+  AUTOMATICALLY_REPORT_PROBLEMS: "False"
+  LOG_WITH_COLORS: "False"
+  TUNNEL_TOKEN: ""
+  DEVELOPER_MODE: "True"
+  DB_USE_SSL: "false"
+
+jobs:
+  # Single initialization job - handles ALL setup
+  initialization:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
+      tag_list: ${{ steps.prepare.outputs.tag_list }}
+      github_owner: ${{ steps.prepare.outputs.github_owner }}
+      github_repo: ${{ steps.prepare.outputs.github_repo }}
+      should_release: ${{ steps.conditions.outputs.should_release }}
+      should_publish: ${{ steps.conditions.outputs.should_publish }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Generate initial summary
+        run: |
+          echo "## Workflow Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch/Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "**PR Number:** ${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+            echo "**PR Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Workflow Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lint:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Sec Scan:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ github.event_name == 'push' && (github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || startsWith(github.ref, 'refs/tags/')) && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Publish:** ${{ github.event_name == 'push' && (github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging') && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Start workflow
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci
+
+      - id: prepare
+        name: Prepare version + tags
+        run: |
+          set -euo pipefail
+          
+          # Get version from pyproject.toml using a single-line Python command
+          VERSION=$(python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=${GITHUB_REF#refs/heads/}
+          
+          # Convert branch name to lowercase and replace slashes with hyphens
+          BRANCH_TAG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/\//-/g')
+          
+          # Define base tags
+          TAGS="$SHORT_SHA $BRANCH_TAG"
+          
+          # Add specific tags based on branch
+          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest be-prod"; fi
+          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS be-staging"; fi
+          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS be-dev"; fi
+          if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
+          
+          # Always add ci short sha
+          TAGS="$TAGS ci-${SHORT_SHA}"
+          
+          # Set outputs
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "tag_list=$TAGS" >> $GITHUB_OUTPUT
+          echo "tag_list=$TAGS" >> $GITHUB_STEP_SUMMARY
+          echo "github_owner=kawatapw" >> $GITHUB_OUTPUT
+          echo "github_owner=kawatapw" >> $GITHUB_STEP_SUMMARY
+          echo "github_repo=kawata.py" >> $GITHUB_OUTPUT
+          echo "github_repo=kawata.py" >> $GITHUB_STEP_SUMMARY
+
+      - id: conditions
+        name: Set condition outputs
+        run: |
+          # Determine if we should release
+          SHOULD_RELEASE="false"
+          if [ "${{ github.event_name }}" = "push" ] && \
+             ([ "${{ github.ref }}" = "refs/heads/BE-Master" ] || \
+              [ "${{ github.ref }}" = "refs/heads/BE-Staging" ] || \
+              [[ "${{ github.ref }}" == refs/tags/* ]]); then
+            SHOULD_RELEASE="true"
+          fi
+          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+          
+          # Determine if we should publish
+          SHOULD_PUBLISH="false"
+          if [ "${{ github.event_name }}" = "push" ] && \
+             ([ "${{ github.ref }}" = "refs/heads/BE-Master" ] || \
+              [ "${{ github.ref }}" = "refs/heads/BE-Staging" ]); then
+            SHOULD_PUBLISH="true"
+          fi
+          echo "should_publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+
+      - name: Initialize CI state
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job initialization
+
+      - name: Finish initialization job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job initialization --status ${{ job.status }}
+
+  # Build job - always runs
+  build:
+    needs: initialization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start build job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job build
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: linux/amd64, linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build single-arch image and save tar artifact
+        run: |
+          GITHUB_OWNER="${{ needs.initialization.outputs.github_owner }}"
+          GITHUB_REPO="${{ needs.initialization.outputs.github_repo }}"
+          # Use the first tag from prep-build (which is the short SHA)
+          FIRST_TAG=$(echo "${{ needs.initialization.outputs.tag_list }}" | awk '{print $1}')
+          IMAGE="${GITHUB_OWNER}/${GITHUB_REPO}:${FIRST_TAG}"
+          
+          # Build with all tags from prep-build
+          TAGS="${{ needs.initialization.outputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          
+          # Add --load to ensure the image is loaded into the local daemon for 'docker save'
+          docker build $TAG_ARGS . --load
+          
+          # Save the main image (short SHA) as artifact
+          mkdir -p /tmp/artifacts
+          docker save "${IMAGE}" -o /tmp/artifacts/docker-image-${GITHUB_SHA}.tar
+
+      - name: Upload docker image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: /tmp/artifacts/docker-image-${{ github.sha }}.tar
+      
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Upload poetry version artifact
+        run: echo "${{ needs.initialization.outputs.version }}" > /tmp/poetry-version.txt
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: poetry-version
+          path: /tmp/poetry-version.txt
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow ci \
+            --artifact-dir ./all-artifacts
+
+      - name: Finish build job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job build --status ${{ job.status }}
+
+  # Lint jobs - run in parallel after build
+  mypy:
+    needs: [initialization, build]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start mypy job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job mypy
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run mypy
+        id: mypy
+        run: |
+          mkdir -p reports
+          # Run mypy and capture both stdout and stderr
+          uv run mypy . > reports/mypy.txt 2>&1 || true
+          # Display the output
+          if [ -f reports/mypy.txt ]; then
+            echo "## Mypy Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/mypy.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Check if mypy found any errors
+            if grep -q "error:" reports/mypy.txt; then
+              echo "Mypy found errors. Failing job."
+              exit 1
+            fi
+          else
+            echo "## Mypy Results" >> $GITHUB_STEP_SUMMARY
+            echo "No mypy output file generated" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload mypy report
+        uses: actions/upload-artifact@v7
+        with:
+          name: mypy-report
+          path: reports/mypy.txt
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow ci
+
+      - name: Finish mypy job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job mypy --status ${{ job.status }}
+
+  ruff:
+    needs: [initialization, build]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start ruff job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job ruff
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run ruff
+        id: ruff
+        run: |
+          mkdir -p reports
+          # Run ruff check and capture output
+          uv run ruff check . > reports/ruff.txt 2>&1 || true
+          # Run ruff format check and capture output
+          uv run ruff format . --check > reports/ruff-format.txt 2>&1 || true
+          # Display the output
+          if [ -f reports/ruff.txt ]; then
+            echo "## Ruff Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/ruff-format.txt ]; then
+            echo "## Ruff Format Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff-format.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          # Check if ruff found any errors
+          if grep -q "error\|E\|F" reports/ruff.txt || grep -q "would reformat\|error" reports/ruff-format.txt; then
+            echo "Ruff found errors. Failing job."
+            exit 1
+          fi
+
+      - name: Upload ruff reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: ruff-reports
+          path: |
+            reports/ruff.txt
+            reports/ruff-format.txt
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow ci \
+            --artifact-dir ./all-artifacts
+
+      - name: Finish ruff job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job ruff --status ${{ job.status }}
+
+  # Security scan - runs in parallel
+  bandit:
+    needs: [initialization, build]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start bandit job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job bandit
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run bandit (security lint)
+        id: bandit
+        run: |
+          mkdir -p reports
+          # Run bandit and capture output (configuration from pyproject.toml)
+          uv run bandit -c ./pyproject.toml -r . -f json -o reports/bandit.json || true
+          # Parse and display the output using our parser
+          if [ -f reports/bandit.json ]; then
+            python3 tools/parse_bandit.py reports/bandit.json >> $GITHUB_STEP_SUMMARY
+            BANDIT_EXIT_CODE=$?
+            # Check exit code from parser (1 if high/medium severity issues found)
+            if [ $BANDIT_EXIT_CODE -eq 1 ]; then
+              echo "Bandit found security issues. Failing job."
+              exit 1
+            fi
+          else
+            echo "## Bandit Results" >> $GITHUB_STEP_SUMMARY
+            echo "❌ No bandit output file generated" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bandit-report
+          path: reports/bandit.json
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow ci \
+            --artifact-dir ./all-artifacts
+
+      - name: Finish bandit job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job bandit --status ${{ job.status }}
+
+  # Test job - runs after build
+  test:
+    needs: [initialization, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start test job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job test
+
+      - name: Download docker image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+          path: ./artifacts
+          retry-exit-code: 1
+          retry-on: error
+
+      - name: Load docker image
+        run: |
+          IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
+          if [ -n "$IMG_TAR" ]; then 
+            docker load -i "$IMG_TAR"
+            # Tag with the first tag from prep-build (usually short SHA) for consistency
+            FIRST_TAG=$(echo "${{ needs.initialization.outputs.tag_list }}" | awk '{print $1}')
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
+            # Also tag as latest for the test
+            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+          fi
+
+      - name: Prepare test image tag
+        id: test-tag
+        run: |
+          FIRST_TAG=$(echo "${{ needs.initialization.outputs.tag_list }}" | awk '{print $1}')
+          echo "tag=${{ needs.initialization.outputs.github_owner }}/${{ needs.initialization.outputs.github_repo }}:$FIRST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Start containers
+        id: start-containers
+        run: docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test
+        env:
+          TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
+
+      - name: Run tests
+        id: run-tests
+        run: docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
+        env:
+          TEST_IMAGE: ${{ steps.test-tag.outputs.tag }}
+
+      - name: Capture container logs on failure
+        if: failure()
+        run: |
+          echo "=== Capturing container logs for debugging ==="
+          mkdir -p /tmp/container-logs
+          
+          echo "Container status:"
+          docker compose -f docker-compose.test.yml ps > /tmp/container-logs/container-status.txt 2>&1
+          cat /tmp/container-logs/container-status.txt
+          echo ""
+          
+          echo "=== bancho-test logs ==="
+          docker compose -f docker-compose.test.yml logs bancho-test > /tmp/container-logs/bancho-test.log 2>&1 || true
+          cat /tmp/container-logs/bancho-test.log
+          echo ""
+          
+          echo "=== mysql-test logs ==="
+          docker compose -f docker-compose.test.yml logs mysql-test > /tmp/container-logs/mysql-test.log 2>&1 || true
+          cat /tmp/container-logs/mysql-test.log
+          echo ""
+          
+          echo "=== redis-test logs ==="
+          docker compose -f docker-compose.test.yml logs redis-test > /tmp/container-logs/redis-test.log 2>&1 || true
+          cat /tmp/container-logs/redis-test.log
+          echo ""
+          
+          echo "=== All container logs ==="
+          docker compose -f docker-compose.test.yml logs > /tmp/container-logs/all-containers.log 2>&1 || true
+          cat /tmp/container-logs/all-containers.log
+
+      - name: Archive logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: container-logs-${{ github.run_id }}
+          path: |
+            /tmp/container-logs/
+          retention-days: 7
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-coverage-report
+          path: coverage/
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+      
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow ci \
+            --artifact-dir ./all-artifacts
+      
+      - name: Finish test job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job test --status ${{ job.status }}
+
+  # Release job - conditional on branch/tag
+  release:
+    needs: [initialization, build, mypy, ruff, bandit, test]
+    if: needs.initialization.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start release job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job release
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: bandit-report
+          path: ./artifacts
+          if-no-artifact-found: warn
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: code-coverage-report
+          path: ./artifacts
+          if-no-artifact-found: warn
+
+      - name: Generate source archive
+        run: tar -czf source-code.tar.gz --exclude='.git' --exclude='*.tar.gz' .
+
+      - name: Collect optional artifacts into release-artifacts.tar.gz
+        run: |
+          mkdir -p collected
+          # copy if present
+          [ -f "./artifacts/bandit.json" ] && cp "./artifacts/bandit.json" collected/ || true
+          if [ -d "./artifacts/coverage" ]; then cp -r ./artifacts/coverage collected/ || true; fi
+          tar -czf release-artifacts.tar.gz collected || true
+
+      - name: Create GitHub Release (attach files)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.initialization.outputs.version }}
+          name: Release v${{ needs.initialization.outputs.version }}
+          body: |
+            Release v${{ needs.initialization.outputs.version }}
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/BE-Master' }}
+          files: |
+            source-code.tar.gz
+            release-artifacts.tar.gz
+
+      - name: Parse Results
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow ci
+
+      - name: Finish release job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job release --status ${{ job.status }}
+
+  # Publish job - conditional on branch
+  publish:
+    needs: [initialization, build, release]
+    if: needs.initialization.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start publish job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job publish
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: linux/amd64, linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate Docker tags
+        id: tags
+        run: |
+          DOCKER_USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          TAGS=""
+          for TAG in ${{ needs.initialization.outputs.tag_list }}; do
+            TAGS="$TAGS$DOCKER_USER/kawata.py:$TAG\n"
+          done
+          # Use heredoc to handle newlines properly
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Build and push multi-arch images
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64, linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow ci
+
+      - name: Finish publish job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job publish --status ${{ job.status }}
+
+  # Final summary - always runs
+  final-summary:
+    needs: [initialization, build, mypy, ruff, bandit, test, release, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start final-summary job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job final-summary
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: ./all-artifacts
+
+      - name: Generate summary report
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --run-id ${{ github.run_id }} \
+            --artifact-dir ./all-artifacts \
+            --workflow ci
+
+      - name: Parse Results
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Finish workflow
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --status ${{ job.status }}
