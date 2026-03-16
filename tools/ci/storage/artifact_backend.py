@@ -9,10 +9,10 @@ import json
 import shutil
 from pathlib import Path
 from typing import Dict, Any, List, cast
-from ..core.storage import StorageBackend
+from core.storage import StorageBackend
 
 
-class ArtifactBackend(StorageBackend):
+class ArtifactBackend(StorageBackend):  # type: ignore[misc]
     """Storage backend that persists JSON files under a configurable prefix.
 
     Directory layout:

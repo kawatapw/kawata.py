@@ -145,5 +145,5 @@ def get_backend(name: str, config: Dict[str, Any]) -> StorageBackend:
 
 
 # Register artifact backend
-from ..storage.artifact_backend import ArtifactBackend
+from storage.artifact_backend import ArtifactBackend
 register_backend('artifact', ArtifactBackend)

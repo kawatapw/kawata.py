@@ -1,8 +1,8 @@
 """Report aggregation module."""
 import argparse
 from typing import Dict, Any, List
-from ...core.context import Context
-from ...core.storage import get_backend
+from core.context import Context
+from core.storage import get_backend
 
 
 def aggregate(args: argparse.Namespace, context: Context, config: Dict[str, Any]) -> Dict[str, Any]:

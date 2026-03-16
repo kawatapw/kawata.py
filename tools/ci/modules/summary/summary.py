@@ -5,9 +5,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Any, List, Optional, cast
 from jinja2 import Environment, FileSystemLoader
-from ...core.context import Context
-from ...core.storage import get_backend
-from ..parsers.registry import parse_file, detect_parser, list_parsers
+from core.context import Context
+from core.storage import get_backend
+from modules.parsers.registry import parse_file, detect_parser, list_parsers
 
 
 def _find_state_in_artifacts(artifact_path: Path, workflow_name: str, run_id: str) -> Dict[str, Any]:

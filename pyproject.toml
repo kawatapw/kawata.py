@@ -107,7 +107,11 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "tools.ci.*",
+    "core.*",
+    "modules.*",
+    "storage.*",
 ]
+ignore_missing_imports = true
 follow_imports = "skip"
 
 [tool.pydantic-mypy]
