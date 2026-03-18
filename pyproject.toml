@@ -1,6 +1,6 @@
 [project]
 name = "kawata-py"
-version = "5.3.1"
+version = "5.3.2"
 description = "A supercharged fork of an osu! server implementation optimized for maintainability in modern python"
 authors = [
     {name = "Akatsuki Team", email = "team@akatsuki.pw"},

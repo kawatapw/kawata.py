@@ -84,6 +84,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import BaseModel
+from .seasons import SeasonInfo
 
 # input models
 
@@ -115,6 +116,7 @@ class Score(BaseModel):
         play_time: When the score was played
         time_elapsed: Time taken to complete the map
         perfect: Whether the score is a full combo
+        season: Season information (if seasons enabled)
     """
     id: int
     map_md5: str
@@ -140,3 +142,4 @@ class Score(BaseModel):
     play_time: datetime
     time_elapsed: int
     perfect: bool
+    season: SeasonInfo | None = None

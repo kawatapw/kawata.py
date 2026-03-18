@@ -115,6 +115,7 @@ from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.beatmap import RankedStatus
 from app.repositories import clans as clans_repo
 from app.repositories import scores as scores_repo
+from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
@@ -283,6 +284,7 @@ async def api_get_player_info(
     scope: Literal["stats", "info", "all"],
     user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> Response:
     """Return information about a given player."""
     if user_id:
@@ -332,7 +334,7 @@ async def api_get_player_info(
         api_data["stats"] = {}
 
         # get all stats
-        all_stats = await stats_repo.fetch_many(player_id=resolved_user_id)
+        all_stats = await stats_repo.fetch_many(player_id=resolved_user_id, season_id=season_id)
 
         for mode_stats in all_stats:
             rank = await app.state.services.redis.zrevrank(
@@ -563,6 +565,7 @@ async def api_get_player_scores(
     limit: int = Query(25, ge=1, le=100),
     include_loved: bool = False,
     include_failed: bool = True,
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> Response:
     """Return a list of a given user's recent/best scores."""
     if mode_arg in (
@@ -633,6 +636,13 @@ async def api_get_player_scores(
         "user_id": player.id,
         "mode": mode,
     }
+
+    if season_id is not None:
+        season = await seasons_repo.fetch_one(id=season_id)
+        if season:
+            query.append("AND t.play_time >= :start_date AND t.play_time < :end_date")
+            params["start_date"] = season["start_date"]
+            params["end_date"] = season["end_date"]
 
     if mods is not None:
         if strong_equality:
@@ -839,6 +849,7 @@ async def api_get_map_scores(
     mods_arg: str | None = Query(None, alias="mods"),
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
     limit: int = Query(50, ge=1, le=100),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> Response:
     """Return the top n scores on a given beatmap."""
     if mode_arg in (
@@ -905,6 +916,13 @@ async def api_get_map_scores(
         "map_md5": bmap.md5,
         "mode": mode,
     }
+
+    if season_id is not None:
+        season = await seasons_repo.fetch_one(id=season_id)
+        if season:
+            query.append("AND s.play_time >= :start_date AND s.play_time < :end_date")
+            params["start_date"] = season["start_date"]
+            params["end_date"] = season["end_date"]
 
     if mods is not None:
         if strong_equality:
@@ -1152,6 +1170,7 @@ async def api_get_global_leaderboard(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, min=0, max=2_147_483_647),
     country: str | None = Query(None, min_length=2, max_length=2),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> Response:
     if mode_arg in (
         GameMode.RELAX_MANIA,
@@ -1172,6 +1191,10 @@ async def api_get_global_leaderboard(
     if country is not None:
         query_conditions.append("u.country = :country")
         query_parameters["country"] = country
+
+    if season_id is not None:
+        query_conditions.append("s.season_id = :season_id")
+        query_parameters["season_id"] = season_id
 
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id as player_id, u.name, u.country, s.tscore, s.rscore, "

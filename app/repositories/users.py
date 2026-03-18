@@ -152,6 +152,8 @@ class UsersTable(Base):
     custom_badge_icon = Column(String(64))
     userpage_content = Column(String(2048, collation="utf8"))
     api_key = Column(String(36))
+    preferred_lb_view = Column(String(16), nullable=False, server_default="all_time")
+    preferred_schedule_id = Column(Integer, nullable=True)
 
     __table_args__ = (
         Index("users_priv_index", priv),
@@ -182,6 +184,8 @@ READ_PARAMS = (
     UsersTable.custom_badge_name,
     UsersTable.custom_badge_icon,
     UsersTable.userpage_content,
+    UsersTable.preferred_lb_view,
+    UsersTable.preferred_schedule_id,
 )
 
 
@@ -204,6 +208,8 @@ class User(TypedDict):
     custom_badge_icon: str | None
     userpage_content: str | None
     api_key: str | None
+    preferred_lb_view: str
+    preferred_schedule_id: int | None
 
 
 async def create(
@@ -334,6 +340,8 @@ async def partial_update(
     custom_badge_icon: str | None | _UnsetSentinel = UNSET,
     userpage_content: str | None | _UnsetSentinel = UNSET,
     api_key: str | None | _UnsetSentinel = UNSET,
+    preferred_lb_view: str | _UnsetSentinel = UNSET,
+    preferred_schedule_id: int | None | _UnsetSentinel = UNSET,
 ) -> User | None:
     """Update a user in the database."""
     update_stmt = update(UsersTable).where(UsersTable.id == id)
@@ -369,6 +377,10 @@ async def partial_update(
         update_stmt = update_stmt.values(userpage_content=userpage_content)
     if not isinstance(api_key, _UnsetSentinel):
         update_stmt = update_stmt.values(api_key=api_key)
+    if not isinstance(preferred_lb_view, _UnsetSentinel):
+        update_stmt = update_stmt.values(preferred_lb_view=preferred_lb_view)
+    if not isinstance(preferred_schedule_id, _UnsetSentinel):
+        update_stmt = update_stmt.values(preferred_schedule_id=preferred_schedule_id)
 
     await app.state.services.database.execute(update_stmt)
 

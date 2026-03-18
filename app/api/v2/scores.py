@@ -77,6 +77,7 @@ async def get_all_scores(
     status: int | None = None,
     mode: int | None = None,
     user_id: int | None = None,
+    season_id: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
 ) -> Success[list[Score]] | Failure:
@@ -86,6 +87,7 @@ async def get_all_scores(
         status=status,
         mode=mode,
         user_id=user_id,
+        season_id=season_id,
         page=page,
         page_size=page_size,
     )
@@ -95,6 +97,7 @@ async def get_all_scores(
         status=status,
         mode=mode,
         user_id=user_id,
+        season_id=season_id,
     )
 
     response = [Score.from_mapping(rec) for rec in scores]

@@ -245,7 +245,7 @@ async def bancho_http_handler() -> Response:
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+<body style="font-family: monospace; white-space: pre-wrap;">Running kawata.py v{app.settings.VERSION}
 
 <a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
@@ -253,7 +253,7 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/kawatapw/kawata.py">Source code</a>
 </body>
 </html>""",
     )
@@ -1183,6 +1183,7 @@ async def handle_osu_login_request(
             login_time=login_time,
             is_tourney_client=osu_version.stream == "tourney",
             api_key=user_info["api_key"],
+            preferred_lb_view=user_info.get("preferred_lb_view", "all_time"),
         )
     except Exception as e:
         log(f"Error creating player object", Ansi.LRED, 
@@ -1268,8 +1269,9 @@ async def handle_osu_login_request(
     try:
         await player.stats_from_sql_full()
         await player.relationships_from_sql()
+        await player.load_season_stats()
     except Exception as e:
-        log(f"Error fetching player stats/relationships", Ansi.LRED, 
+        log(f"Error fetching player stats/relationships", Ansi.LRED,
             extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
         # Continue anyway, we can still let them log in
 

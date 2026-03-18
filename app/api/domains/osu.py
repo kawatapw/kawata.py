@@ -150,7 +150,7 @@ from app.objects import models
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import RankedStatus
 from app.objects.beatmap import ensure_osu_file_is_available
-from app.objects.player import Player
+from app.objects.player import ModeData, Player
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
@@ -161,6 +161,7 @@ from app.repositories import mail as mail_repo
 from app.repositories import maps as maps_repo
 from app.repositories import ratings as ratings_repo
 from app.repositories import scores as scores_repo
+from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.repositories.achievements import Achievement
@@ -170,6 +171,7 @@ from app.utils import escape_enum
 from app.utils import pymysql_encode
 
 import time, shutil, zipfile
+from datetime import datetime
 from app.logging import error_catcher
 
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -661,9 +663,12 @@ async def osuSubmitModularSelector(
     cheat_values: str | None = Form(None, alias="cv"),
 ) -> Response:
     """Handle a score submission from an osu! client with an active session."""
+    
+    log(f"Score submission received from {request.url.path}", Ansi.LCYAN)
 
    # If the request is from the old client endpoint and CHEAT_SERVER is disabled, 404.
     if request.url.path == "/web/osu-submit-modular.php" and not app.settings.CHEAT_SERVER:
+        log("Old client endpoint disabled, returning 404", Ansi.LYELLOW)
         return Response(b"", status_code=404)
 
     if app.settings.DEBUG_LEVEL >= 1 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
@@ -689,60 +694,86 @@ async def osuSubmitModularSelector(
 
     # extract the score data and replay file from the score data
     score_data_b64, replay_file = score_parameters
+    
+    log("Parsing score data from submission", Ansi.LCYAN)
 
     # decrypt the score data (aes)
     # Handle None values for required parameters
     if client_hash_b64 is None or iv_b64 is None or osu_version is None:
+        log("Missing required parameters for score decryption", Ansi.LRED)
         return Response(b"error: invalid score data")
     
+    log("Decrypting score data", Ansi.LCYAN)
     score_data, client_hash_decoded = encryption.decrypt_score_aes_data(
         score_data_b64,
         client_hash_b64,
         iv_b64,
         osu_version,
     )
+    
+    log(f"Score data decrypted, length: {len(score_data)}", Ansi.LCYAN)
 
     # fetch map & player
 
     bmap_md5 = score_data[0]
+    log(f"Looking up beatmap with MD5: {bmap_md5}", Ansi.LCYAN)
     bmap = await Beatmap.from_md5(bmap_md5)
     if not bmap:
         # Map does not exist, most likely unsubmitted.
+        log(f"Beatmap not found for MD5: {bmap_md5}", Ansi.LYELLOW)
         return Response(b"error: beatmap")
+    
+    log(f"Beatmap found: {bmap.full_name} (ID: {bmap.id})", Ansi.LCYAN)
 
     # if the client has supporter, a space is appended
     # but usernames may also end with a space, which must be preserved
     username = score_data[1]
     if username[-1] == " ":
         username = username[:-1]
+    
+    log(f"Looking up player: {username}", Ansi.LCYAN)
 
     if pw_md5 is None:
+        log("Password MD5 is None", Ansi.LRED)
         return Response(b"error: invalid score data")
     
     player = await app.state.sessions.players.from_login(username, pw_md5)
     if not player:
         # Player is not online, return nothing so that their
         # client will retry submission when they log in.
+        log(f"Player not found or not online: {username}", Ansi.LYELLOW)
         return Response(b"")
+    
+    log(f"Player found: {player.name} (ID: {player.id})", Ansi.LCYAN)
 
     # parse the score from the remaining data
+    log("Parsing score from submission data", Ansi.LCYAN)
     score = Score.from_submission(score_data[2:])
 
     # attach bmap & player
     score.bmap = bmap
     score.player = player
+    
+    log(f"Score parsed: {score.mode!r} on {bmap.full_name} by {player.name}", Ansi.LCYAN)
 
     ## perform checksum validation
+    
+    log("Performing checksum validation", Ansi.LCYAN)
 
     if unique_ids is None:
+        log("Unique IDs are None", Ansi.LRED)
         return Response(b"error: invalid score data")
     
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
     unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
     unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
+    
+    log(f"Unique IDs validated: {unique_id1_md5[:8]}... / {unique_id2_md5[:8]}...", Ansi.LCYAN)
 
     try:
         assert player.client_details is not None
+        
+        log("Validating client details", Ansi.LCYAN)
         
         if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
             raise ValueError(f"osu! version mismatch: expected {player.client_details.osu_version.date:%Y%m%d}, got {osu_version}")
@@ -777,10 +808,13 @@ async def osuSubmitModularSelector(
             raise ValueError(
                 f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
             )
+        
+        log("All checksum validations passed", Ansi.LGREEN)
 
     except (ValueError, AssertionError) as e:
         # NOTE: this is undergoing a temporary trial period,
         # after which, it will be enabled & perform restrictions.
+        log(f"Checksum validation failed: {e}", Ansi.LRED)
         stacktrace = app.utils.get_appropriate_stacktrace()
         if app.settings.CHEAT_SERVER:
             log(f"{player} submitted a strange score, {e}", Ansi.LYELLOW, extra={
@@ -830,33 +864,49 @@ async def osuSubmitModularSelector(
 
         # all data read from submission.
         # now we can calculate things based on our data.
+        log("Calculating score accuracy", Ansi.LCYAN)
         score.acc = score.calculate_accuracy()
+        log(f"Score accuracy: {score.acc:.2f}%", Ansi.LCYAN)
 
+        log("Checking if osu file is available", Ansi.LCYAN)
         osu_file_available = await ensure_osu_file_is_available(
             bmap.id,
             expected_md5=bmap.md5,
         )
+        
         if osu_file_available:
+            log("Calculating performance points", Ansi.LCYAN)
             score.pp, score.sr = score.calculate_performance(bmap.id)
+            log(f"Score PP: {score.pp:.2f}, SR: {score.sr:.2f}", Ansi.LCYAN)
 
             if score.passed:
+                log("Calculating score status", Ansi.LCYAN)
                 await score.calculate_status()
+                log(f"Score status: {score.status!r}", Ansi.LCYAN)
 
                 if score.bmap.status != RankedStatus.Pending:
+                    log("Calculating score placement", Ansi.LCYAN)
                     score.rank = await score.calculate_placement()
+                    log(f"Score rank: #{score.rank}", Ansi.LCYAN)
             else:
                 score.status = SubmissionStatus.FAILED
+                log("Score failed", Ansi.LYELLOW)
 
             score.time_elapsed = int(score_time) if score.passed and score_time is not None else int(fail_time) if fail_time is not None else 0
+            log(f"Score time elapsed: {score.time_elapsed}ms", Ansi.LCYAN)
 
         # TODO: re-implement pp caps for non-whitelisted players?
 
         """ Score submission checks completed; submit the score. """
+        
+        log("Score validation complete, submitting to database", Ansi.LCYAN)
 
         if app.state.services.datadog:
             app.state.services.datadog.increment("bancho.submitted_scores")  # type: ignore[no-untyped-call]
 
         if score.status == SubmissionStatus.BEST:
+            log("Score is new personal best", Ansi.LGREEN)
+            
             if app.state.services.datadog:
                 app.state.services.datadog.increment("bancho.submitted_scores_best")  # type: ignore[no-untyped-call]
 
@@ -871,6 +921,7 @@ async def osuSubmitModularSelector(
                 else:
                     performance = f"{score.pp:,.2f}pp"
 
+                log(f"Sending achievement notification: #{score.rank} ({performance})", Ansi.LCYAN)
                 score.player.enqueue(
                     app.packets.notification(
                         f"You achieved #{score.rank}! ({performance})",
@@ -878,6 +929,7 @@ async def osuSubmitModularSelector(
                 )
 
                 if score.rank == 1 and not score.player.restricted:
+                    log("Score is #1, announcing to #announce channel", Ansi.LGREEN)
                     announce_chan = app.state.sessions.channels.get_by_name("#announce")
 
                     ann = [
@@ -918,6 +970,7 @@ async def osuSubmitModularSelector(
             # this score is our best score.
             # update any preexisting personal best
             # records with SubmissionStatus.SUBMITTED.
+            log("Updating previous best scores to submitted status", Ansi.LCYAN)
             await app.state.services.database.execute(
                 "UPDATE scores SET status = 1 "
                 "WHERE status = 2 AND map_md5 = :map_md5 "
@@ -929,6 +982,7 @@ async def osuSubmitModularSelector(
                 },
             )
 
+        log("Inserting score into database", Ansi.LCYAN)
         score.id = await app.state.services.database.execute(
             "INSERT INTO scores "
             "VALUES (NULL, "
@@ -962,62 +1016,88 @@ async def osuSubmitModularSelector(
                 "checksum": score.client_checksum,
             },
         )
+        log(f"Score inserted with ID: {score.id}", Ansi.LGREEN)
 
     if score.passed:
+        log("Score passed, handling replay file", Ansi.LCYAN)
         replay_data = await replay_file.read()
+        log(f"Replay data size: {len(replay_data)} bytes", Ansi.LCYAN)
 
         MIN_REPLAY_SIZE = 24
 
         if len(replay_data) >= MIN_REPLAY_SIZE:
             replay_disk_file = REPLAYS_PATH / f"{score.id}.osr"
             replay_disk_file.write_bytes(replay_data)
+            log(f"Replay saved to: {replay_disk_file}", Ansi.LGREEN)
         else:
             log(f"{score.player} submitted a score without a replay!", Ansi.LRED)
 
             if not score.player.restricted:
+                log(f"Restricting player {score.player.name} for submitting score without replay", Ansi.LRED)
                 await score.player.restrict(
                     admin=app.state.sessions.bot,
                     reason="submitted score with no replay",
                 )
                 if score.player.is_online:
+                    log(f"Logging out player {score.player.name} after restriction", Ansi.LRED)
                     score.player.logout()
 
     """ Update the user's & beatmap's stats """
+    
+    log("Updating player and beatmap statistics", Ansi.LCYAN)
 
-    # get the current stats, and take a
-    # shallow copy for the response charts.
-    stats = score.player.stats[score.mode]
-    prev_stats = copy.copy(stats)
+    # Get all-time stats (always updated)
+    all_time_stats = score.player.stats[score.mode]
+    all_time_prev = copy.copy(all_time_stats)
+    
+    log(f"Previous all-time stats - PP: {all_time_prev.pp}, Acc: {all_time_prev.acc:.2f}%, Plays: {all_time_prev.plays}", Ansi.LCYAN)
 
-    # stuff update for all submitted scores
-    stats.playtime += score.time_elapsed // 1000
-    stats.plays += 1
-    stats.tscore += score.score
-    stats.total_hits += score.n300 + score.n100 + score.n50
+    # Calculate deltas for this score
+    delta_playtime = score.time_elapsed // 1000
+    delta_plays = 1
+    delta_tscore = score.score
+    delta_total_hits = score.n300 + score.n100 + score.n50
 
     if score.mode.as_vanilla in (1, 3):
         # taiko uses geki & katu for hitting big notes with 2 keys
         # mania uses geki & katu for rainbow 300 & 200
-        stats.total_hits += score.ngeki + score.nkatu
+        delta_total_hits += score.ngeki + score.nkatu
 
-    stats_updates: dict[str, Any] = {
-        "plays": stats.plays,
-        "playtime": stats.playtime,
-        "tscore": stats.tscore,
-        "total_hits": stats.total_hits,
+    # Update all-time stats with deltas
+    all_time_stats.playtime += delta_playtime
+    all_time_stats.plays += delta_plays
+    all_time_stats.tscore += delta_tscore
+    all_time_stats.total_hits += delta_total_hits
+
+    all_time_updates: dict[str, Any] = {
+        "plays": all_time_stats.plays,
+        "playtime": all_time_stats.playtime,
+        "tscore": all_time_stats.tscore,
+        "total_hits": all_time_stats.total_hits,
     }
+    
+    log(f"All-time stats updated - Plays: {all_time_stats.plays}, Playtime: {all_time_stats.playtime}s, Total Score: {all_time_stats.tscore}", Ansi.LCYAN)
+
+    # Track grade changes for all-time stats
+    delta_grades: dict[Grade, int] = {grade: 0 for grade in Grade}
+    delta_rscore = 0
+    delta_max_combo = 0
 
     if score.passed and score.bmap.has_leaderboard:
         # player passed & map is ranked, approved, or loved.
+        log("Score passed on ranked map, updating ranked stats", Ansi.LCYAN)
 
-        if score.max_combo > stats.max_combo:
-            stats.max_combo = score.max_combo
-            stats_updates["max_combo"] = stats.max_combo
+        if score.max_combo > all_time_stats.max_combo:
+            delta_max_combo = score.max_combo - all_time_stats.max_combo
+            all_time_stats.max_combo = score.max_combo
+            all_time_updates["max_combo"] = all_time_stats.max_combo
+            log(f"New max combo: {all_time_stats.max_combo}", Ansi.LCYAN)
 
         if score.bmap.awards_ranked_pp and score.status == SubmissionStatus.BEST:
             # map is ranked or approved, and it's our (new)
             # best score on the map. update the player's
             # ranked score, grades, pp, acc and global rank.
+            log("Updating ranked score, grades, pp, acc and rank", Ansi.LCYAN)
 
             additional_rscore = score.score
             if score.prev_best:
@@ -1027,29 +1107,37 @@ async def osuSubmitModularSelector(
 
                 if score.grade != score.prev_best.grade:
                     if score.grade >= Grade.A:
-                        stats.grades[score.grade] += 1
+                        delta_grades[score.grade] += 1
+                        all_time_stats.grades[score.grade] += 1
                         grade_col = format(score.grade, "stats_column")
-                        stats_updates[grade_col] = stats.grades[score.grade]
+                        all_time_updates[grade_col] = all_time_stats.grades[score.grade]
+                        log(f"Grade changed: {score.prev_best.grade} -> {score.grade}", Ansi.LCYAN)
 
                     if score.prev_best.grade >= Grade.A:
-                        stats.grades[score.prev_best.grade] -= 1
+                        delta_grades[score.prev_best.grade] -= 1
+                        all_time_stats.grades[score.prev_best.grade] -= 1
                         grade_col = format(score.prev_best.grade, "stats_column")
-                        stats_updates[grade_col] = stats.grades[score.prev_best.grade]
+                        all_time_updates[grade_col] = all_time_stats.grades[score.prev_best.grade]
             else:
                 # this is our first submitted score on the map
                 if score.grade >= Grade.A:
-                    stats.grades[score.grade] += 1
+                    delta_grades[score.grade] += 1
+                    all_time_stats.grades[score.grade] += 1
                     grade_col = format(score.grade, "stats_column")
-                    stats_updates[grade_col] = stats.grades[score.grade]
+                    all_time_updates[grade_col] = all_time_stats.grades[score.grade]
+                    log(f"First score on map, grade: {score.grade.name}", Ansi.LCYAN)
 
-            stats.rscore += additional_rscore
-            stats_updates["rscore"] = stats.rscore
+            delta_rscore = additional_rscore
+            all_time_stats.rscore += additional_rscore
+            all_time_updates["rscore"] = all_time_stats.rscore
+            log(f"Ranked score updated: +{additional_rscore} (total: {all_time_stats.rscore})", Ansi.LCYAN)
 
             # fetch scores sorted by pp for total acc/pp calc
             # NOTE: we select all plays (and not just top100)
             # because bonus pp counts the total amount of ranked
             # scores. I'm aware this scales horribly, and it'll
             # likely be split into two queries in the future.
+            log("Fetching best scores for weighted pp/acc calculation", Ansi.LCYAN)
             best_scores = await app.state.services.database.fetch_all(
                 "SELECT s.pp, s.acc FROM scores s "
                 "INNER JOIN maps m ON s.map_md5 = m.md5 "
@@ -1058,50 +1146,226 @@ async def osuSubmitModularSelector(
                 "ORDER BY s.pp DESC",
                 {"user_id": score.player.id, "mode": score.mode},
             )
+            
+            log(f"Found {len(best_scores or [])} best scores for calculation", Ansi.LCYAN)
 
             # calculate new total weighted accuracy
             weighted_acc = sum(
                 row["acc"] * 0.95**i for i, row in enumerate(best_scores or [])
             )
             bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores or [])))
-            stats.acc = (weighted_acc * bonus_acc) / 100
-            stats_updates["acc"] = stats.acc
+            all_time_stats.acc = (weighted_acc * bonus_acc) / 100
+            all_time_updates["acc"] = all_time_stats.acc
+            log(f"Weighted accuracy calculated: {all_time_stats.acc:.2f}%", Ansi.LCYAN)
 
             # calculate new total weighted pp
             weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores or []))
             bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores or []))
-            stats.pp = round(weighted_pp + bonus_pp)
-            stats_updates["pp"] = stats.pp
+            all_time_stats.pp = round(weighted_pp + bonus_pp)
+            all_time_updates["pp"] = all_time_stats.pp
+            log(f"Weighted PP calculated: {all_time_stats.pp:.2f}pp", Ansi.LCYAN)
 
             # update global & country ranking
-            stats.rank = await score.player.update_rank(score.mode)
+            log("Updating player rank", Ansi.LCYAN)
+            all_time_stats.rank = await score.player.update_rank(score.mode)
+            log(f"Player rank updated: #{all_time_stats.rank}", Ansi.LCYAN)
 
+    log("Updating all-time stats in database", Ansi.LCYAN)
     await stats_repo.partial_update(
         score.player.id,
         score.mode.value,
-        plays=stats_updates.get("plays", UNSET),
-        playtime=stats_updates.get("playtime", UNSET),
-        tscore=stats_updates.get("tscore", UNSET),
-        total_hits=stats_updates.get("total_hits", UNSET),
-        max_combo=stats_updates.get("max_combo", UNSET),
-        xh_count=stats_updates.get("xh_count", UNSET),
-        x_count=stats_updates.get("x_count", UNSET),
-        sh_count=stats_updates.get("sh_count", UNSET),
-        s_count=stats_updates.get("s_count", UNSET),
-        a_count=stats_updates.get("a_count", UNSET),
-        rscore=stats_updates.get("rscore", UNSET),
-        acc=stats_updates.get("acc", UNSET),
-        pp=stats_updates.get("pp", UNSET),
+        plays=all_time_updates.get("plays", UNSET),
+        playtime=all_time_updates.get("playtime", UNSET),
+        tscore=all_time_updates.get("tscore", UNSET),
+        total_hits=all_time_updates.get("total_hits", UNSET),
+        max_combo=all_time_updates.get("max_combo", UNSET),
+        xh_count=all_time_updates.get("xh_count", UNSET),
+        x_count=all_time_updates.get("x_count", UNSET),
+        sh_count=all_time_updates.get("sh_count", UNSET),
+        s_count=all_time_updates.get("s_count", UNSET),
+        a_count=all_time_updates.get("a_count", UNSET),
+        rscore=all_time_updates.get("rscore", UNSET),
+        acc=all_time_updates.get("acc", UNSET),
+        pp=all_time_updates.get("pp", UNSET),
     )
+    log("All-time stats updated in database", Ansi.LGREEN)
+
+    # Update season stats if seasons are enabled
+    log("Checking if seasons are enabled", Ansi.LCYAN)
+    
+    # Store season stats BEFORE update for chart generation
+    season_stats_before_map: dict[int, dict[str, Any]] = {}
+    
+    try:
+        seasons_enabled = await app.state.services.database.fetch_val(
+            "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
+        )
+        if seasons_enabled == '1':
+            log("Seasons are enabled, updating season stats", Ansi.LCYAN)
+            
+            # Get default schedule
+            default_schedule = await seasons_repo.fetch_default_schedule()
+            
+            # Collect all season IDs that need to be updated
+            seasons_to_update: set[int] = set()
+            
+            # 1. Add active season for default schedule (always)
+            if default_schedule:
+                default_active_season = await seasons_repo.fetch_active_season_by_schedule(default_schedule["id"])
+                if default_active_season and default_active_season["start_date"] <= score.server_time < default_active_season["end_date"]:
+                    seasons_to_update.add(default_active_season["id"])
+                    log(f"Will update default schedule active season: {default_active_season['id']}", Ansi.LCYAN)
+            
+            # 2. Add active season for player's preferred schedule (if different from default)
+            if (score.player.preferred_schedule_id is not None and 
+                (default_schedule is None or score.player.preferred_schedule_id != default_schedule["id"])):
+                preferred_active_season = await seasons_repo.fetch_active_season_by_schedule(score.player.preferred_schedule_id)
+                if preferred_active_season and preferred_active_season["start_date"] <= score.server_time < preferred_active_season["end_date"]:
+                    seasons_to_update.add(preferred_active_season["id"])
+                    log(f"Will update player's preferred schedule active season: {preferred_active_season['id']}", Ansi.LCYAN)
+            
+            # Fetch season stats BEFORE updating them (for chart generation)
+            # This must happen BEFORE the stats are updated to capture the "before" state
+            for season_id in seasons_to_update:
+                try:
+                    season_info = await seasons_repo.fetch_one(id=season_id)
+                    if not season_info:
+                        continue
+                    
+                    existing = await stats_repo.fetch_one(
+                        player_id=score.player.id,
+                        mode=score.mode.value,
+                        season_id=season_id,
+                    )
+                    if existing:
+                        # Store a copy of the stats BEFORE update
+                        season_stats_before_map[season_id] = dict(existing)
+                        log(f"Stored season {season_id} stats BEFORE update for chart: pp={existing['pp']}, acc={existing['acc']}", Ansi.LCYAN)
+                except Exception as e:
+                    log(f"Failed to fetch season stats before update: {e}", Ansi.LYELLOW)
+            
+            # Update each season with deltas
+            for season_id in seasons_to_update:
+                log(f"Updating season stats for season {season_id}", Ansi.LCYAN)
+                try:
+                    # Fetch the season to get its date range
+                    season_info = await seasons_repo.fetch_one(id=season_id)
+                    if not season_info:
+                        log(f"Season {season_id} not found, skipping", Ansi.LYELLOW)
+                        continue
+                    
+                    existing = await stats_repo.fetch_one(
+                        player_id=score.player.id,
+                        mode=score.mode.value,
+                        season_id=season_id,
+                    )
+                    if existing is None:
+                        log(f"Creating season stats rows for player {score.player.id}", Ansi.LCYAN)
+                        await stats_repo.create_all_modes_for_season(
+                            player_id=score.player.id,
+                            season_id=season_id,
+                        )
+                        # Fetch again after creation
+                        existing = await stats_repo.fetch_one(
+                            player_id=score.player.id,
+                            mode=score.mode.value,
+                            season_id=season_id,
+                        )
+                    
+                    if existing:
+                        # Apply deltas to season stats
+                        season_updates: dict[str, Any] = {
+                            "plays": existing["plays"] + delta_plays,
+                            "playtime": existing["playtime"] + delta_playtime,
+                            "tscore": existing["tscore"] + delta_tscore,
+                            "total_hits": existing["total_hits"] + delta_total_hits,
+                        }
+                        
+                        if delta_max_combo > 0:
+                            season_updates["max_combo"] = max(existing["max_combo"], all_time_stats.max_combo)
+                        
+                        if delta_rscore != 0:
+                            season_updates["rscore"] = existing["rscore"] + delta_rscore
+                        
+                        # Apply grade deltas
+                        for grade, delta in delta_grades.items():
+                            if delta != 0:
+                                grade_col = format(grade, "stats_column")
+                                season_updates[grade_col] = existing.get(grade_col, 0) + delta
+                        
+                        # For pp and acc, we need to recalculate for the season
+                        # Fetch best scores for this season to calculate weighted pp/acc
+                        log(f"Recalculating weighted pp/acc for season {season_id}", Ansi.LCYAN, level=logLevel.DEBUG)
+                        season_best_scores = await app.state.services.database.fetch_all(
+                            "SELECT s.pp, s.acc FROM scores s "
+                            "INNER JOIN maps m ON s.map_md5 = m.md5 "
+                            "WHERE s.userid = :user_id AND s.mode = :mode "
+                            "AND s.status = 2 AND m.status IN (2, 3) "  # ranked, approved
+                            "AND s.play_time >= :season_start AND s.play_time < :season_end "
+                            "ORDER BY s.pp DESC",
+                            {
+                                "user_id": score.player.id,
+                                "mode": score.mode,
+                                "season_start": season_info["start_date"],
+                                "season_end": season_info["end_date"],
+                            },
+                        )
+                        
+                        if season_best_scores:
+                            # calculate new total weighted accuracy for season
+                            season_weighted_acc = sum(
+                                row["acc"] * 0.95**i for i, row in enumerate(season_best_scores)
+                            )
+                            season_bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(season_best_scores)))
+                            season_acc = (season_weighted_acc * season_bonus_acc) / 100
+                            season_updates["acc"] = season_acc
+                            log(f"Season weighted accuracy calculated: {season_acc:.2f}% (from {len(season_best_scores)} scores)", Ansi.LCYAN, level=logLevel.DEBUG)
+
+                            # calculate new total weighted pp for season
+                            season_weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(season_best_scores))
+                            season_bonus_pp = 416.6667 * (1 - 0.9994 ** len(season_best_scores))
+                            season_pp = round(season_weighted_pp + season_bonus_pp)
+                            season_updates["pp"] = season_pp
+                            log(f"Season weighted PP calculated: {season_pp:.2f}pp (from {len(season_best_scores)} scores)", Ansi.LCYAN, level=logLevel.DEBUG)
+                        else:
+                            # No scores in season yet, use current score values
+                            season_updates["pp"] = score.pp
+                            season_updates["acc"] = score.acc
+                            log(f"No season scores found, using current score values: pp={score.pp:.2f}, acc={score.acc:.2f}%", Ansi.LCYAN, level=logLevel.DEBUG)
+                        
+                        await stats_repo.partial_update(
+                            score.player.id,
+                            score.mode.value,
+                            season_id=season_id,
+                            **season_updates,
+                        )
+                        log(f"Season {season_id} stats updated with deltas", Ansi.LGREEN)
+                except Exception as e:
+                    log(
+                        f"Failed to update season stats for season {season_id}: {e}",
+                        Ansi.LRED,
+                        level=logLevel.ERROR,
+                    )
+        else:
+            log("Seasons are not enabled", Ansi.LCYAN)
+    except Exception as e:
+        log(
+            f"Failed to fetch seasons for score submission: {e}",
+            Ansi.LRED,
+            level=logLevel.ERROR,
+        )
 
     if not score.player.restricted:
         # enqueue new stats info to all other users
+        log("Sending updated stats to other players", Ansi.LCYAN)
         app.state.sessions.players.enqueue(app.packets.user_stats(score.player))
 
         # update beatmap with new stats
+        log("Updating beatmap statistics", Ansi.LCYAN)
         score.bmap.plays += 1
         if score.passed:
             score.bmap.passes += 1
+            log(f"Beatmap passes updated: {score.bmap.passes}", Ansi.LCYAN)
 
         await app.state.services.database.execute(
             "UPDATE maps SET plays = :plays, passes = :passes WHERE md5 = :map_md5",
@@ -1111,24 +1375,34 @@ async def osuSubmitModularSelector(
                 "map_md5": score.bmap.md5,
             },
         )
+        log(f"Beatmap stats updated - Plays: {score.bmap.plays}, Passes: {score.bmap.passes}", Ansi.LCYAN)
 
     # update their recent score
     score.player.recent_scores[score.mode] = score
+    log("Updated player's recent score", Ansi.LCYAN)
 
     """ score submission charts """
+    
+    log("Generating score submission response", Ansi.LCYAN)
 
     # charts are only displayed for passes vanilla gamemodes.
     if not score.passed:  # TODO: check if this is correct
+        log("Score failed, returning error response", Ansi.LYELLOW)
         response = b"error: no"
     else:
+        log("Score passed, generating achievement and ranking charts", Ansi.LCYAN)
+        
         # construct and send achievements & ranking charts to the client
         if score.bmap.awards_ranked_pp and not score.player.restricted:
+            log("Checking for unlocked achievements", Ansi.LCYAN)
             unlocked_achievements: list[Achievement] = []
 
             server_achievements = await achievements_usecases.fetch_many()
             player_achievements = await user_achievements_usecases.fetch_many(
                 user_id=score.player.id,
             )
+            
+            log(f"Checking {len(server_achievements)} server achievements against {len(player_achievements)} player achievements", Ansi.LCYAN)
 
             for server_achievement in server_achievements:
                 player_unlocked_achievement = any(
@@ -1142,6 +1416,7 @@ async def osuSubmitModularSelector(
 
                 achievement_condition = server_achievement["cond"]
                 if achievement_condition(score, score.mode.as_vanilla):
+                    log(f"Achievement unlocked: {server_achievement['name']}", Ansi.LGREEN)
                     await user_achievements_usecases.create(
                         score.player.id,
                         server_achievement["id"],
@@ -1152,12 +1427,16 @@ async def osuSubmitModularSelector(
                 format_achievement_string(a["file"], a["name"], a["desc"])
                 for a in unlocked_achievements
             )
+            log(f"Total achievements unlocked: {len(unlocked_achievements)}", Ansi.LCYAN)
         else:
             achievements_str = ""
+            log("No achievements to check (map doesn't award PP or player is restricted)", Ansi.LCYAN)
 
         # create score submission charts for osu! client to display
+        log("Building submission charts", Ansi.LCYAN)
 
         if score.prev_best:
+            log(f"Previous best score found - Rank: #{score.prev_best.rank}, PP: {score.prev_best.pp:.2f}", Ansi.LCYAN)
             beatmap_ranking_chart_entries = (
                 chart_entry("rank", score.prev_best.rank, score.rank),
                 chart_entry("rankedScore", score.prev_best.score, score.score),
@@ -1172,6 +1451,7 @@ async def osuSubmitModularSelector(
             )
         else:
             # no previous best score
+            log("No previous best score found", Ansi.LCYAN)
             beatmap_ranking_chart_entries = (
                 chart_entry("rank", None, score.rank),
                 chart_entry("rankedScore", None, score.score),
@@ -1181,14 +1461,178 @@ async def osuSubmitModularSelector(
                 chart_entry("pp", None, score.pp),
             )
 
+        # Determine which stats to use for the overall ranking chart
+        # based on the player's preferred view
+        chart_stats: ModeData
+        chart_prev: ModeData
+        using_seasonal_stats = False
+        
+        log(f"Player {score.player.name} preferred_lb_view: {score.player.preferred_lb_view}", Ansi.LCYAN)
+        log(f"Player {score.player.name} preferred_schedule_id: {score.player.preferred_schedule_id}", Ansi.LCYAN)
+        
+        if score.player.preferred_lb_view == "seasonal":
+            log(f"Player {score.player.name} has seasonal view preference", Ansi.LCYAN)
+            # Use seasonal stats for the preferred schedule (or default schedule if no preference)
+            seasonal_stats: ModeData | None = None
+            seasonal_prev: ModeData | None = None
+            
+            # Get the schedule to use (preferred or default)
+            schedule_id = score.player.preferred_schedule_id
+            log(f"Initial schedule_id from player preference: {schedule_id}", Ansi.LCYAN)
+            
+            if schedule_id is None:
+                # No preference, use default schedule
+                log("No preferred schedule_id, fetching default schedule", Ansi.LCYAN)
+                default_schedule = await seasons_repo.fetch_default_schedule()
+                if default_schedule:
+                    schedule_id = default_schedule["id"]
+                    log(f"Using default schedule_id: {schedule_id}", Ansi.LCYAN)
+                else:
+                    log("No default schedule found", Ansi.LYELLOW)
+            
+            if schedule_id is not None:
+                log(f"Looking for active season for schedule_id: {schedule_id}", Ansi.LCYAN)
+                # Get the active season for this schedule
+                active_season = await seasons_repo.fetch_active_season_by_schedule(schedule_id)
+                log(f"Active season result: {active_season}", Ansi.LCYAN)
+                
+                if active_season:
+                    log(f"Active season found: ID={active_season['id']}, start={active_season['start_date']}, end={active_season['end_date']}", Ansi.LCYAN)
+                    log(f"Score server_time: {score.server_time}", Ansi.LCYAN)
+                    
+                    # Check if score is within season time range
+                    if active_season["start_date"] <= score.server_time < active_season["end_date"]:
+                        log(f"Score is within active season time range", Ansi.LGREEN)
+                        
+                        # Get the PREVIOUS stats for this season (stored before the update)
+                        log(f"Using stored PREVIOUS season stats for player {score.player.id}, mode {score.mode.value}, season {active_season['id']}", Ansi.LCYAN)
+                        season_stats_before = season_stats_before_map.get(active_season["id"])
+                        log(f"Season stats BEFORE update result: {season_stats_before}", Ansi.LCYAN)
+                        
+                        if season_stats_before:
+                            log(f"Season stats BEFORE update found, converting to ModeData for seasonal_prev", Ansi.LGREEN)
+                            # Convert to ModeData format for the PREVIOUS stats
+                            seasonal_prev = ModeData(
+                                tscore=season_stats_before["tscore"],
+                                rscore=season_stats_before["rscore"],
+                                pp=season_stats_before["pp"],
+                                acc=season_stats_before["acc"],
+                                plays=season_stats_before["plays"],
+                                playtime=season_stats_before["playtime"],
+                                max_combo=season_stats_before["max_combo"],
+                                total_hits=season_stats_before["total_hits"],
+                                rank=0,  # Will be calculated if needed
+                                grades={
+                                    Grade.XH: season_stats_before["xh_count"],
+                                    Grade.X: season_stats_before["x_count"],
+                                    Grade.SH: season_stats_before["sh_count"],
+                                    Grade.S: season_stats_before["s_count"],
+                                    Grade.A: season_stats_before["a_count"],
+                                }
+                            )
+                            log(f"Seasonal PREV stats created: pp={seasonal_prev.pp}, acc={seasonal_prev.acc:.2f}%, plays={seasonal_prev.plays}", Ansi.LCYAN)
+                        else:
+                            log(f"No season stats found BEFORE update for player {score.player.id} in season {active_season['id']}", Ansi.LYELLOW)
+                            # Create empty previous stats
+                            seasonal_prev = ModeData(
+                                tscore=0,
+                                rscore=0,
+                                pp=0,
+                                acc=0.0,
+                                plays=0,
+                                playtime=0,
+                                max_combo=0,
+                                total_hits=0,
+                                rank=0,
+                                grades={grade: 0 for grade in Grade}
+                            )
+                            log(f"Created empty seasonal_prev stats", Ansi.LCYAN)
+                        
+                        # Now fetch the UPDATED stats (after the season stats update above)
+                        log(f"Fetching UPDATED season stats for player {score.player.id}, mode {score.mode.value}, season {active_season['id']}", Ansi.LCYAN)
+                        season_stats_after = await stats_repo.fetch_one(
+                            player_id=score.player.id,
+                            mode=score.mode.value,
+                            season_id=active_season["id"],
+                        )
+                        log(f"Season stats AFTER update result: {season_stats_after}", Ansi.LCYAN)
+                        
+                        if season_stats_after:
+                            log(f"Season stats AFTER update found, converting to ModeData for seasonal_stats", Ansi.LGREEN)
+                            # Convert to ModeData format for the UPDATED stats
+                            seasonal_stats = ModeData(
+                                tscore=season_stats_after["tscore"],
+                                rscore=season_stats_after["rscore"],
+                                pp=season_stats_after["pp"],
+                                acc=season_stats_after["acc"],
+                                plays=season_stats_after["plays"],
+                                playtime=season_stats_after["playtime"],
+                                max_combo=season_stats_after["max_combo"],
+                                total_hits=season_stats_after["total_hits"],
+                                rank=0,  # Will be calculated if needed
+                                grades={
+                                    Grade.XH: season_stats_after["xh_count"],
+                                    Grade.X: season_stats_after["x_count"],
+                                    Grade.SH: season_stats_after["sh_count"],
+                                    Grade.S: season_stats_after["s_count"],
+                                    Grade.A: season_stats_after["a_count"],
+                                }
+                            )
+                            log(f"Seasonal stats AFTER update created: pp={seasonal_stats.pp}, acc={seasonal_stats.acc:.2f}%, plays={seasonal_stats.plays}", Ansi.LCYAN)
+                            
+                            # Calculate and update the season rank
+                            log(f"Calculating season rank for player {score.player.id}, mode {score.mode.value}, season {active_season['id']}", Ansi.LCYAN)
+                            try:
+                                # Update the season leaderboard in Redis
+                                await score.player.update_season_rank(active_season["id"], score.mode)
+                                # Get the calculated rank
+                                seasonal_rank = await score.player.get_season_rank(active_season["id"], score.mode)
+                                seasonal_stats.rank = seasonal_rank
+                                seasonal_prev.rank = seasonal_rank  # Set prev rank to same (since we don't track rank changes)
+                                log(f"Season rank calculated: #{seasonal_rank}", Ansi.LCYAN)
+                            except Exception as e:
+                                log(f"Failed to calculate season rank: {e}", Ansi.LRED)
+                                seasonal_stats.rank = 0
+                                seasonal_prev.rank = 0
+                        else:
+                            log(f"No season stats found AFTER update for player {score.player.id} in season {active_season['id']}", Ansi.LYELLOW)
+                    else:
+                        log(f"Score is NOT within active season time range (score_time: {score.server_time}, season: {active_season['start_date']} to {active_season['end_date']})", Ansi.LYELLOW)
+                else:
+                    log(f"No active season found for schedule_id {schedule_id}", Ansi.LYELLOW)
+            else:
+                log("No schedule_id available (neither preferred nor default)", Ansi.LYELLOW)
+            
+            # If we couldn't get seasonal stats, fall back to all-time stats
+            if seasonal_stats is not None and seasonal_prev is not None:
+                log("Using seasonal stats for chart", Ansi.LGREEN)
+                chart_stats = seasonal_stats
+                chart_prev = seasonal_prev
+                using_seasonal_stats = True
+            else:
+                log("Falling back to all-time stats for chart", Ansi.LYELLOW)
+                chart_stats = all_time_stats
+                chart_prev = all_time_prev
+        else:
+            log(f"Player {score.player.name} does not have seasonal view preference (using all-time)", Ansi.LCYAN)
+            # Use all-time stats
+            chart_stats = all_time_stats
+            chart_prev = all_time_prev
+        
+        log(f"Final chart_stats source: {'seasonal' if using_seasonal_stats else 'all-time'}", Ansi.LCYAN)
+        log(f"Chart stats - pp: {chart_stats.pp:.2f}, acc: {chart_stats.acc:.2f}%, plays: {chart_stats.plays}", Ansi.LCYAN)
+        log(f"Chart prev - pp: {chart_prev.pp:.2f}, acc: {chart_prev.acc:.2f}%, plays: {chart_prev.plays}", Ansi.LCYAN)
+        
         overall_ranking_chart_entries = (
-            chart_entry("rank", prev_stats.rank, stats.rank),
-            chart_entry("rankedScore", prev_stats.rscore, stats.rscore),
-            chart_entry("totalScore", prev_stats.tscore, stats.tscore),
-            chart_entry("maxCombo", prev_stats.max_combo, stats.max_combo),
-            chart_entry("accuracy", round(prev_stats.acc, 2), round(stats.acc, 2)),
-            chart_entry("pp", prev_stats.pp, stats.pp),
+            chart_entry("rank", chart_prev.rank, chart_stats.rank),
+            chart_entry("rankedScore", chart_prev.rscore, chart_stats.rscore),
+            chart_entry("totalScore", chart_prev.tscore, chart_stats.tscore),
+            chart_entry("maxCombo", chart_prev.max_combo, chart_stats.max_combo),
+            chart_entry("accuracy", round(chart_prev.acc, 2), round(chart_stats.acc, 2)),
+            chart_entry("pp", chart_prev.pp, chart_stats.pp),
         )
+        
+        log(f"Overall ranking changes - Rank: #{chart_prev.rank} -> #{chart_stats.rank}, PP: {chart_prev.pp:.2f} -> {chart_stats.pp:.2f}", Ansi.LCYAN)
 
         submission_charts = [
             # beatmap info chart
@@ -1214,6 +1658,7 @@ async def osuSubmitModularSelector(
         ]
 
         response = "|".join(submission_charts).encode()
+        log(f"Submission charts generated, response length: {len(response)} bytes", Ansi.LCYAN)
 
     if app.settings.CHEAT_SERVER:
         if cheat_values:
@@ -1263,7 +1708,7 @@ async def osuSubmitModularSelector(
                 #     )
     log(
         f"[{score.mode!r}] {score.player} submitted a score! "
-        f"({score.status!r}, {score.pp:,.2f}pp / {stats.pp:,}pp)",
+        f"({score.status!r}, {score.pp:,.2f}pp / {all_time_stats.pp:,}pp)",
         Ansi.LGREEN, extra={
             "Score": json.dumps({
                 "score_id": score.id,
@@ -1291,6 +1736,9 @@ async def osuSubmitModularSelector(
             }),
         }
     )
+    
+    log("Score submission complete, returning response to client", Ansi.LGREEN)
+    log(f"Final response length: {len(response)} bytes", Ansi.LCYAN)
     
     # TODO: execute write log in a way that is non blocking
     if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
@@ -1390,6 +1838,33 @@ async def get_leaderboard_scores(
     player: Player,
     scoring_metric: Literal["pp", "score"],
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    # Check if seasons are enabled and player prefers seasonal view
+    season_start_date: datetime | None = None
+    season_end_date: datetime | None = None
+    
+    try:
+        seasons_enabled = await app.state.services.database.fetch_val(
+            "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
+        )
+        if seasons_enabled == '1' and player.preferred_lb_view == "seasonal":
+            # Determine which season to use
+            if player.selected_season_id is not None:
+                # Player has selected a specific season
+                season = await seasons_repo.fetch_one(id=player.selected_season_id)
+            else:
+                # Use active season type
+                season = await seasons_repo.fetch_active_season_by_type()
+            
+            if season:
+                season_start_date = season["start_date"]
+                season_end_date = season["end_date"]
+    except Exception as e:
+        log(
+            f"Failed to fetch season for leaderboard: {e}",
+            Ansi.LRED,
+            level=logLevel.ERROR,
+        )
+    
     query = [
         f"SELECT s.id, s.{scoring_metric} AS _score, "
         "s.max_combo, s.n50, s.n100, s.n300, "
@@ -1408,6 +1883,12 @@ async def get_leaderboard_scores(
         "user_id": player.id,
         "mode": mode,
     }
+    
+    # Add season filtering if applicable
+    if season_start_date is not None and season_end_date is not None:
+        query.append("AND s.play_time >= :season_start AND s.play_time < :season_end")
+        params["season_start"] = season_start_date
+        params["season_end"] = season_end_date
 
     if leaderboard_type == LeaderboardType.Mods:
         query.append("AND s.mods = :mods")
@@ -1429,31 +1910,60 @@ async def get_leaderboard_scores(
 
     if score_rows:  # None or []
         # fetch player's personal best score
-        personal_best_score_row = await app.state.services.database.fetch_one(
+        personal_best_query = [
             f"SELECT id, {scoring_metric} AS _score, "
             "max_combo, n50, n100, n300, "
             "nmiss, nkatu, ngeki, perfect, mods, "
             "UNIX_TIMESTAMP(play_time) time "
             "FROM scores "
             "WHERE map_md5 = :map_md5 AND mode = :mode "
-            "AND userid = :user_id AND status = 2 "
-            "ORDER BY _score DESC LIMIT 1",
-            {"map_md5": map_md5, "mode": mode, "user_id": player.id},
+            "AND userid = :user_id AND status = 2 ",
+        ]
+        
+        personal_best_params: dict[str, Any] = {
+            "map_md5": map_md5,
+            "mode": mode,
+            "user_id": player.id,
+        }
+        
+        # Add season filtering if applicable
+        if season_start_date is not None and season_end_date is not None:
+            personal_best_query.append("AND play_time >= :season_start AND play_time < :season_end")
+            personal_best_params["season_start"] = season_start_date
+            personal_best_params["season_end"] = season_end_date
+        
+        personal_best_query.append("ORDER BY _score DESC LIMIT 1")
+        
+        personal_best_score_row = await app.state.services.database.fetch_one(
+            " ".join(personal_best_query),
+            personal_best_params,
         )
 
         if personal_best_score_row is not None:
             # calculate the rank of the score.
-            p_best_rank = 1 + await app.state.services.database.fetch_val(
+            rank_query = [
                 "SELECT COUNT(*) FROM scores s "
                 "INNER JOIN users u ON u.id = s.userid "
                 "WHERE s.map_md5 = :map_md5 AND s.mode = :mode "
                 "AND s.status = 2 AND u.priv & 1 "
                 f"AND s.{scoring_metric} > :score",
-                {
-                    "map_md5": map_md5,
-                    "mode": mode,
-                    "score": personal_best_score_row["_score"],
-                },
+            ]
+            
+            rank_params: dict[str, Any] = {
+                "map_md5": map_md5,
+                "mode": mode,
+                "score": personal_best_score_row["_score"],
+            }
+            
+            # Add season filtering if applicable
+            if season_start_date is not None and season_end_date is not None:
+                rank_query.append("AND s.play_time >= :season_start AND s.play_time < :season_end")
+                rank_params["season_start"] = season_start_date
+                rank_params["season_end"] = season_end_date
+            
+            p_best_rank = 1 + await app.state.services.database.fetch_val(
+                " ".join(rank_query),
+                rank_params,
                 column=0,  # COUNT(*)
             )
 

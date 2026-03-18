@@ -682,3 +682,94 @@ ALTER TABLE scores DROP COLUMN r_replay_id;
 
 -- Remove r_replay_id column from wiped_scores table (feature removed);
 ALTER TABLE wiped_scores DROP COLUMN r_replay_id;
+
+
+# v5.3.2
+-- Seasons System: Add season tracking and scheduling tables;
+
+-- Create season_schedules table for storing schedule configurations;
+CREATE TABLE season_schedules (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(64) NOT NULL,
+    description VARCHAR(256) DEFAULT NULL,
+    schedule_type ENUM('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', 'ifc_sched') NOT NULL,
+    config JSON NOT NULL COMMENT 'Schedule-specific configuration',
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Create seasons table for storing individual seasons;
+CREATE TABLE seasons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(64) NOT NULL,
+    schedule_id INT DEFAULT NULL COMMENT 'FK to season_schedules, NULL for manual seasons',
+    start_date DATETIME NOT NULL,
+    end_date DATETIME NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    end_calculated BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether final stats have been calculated for ended season',
+    awards_badges BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether this season awards badges (reserved for future use)',
+    description VARCHAR(256) DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_schedule_id (schedule_id),
+    INDEX idx_start_date (start_date),
+    INDEX idx_end_date (end_date),
+    INDEX idx_is_active (is_active),
+    FOREIGN KEY (schedule_id) REFERENCES season_schedules(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Create season_config table for season-specific configuration;
+CREATE TABLE season_config (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    season_id INT NOT NULL,
+    config_key VARCHAR(64) NOT NULL,
+    config_value TEXT DEFAULT NULL,
+    UNIQUE KEY idx_season_key (season_id, config_key),
+    FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Modify stats table to add season_id column and update primary key;
+-- Remove AUTO_INCREMENT from id col to drop primary key;
+ALTER TABLE stats MODIFY COLUMN id INT NOT NULL;
+-- Step 1: Drop the existing primary key (id, mode)
+ALTER TABLE stats DROP PRIMARY KEY;
+
+-- Step 2: Add season_id column with default 0 for all-time stats
+ALTER TABLE stats ADD COLUMN season_id INT UNSIGNED NOT NULL DEFAULT 0 AFTER mode;
+
+-- Step 3: Add new composite primary key (id, mode, season_id)
+ALTER TABLE stats ADD PRIMARY KEY (id, mode, season_id);
+
+-- Step 4: Add index on season_id for performance
+ALTER TABLE stats ADD INDEX idx_season_id (season_id);
+
+-- Add season preference column to users table;
+ALTER TABLE users ADD COLUMN preferred_lb_view ENUM('all_time', 'seasonal') NOT NULL DEFAULT 'all_time';
+-- Add preferred_schedule_id column to users table for schedule-based season system;
+ALTER TABLE users ADD COLUMN preferred_schedule_id INT UNSIGNED NULL DEFAULT NULL AFTER preferred_lb_view;
+
+-- Add recommended indexes for scores table for season filtering;
+CREATE INDEX idx_scores_season_filter ON scores (play_time, status, mode);
+CREATE INDEX idx_scores_user_season ON scores (userid, play_time, mode);
+
+-- Add default season configuration entries;
+INSERT INTO server_data (type, value) VALUES ('seasons_enabled', '0');
+INSERT INTO server_data (type, value) VALUES ('seasons_default_mode', 'all_time');
+INSERT INTO server_data (type, value) VALUES ('seasons_active_type_id', '1');
+
+
+-- Move pinned column from scoreinfo to scores table;
+-- Step 1: Add pinned column to scores table;
+ALTER TABLE scores ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0 AFTER online_checksum;
+
+-- Step 2: Copy pinned data from scoreinfo to scores;
+UPDATE scores s
+JOIN scoreinfo si ON s.id = si.scoreid
+SET s.pinned = si.pinned
+WHERE si.pinned = 1;
+
+-- Step 3: Remove pinned column from scoreinfo table;
+ALTER TABLE scoreinfo DROP COLUMN pinned;
+
+-- Step 4: Add index on pinned column;
+CREATE INDEX scores_pinned_index ON scores (pinned);

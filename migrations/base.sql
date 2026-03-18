@@ -273,7 +273,6 @@ create table ratings
 create table scoreinfo
 (
 	scoreid bigint(20) unsigned not null,
-	pinned tinyint(1) not null default 0,
 	cheat_values varchar(1024) default null,
 	key scoreid (scoreid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -302,7 +301,8 @@ create table scores
 	client_flags int not null,
 	userid int not null,
 	perfect tinyint(1) not null,
-	online_checksum char(32) not null
+	online_checksum char(32) not null,
+	pinned tinyint(1) not null default 0
 );
 create index scores_map_md5_index
 	on scores (map_md5);

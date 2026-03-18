@@ -172,8 +172,9 @@ async def get_player_status(player_id: int) -> Success[PlayerStatus] | Failure:
 async def get_player_mode_stats(
     player_id: int,
     mode: int,
+    season_id: int | None = None,
 ) -> Success[PlayerStats] | Failure:
-    data = await stats_repo.fetch_one(player_id, mode)
+    data = await stats_repo.fetch_one(player_id, mode, season_id=season_id)
     if data is None:
         return responses.failure(
             message="Player stats not found.",
@@ -187,16 +188,19 @@ async def get_player_mode_stats(
 @router.get("/players/{player_id}/stats")
 async def get_player_stats(
     player_id: int,
+    season_id: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
 ) -> Success[list[PlayerStats]] | Failure:
     data = await stats_repo.fetch_many(
         player_id=player_id,
+        season_id=season_id,
         page=page,
         page_size=page_size,
     )
     total_stats = await stats_repo.fetch_count(
         player_id=player_id,
+        season_id=season_id,
     )
 
     response = [PlayerStats.from_mapping(rec) for rec in data]

@@ -294,9 +294,10 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
     def format(self, record: logging.LogRecord) -> bytes: # type: ignore[override]
         # Convert only keys and values that are not of type str, int, float, bool, or None
+        # Exclude exc_info as it needs to remain a tuple for proper exception formatting
         record.__dict__ = {
             str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k: # type: ignore[redundant-expr]
-            str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            str(v) if not isinstance(v, (str, int, float, bool, type(None))) and k != 'exc_info' else v
             for k, v in record.__dict__.items()
         }
 
@@ -670,7 +671,11 @@ class StructlogFormatter(logging.Formatter):
             'timestamp': record.created,
         }
         # Exclude attributes that are in self.exclude
-        extra_dict: dict[str, Any] = {k: v for k, v in record.__dict__.items() if k not in event_dict and k not in self.exclude}
+        # Also exclude exc_info as it contains non-serializable traceback objects
+        extra_dict: dict[str, Any] = {
+            k: v for k, v in record.__dict__.items()
+            if k not in event_dict and k not in self.exclude and k != 'exc_info'
+        }
         event_dict.update(extra_dict)
         for processor in self.processors:
             event_dict = processor(None, None, event_dict)

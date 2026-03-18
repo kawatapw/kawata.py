@@ -130,7 +130,7 @@ from typing import TypedDict
 from typing import cast
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Index, Integer, String, func, insert, select, update, outerjoin
+from sqlalchemy import Column, DateTime, Index, Integer, String, func, insert, select, update, outerjoin, and_
 from sqlalchemy.dialects.mysql import FLOAT
 from sqlalchemy.dialects.mysql import TINYINT
 
@@ -168,6 +168,7 @@ class ScoresTable(Base):
     userid = Column("userid", Integer, nullable=False)
     perfect = Column("perfect", TINYINT(1), nullable=False)
     online_checksum = Column("online_checksum", String(32), nullable=False)
+    pinned = Column("pinned", TINYINT(1), nullable=False)
 
     __table_args__ = (
         Index("scores_map_md5_index", map_md5),
@@ -179,13 +180,13 @@ class ScoresTable(Base):
         Index("scores_play_time_index", play_time),
         Index("scores_userid_index", userid),
         Index("scores_online_checksum_index", online_checksum),
+        Index("scores_pinned_index", pinned),
     )
 
 class ScoreInfoTable(Base):
     __tablename__ = "scoreinfo"
     
     scoreid = Column("scoreid", Integer, nullable=False, primary_key=True, autoincrement=False)
-    pinned = Column("pinned", TINYINT, nullable=False)
     cheat_values = Column("cheat_values", String(1024, collation="utf8mb4_general_ci"), nullable=True)
     
     __table_args__ = (
@@ -304,7 +305,7 @@ async def create(
 async def fetch_one(id: int) -> Score | None:
     try:
         joined = outerjoin(ScoresTable, ScoreInfoTable, ScoresTable.id == ScoreInfoTable.scoreid)
-        select_stmt = select(*READ_PARAMS, ScoreInfoTable.pinned, ScoreInfoTable.cheat_values).select_from(joined).where(ScoresTable.id == id)
+        select_stmt = select(*READ_PARAMS, ScoreInfoTable.cheat_values).select_from(joined).where(ScoresTable.id == id)
         _score = await app.state.services.database.fetch_one(select_stmt)
 
         if _score is not None and 'cheat_values' in _score and _score['cheat_values'] is not None:
@@ -362,6 +363,7 @@ async def fetch_count(
     status: int | None = None,
     mode: int | None = None,
     user_id: int | None = None,
+    season_id: int | None = None,
 ) -> int:
     select_stmt = select(func.count().label("count")).select_from(ScoresTable)
     if map_md5 is not None:
@@ -374,6 +376,19 @@ async def fetch_count(
         select_stmt = select_stmt.where(ScoresTable.mode == mode)
     if user_id is not None:
         select_stmt = select_stmt.where(ScoresTable.userid == user_id)
+    if season_id is not None:
+        # JOIN with seasons table to filter by play_time within season date range
+        from app.repositories.seasons import SeasonsTable
+        select_stmt = select_stmt.select_from(
+            ScoresTable.__table__.join(  # type: ignore[attr-defined]
+                SeasonsTable.__table__,  # type: ignore[attr-defined]
+                and_(
+                    ScoresTable.play_time >= SeasonsTable.start_date,
+                    ScoresTable.play_time < SeasonsTable.end_date,
+                    SeasonsTable.id == season_id,
+                ),
+            )
+        )
 
     rec = await app.state.services.database.fetch_one(select_stmt)
     assert rec is not None
@@ -386,6 +401,7 @@ async def fetch_many(
     status: int | None = None,
     mode: int | None = None,
     user_id: int | None = None,
+    season_id: int | None = None,
     page: int | None = None,
     page_size: int | None = None,
 ) -> list[Score]:
@@ -400,6 +416,19 @@ async def fetch_many(
         select_stmt = select_stmt.where(ScoresTable.mode == mode)
     if user_id is not None:
         select_stmt = select_stmt.where(ScoresTable.userid == user_id)
+    if season_id is not None:
+        # JOIN with seasons table to filter by play_time within season date range
+        from app.repositories.seasons import SeasonsTable
+        select_stmt = select_stmt.select_from(
+            ScoresTable.__table__.join(  # type: ignore[attr-defined]
+                SeasonsTable.__table__,  # type: ignore[attr-defined]
+                and_(
+                    ScoresTable.play_time >= SeasonsTable.start_date,
+                    ScoresTable.play_time < SeasonsTable.end_date,
+                    SeasonsTable.id == season_id,
+                ),
+            )
+        )
 
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
@@ -425,6 +454,19 @@ async def partial_update(
     select_stmt = select(*READ_PARAMS).where(ScoresTable.id == id)
     _score = await app.state.services.database.fetch_one(select_stmt)
     return cast(Score | None, _score)
+
+
+async def fetch_oldest_play_time() -> datetime | None:
+    """Fetch the oldest play_time from the scores table.
+    
+    Returns:
+        The oldest play_time datetime, or None if no scores exist.
+    """
+    select_stmt = select(func.min(ScoresTable.play_time).label("oldest_play_time"))
+    result = await app.state.services.database.fetch_one(select_stmt)
+    if result and result["oldest_play_time"]:
+        return result["oldest_play_time"]
+    return None
 
 
 # TODO: delete

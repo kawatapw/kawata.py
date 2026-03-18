@@ -122,6 +122,7 @@ from app.constants.privileges import Privileges
 from app.discord import Webhook
 from app.logging import Ansi
 from app.logging import log
+from app.logging import logLevel
 from app.objects.channel import Channel
 from app.objects.match import Match
 from app.objects.match import MatchTeams
@@ -132,6 +133,7 @@ from app.objects.score import Grade
 from app.objects.score import Score
 from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
+from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.state.services import Geolocation
@@ -323,6 +325,9 @@ class Player:
         is_bot_client: bool = False,
         is_tourney_client: bool = False,
         api_key: str | None = None,
+        preferred_lb_view: str = "all_time",
+        selected_season_id: int | None = None,
+        preferred_schedule_id: int | None = None,
     ) -> None:
         if geoloc is None:
             geoloc = {
@@ -351,6 +356,9 @@ class Player:
         self.is_bot_client = is_bot_client
         self.is_tourney_client = is_tourney_client
         self.api_key = api_key
+        self.preferred_lb_view = preferred_lb_view
+        self.preferred_schedule_id = preferred_schedule_id
+        self.selected_season_id = selected_season_id
 
         # avoid enqueuing packets to bot accounts.
         if self.is_bot_client:
@@ -364,6 +372,8 @@ class Player:
         self.in_lobby = False
 
         self.stats: dict[GameMode, ModeData] = {}
+        self.season_stats: dict[int, dict[GameMode, ModeData]] = {}  # season_id -> {mode -> stats}
+        self._active_season_by_schedule: dict[int, int | None] = {}  # schedule_id -> active season_id cache
         self.status = Status()
 
         # userids, not player objects
@@ -387,6 +397,91 @@ class Player:
         self.last_np: LastNp | None = None
 
         self._packet_queue: list[bytes] = []
+    
+    def get_season_stats(self, season_id: int, mode: GameMode) -> ModeData | None:
+        """Get stats for a specific season and mode."""
+        return self.season_stats.get(season_id, {}).get(mode)
+    
+    def get_season_stats_by_schedule(self, schedule_id: int, mode: GameMode) -> ModeData | None:
+        """Get stats for the active season of a specific schedule and mode.
+        
+        This method looks up the active season for the given schedule_id
+        and returns the stats for that season.
+        """
+        # This requires async lookup, so we'll need to handle this differently
+        # For now, return None - this will be handled in the score submission logic
+        return None
+    
+    def set_season_stats(self, season_id: int, mode: GameMode, stats: ModeData) -> None:
+        """Set stats for a specific season and mode."""
+        if season_id not in self.season_stats:
+            self.season_stats[season_id] = {}
+        self.season_stats[season_id][mode] = stats
+    
+    async def load_season_stats(self) -> None:
+        """Load stats for all active seasons."""
+        try:
+            seasons_enabled = await app.state.services.database.fetch_val(
+                "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
+            )
+            if seasons_enabled != '1':
+                return
+            
+            # Get all active seasons
+            active_seasons = await seasons_repo.fetch_many()
+            for season in active_seasons:
+                if season["is_active"]:
+                    # Cache active season by schedule_id for synchronous lookup
+                    schedule_id = season.get("schedule_id")
+                    if schedule_id is not None:
+                        self._active_season_by_schedule[schedule_id] = season["id"]
+                    
+                    for mode in GameMode:
+                        stat = await stats_repo.fetch_one(
+                            player_id=self.id,
+                            mode=mode.value,
+                            season_id=season["id"]
+                        )
+                        if stat:
+                            # Update season rank in Redis first
+                            await self.update_season_rank(season["id"], mode)
+                            
+                            # Get the calculated rank
+                            rank = await self.get_season_rank(season["id"], mode)
+                            
+                            # Convert Stat TypedDict to ModeData dataclass
+                            mode_data = ModeData(
+                                tscore=stat["tscore"],
+                                rscore=stat["rscore"],
+                                pp=stat["pp"],
+                                acc=stat["acc"],
+                                plays=stat["plays"],
+                                playtime=stat["playtime"],
+                                max_combo=stat["max_combo"],
+                                total_hits=stat["total_hits"],
+                                rank=rank,
+                                grades={
+                                    Grade.XH: stat["xh_count"],
+                                    Grade.X: stat["x_count"],
+                                    Grade.SH: stat["sh_count"],
+                                    Grade.S: stat["s_count"],
+                                    Grade.A: stat["a_count"],
+                                }
+                            )
+                            self.set_season_stats(season["id"], mode, mode_data)
+        except Exception as e:
+            log(f"Failed to load season stats for {self}: {e}", Ansi.LRED, level=logLevel.ERROR)
+    
+    def get_active_season_for_schedule(self, schedule_id: int) -> int | None:
+        """Get the active season ID for a specific schedule.
+        
+        Returns the cached active season ID for the given schedule.
+        The cache is populated during load_season_stats().
+        
+        Returns:
+            The season_id of the active season for the given schedule, or None if no active season.
+        """
+        return self._active_season_by_schedule.get(schedule_id)
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.id})>"
@@ -449,7 +544,35 @@ class Player:
 
     @property
     def gm_stats(self) -> ModeData:
-        """The player's stats in their currently selected mode."""
+        """The player's stats in their currently selected mode.
+        
+        Returns seasonal stats if the player has preferred_lb_view set to 'seasonal'
+        and has a selected_season_id, otherwise returns all-time stats.
+        """
+        if self.preferred_lb_view == "seasonal":
+            if self.selected_season_id is not None:
+                season_stats = self.get_season_stats(self.selected_season_id, self.status.mode)
+            else:
+                schedule_id: int = 0
+                season_id: int = 0
+                if self.preferred_schedule_id is not None:
+                    schedule_id = self.preferred_schedule_id
+                if schedule_id != 0:
+                    season_id = self.get_active_season_for_schedule(schedule_id) or 0
+                else:
+                    # No schedule specified, try to get the first active season
+                    # from any schedule as a default
+                    for sched_id, s_id in self._active_season_by_schedule.items():
+                        if s_id is not None:
+                            schedule_id = sched_id
+                            season_id = s_id
+                            break
+                if season_id != 0:
+                    season_stats = self.get_season_stats(season_id, self.status.mode)
+                else:
+                    season_stats = None
+            if season_stats is not None:
+                return season_stats
         return self.stats[self.status.mode]
 
     @property
@@ -588,7 +711,7 @@ class Player:
 
         log_msg = f"{admin} restricted {self} for: {reason}."
 
-        log(log_msg, Ansi.LRED)
+        log(log_msg, Ansi.LRED, level=logLevel.INFO)
 
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
@@ -612,6 +735,7 @@ class Player:
 
         if not self.is_online:
             await self.stats_from_sql_full()
+            await self.load_season_stats()
 
         for mode, stats in self.stats.items():
             await app.state.services.redis.zadd(
@@ -1031,6 +1155,17 @@ class Player:
         )
         return cast(int, rank) + 1 if rank is not None else 0
 
+    async def get_season_rank(self, season_id: int, mode: GameMode) -> int:
+        """Get the player's rank in a specific season and mode."""
+        if self.restricted:
+            return 0
+
+        rank = await app.state.services.redis.zrevrank(
+            f"bancho:leaderboard:{mode.value}:season:{season_id}",
+            str(self.id),
+        )
+        return cast(int, rank) + 1 if rank is not None else 0
+
     async def get_country_rank(self, mode: GameMode) -> int:
         if self.restricted:
             return 0
@@ -1061,6 +1196,24 @@ class Player:
             )
 
         return await self.get_global_rank(mode)
+
+    async def update_season_rank(self, season_id: int, mode: GameMode) -> int:
+        """Update the player's rank in a specific season and mode.
+        
+        Returns the player's rank after the update.
+        """
+        season_stats = self.get_season_stats(season_id, mode)
+        if season_stats is None:
+            return 0
+
+        if not self.restricted:
+            # Update season leaderboard
+            await app.state.services.redis.zadd(
+                f"bancho:leaderboard:{mode.value}:season:{season_id}",
+                {str(self.id): season_stats.pp},
+            )
+
+        return await self.get_season_rank(season_id, mode)
 
     async def stats_from_sql_full(self) -> None:
         """Retrieve `self`'s stats (all modes) from sql."""
@@ -1128,4 +1281,19 @@ class Player:
                 recipient=self.name,
                 sender_id=bot.id,
             ),
+        )
+
+    async def update_season_preference(self, preference: str) -> None:
+        """Update the player's season view preference.
+        
+        Args:
+            preference: Either "all_time" or "seasonal"
+        """
+        if preference not in ("all_time", "seasonal"):
+            raise ValueError("Preference must be 'all_time' or 'seasonal'")
+        
+        self.preferred_lb_view = preference
+        await users_repo.partial_update(
+            id=self.id,
+            preferred_lb_view=preference,
         )
