@@ -144,6 +144,12 @@ class IFCScheduleProvider(ScheduleTypeProvider):
         special_month = config.get("special_month", 13)
         new_years_day = config.get("new_years_day", True)
         
+        # Handle New Year's Day (January 1st) as a special 1-day season
+        if new_years_day and current_time.month == 1 and current_time.day == 1:
+            start_date = datetime(current_time.year, 1, 1, tzinfo=tz)
+            end_date = datetime(current_time.year, 1, 2, tzinfo=tz)
+            return start_date, end_date
+        
         # Calculate the epoch (start of the International Fixed Calendar)
         # We'll use January 2 of the current year as the epoch
         # (January 1 is New Year's Day, which is its own 1-day season)
@@ -152,19 +158,9 @@ class IFCScheduleProvider(ScheduleTypeProvider):
         # Calculate days since epoch
         days_since_epoch = (current_time - epoch).days
         
-        # Calculate current month and day within the International Fixed Calendar
-        # Account for New Year's Day if enabled
-        if new_years_day:
-            # New Year's Day is day 365, separate from the 13 months
-            if days_since_epoch == 364:
-                # It's New Year's Day - return as a 1-day season
-                start_date = epoch + timedelta(days=364)
-                end_date = epoch + timedelta(days=365)
-                return start_date, end_date
-            
-            # Adjust for New Year's Day
-            if days_since_epoch > 364:
-                days_since_epoch -= 1
+        # Adjust for New Year's Day if it has passed in the current year
+        if new_years_day and days_since_epoch >= 364:
+            days_since_epoch -= 1
         
         # Calculate current month (1-13)
         current_month = (days_since_epoch // month_length) + 1
@@ -222,16 +218,16 @@ class IFCScheduleProvider(ScheduleTypeProvider):
         months_per_season = config.get("months_per_season", 4)
         new_years_day = config.get("new_years_day", True)
         
+        # Handle New Year's Day (January 1st) as a special season
+        if new_years_day and start_date.month == 1 and start_date.day == 1:
+            return f"IFC-{start_date.year}-NY"
+        
         # Calculate epoch
         # January 2 is the start of the calendar (January 1 is New Year's Day)
         epoch = datetime(start_date.year, 1, 2, tzinfo=tz)
         
         # Calculate days since epoch
         days_since_epoch = (start_date - epoch).days
-        
-        # Adjust for New Year's Day
-        if new_years_day and days_since_epoch >= 364:
-            return f"IFC-{start_date.year}-NewYear"
         
         # Calculate month and season (0-indexed)
         month = (days_since_epoch // month_length) + 1
@@ -277,9 +273,8 @@ class IFCScheduleProvider(ScheduleTypeProvider):
         if new_years_day := config.get("new_years_day", True):
             total_days += 1
         
-        if total_days != 365 and total_days != 366:
-            # Allow for leap year consideration
-            pass
+        if total_days != 365:
+            return False
         
         return True
 
@@ -357,8 +352,8 @@ class IFCScheduleProvider(ScheduleTypeProvider):
             
             # Handle New Year's Day if enabled
             if new_years_day:
-                nye_start = datetime(current_year, 12, 31, tzinfo=tz)
-                nye_end = datetime(current_year + 1, 1, 1, tzinfo=tz)
+                nye_start = datetime(current_year, 1, 1, tzinfo=tz)
+                nye_end = datetime(current_year, 1, 2, tzinfo=tz)
                 
                 if nye_start < end_date and nye_end > start_date:
                     seasons.append((nye_start, nye_end))

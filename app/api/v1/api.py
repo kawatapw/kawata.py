@@ -1170,7 +1170,7 @@ async def api_get_global_leaderboard(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, min=0, max=2_147_483_647),
     country: str | None = Query(None, min_length=2, max_length=2),
-    season_id: int | None = Query(None, alias="season_id"),
+    season_id: int = Query(0, alias="season"),
 ) -> Response:
     if mode_arg in (
         GameMode.RELAX_MANIA,
