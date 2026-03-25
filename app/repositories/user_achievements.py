@@ -47,20 +47,20 @@ Usage Pattern:
         user_id=12345,
         achievement_id=1
     )
-    
+
     # Get all achievements for a user
     achievements = await fetch_many(user_id=12345)
-    
+
     # Get all users who unlocked an achievement
     users = await fetch_many(achievement_id=1)
-    
+
     # Get achievements with pagination
     achievements = await fetch_many(
         user_id=12345,
         page=1,
         page_size=10
     )
-    
+
     # Check if user has specific achievement
     user_achievements = await fetch_many(
         user_id=12345,
@@ -78,18 +78,12 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, Index, Integer, insert, select
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 

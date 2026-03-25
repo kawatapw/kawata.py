@@ -32,16 +32,16 @@ Response Structures:
 Usage Pattern:
     # Return success response with data
     from app.api.v2.common.responses import success
-    
+
     return success(
         content={"key": "value"},
         status_code=200,
         meta={"total": 100, "page": 1}
     )
-    
+
     # Return error response
     from app.api.v2.common.responses import failure
-    
+
     return failure(
         message="Resource not found",
         status_code=404
@@ -55,11 +55,7 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import Any
-from typing import Generic
-from typing import Literal
-from typing import TypeVar
-from typing import cast
+from typing import Any, Generic, Literal, TypeVar, cast
 
 from pydantic import BaseModel
 

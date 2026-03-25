@@ -5,8 +5,11 @@ backends (such as the artifact-backed implementation) must implement, and a
 simple registry that allows the rest of the system to look up backends by
 name from configuration.
 """
+
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Any
+
+from storage.artifact_backend import ArtifactBackend
 
 
 class StorageBackend(ABC):
@@ -17,7 +20,7 @@ class StorageBackend(ABC):
     and aggregation.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Initialize the storage backend with configuration.
 
         Args:
@@ -26,7 +29,7 @@ class StorageBackend(ABC):
         self.config = config
 
     @abstractmethod
-    def save_workflow_result(self, result: Dict[str, Any]) -> None:
+    def save_workflow_result(self, result: dict[str, Any]) -> None:
         """Persist a single workflow result entry.
 
         Args:
@@ -37,7 +40,7 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    def get_commit_results(self, commit: str) -> List[Dict[str, Any]]:
+    def get_commit_results(self, commit: str) -> list[dict[str, Any]]:
         """Return all workflow results associated with a given commit.
 
         Args:
@@ -50,7 +53,7 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    def save_state(self, key: str, data: Dict[str, Any]) -> None:
+    def save_state(self, key: str, data: dict[str, Any]) -> None:
         """Persist arbitrary workflow or run-level state.
 
         Args:
@@ -61,7 +64,7 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    def get_state(self, key: str) -> Dict[str, Any]:
+    def get_state(self, key: str) -> dict[str, Any]:
         """Load arbitrary state previously saved under a key.
 
         Args:
@@ -74,7 +77,7 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    def list_results(self, commit: str) -> List[str]:
+    def list_results(self, commit: str) -> list[str]:
         """List identifiers for all results associated with a commit.
 
         This is typically used by aggregation code to find all stored
@@ -89,7 +92,7 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    def store_report(self, workflow_name: str, report: Dict[str, Any]) -> None:
+    def store_report(self, workflow_name: str, report: dict[str, Any]) -> None:
         """Persist a fully-aggregated report for a single workflow.
 
         Args:
@@ -99,12 +102,12 @@ class StorageBackend(ABC):
         pass
 
     @abstractmethod
-    def load_all_states(self) -> Dict[str, Dict[str, Any]]:
+    def load_all_states(self) -> dict[str, dict[str, Any]]:
         """Load all stored workflow state entries.
 
         Returns:
             A mapping from state keys to their stored payloads. The
-            concrete backend decides what constitutes a “state key”.
+            concrete backend decides what constitutes a "state key".
         """
         pass
 
@@ -126,7 +129,7 @@ def register_backend(name: str, backend_class: type[StorageBackend]) -> None:
     _BACKENDS[name] = backend_class
 
 
-def get_backend(name: str, config: Dict[str, Any]) -> StorageBackend:
+def get_backend(name: str, config: dict[str, Any]) -> StorageBackend:
     """Instantiate a registered storage backend.
 
     Args:
@@ -145,5 +148,4 @@ def get_backend(name: str, config: Dict[str, Any]) -> StorageBackend:
 
 
 # Register artifact backend
-from storage.artifact_backend import ArtifactBackend
-register_backend('artifact', ArtifactBackend)
+register_backend("artifact", ArtifactBackend)

@@ -10,10 +10,10 @@ passed around to modules that need to understand:
 - Whether the tool is running inside GitHub Actions or locally
 - Whether the current process is attached to an interactive terminal
 """
+
 import os
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -37,6 +37,7 @@ class Context:
         is_interactive: True if stdin is attached to a TTY.
         step_summary_path: Path to `GITHUB_STEP_SUMMARY`, if set.
     """
+
     commit_sha: str
     workflow_name: str
     job_name: str
@@ -47,7 +48,7 @@ class Context:
     run_url: str
     is_github_actions: bool
     is_interactive: bool
-    step_summary_path: Optional[str]
+    step_summary_path: str | None
 
 
 def build_context() -> Context:
@@ -62,14 +63,14 @@ def build_context() -> Context:
     Returns:
         A populated `Context` instance representing the current environment.
     """
-    github_sha = os.getenv('GITHUB_SHA', '')
-    github_workflow = os.getenv('GITHUB_WORKFLOW', '')
-    github_job = os.getenv('GITHUB_JOB', '')
-    github_run_id = os.getenv('GITHUB_RUN_ID', '')
-    github_run_number = os.getenv('GITHUB_RUN_NUMBER', '')
-    github_repository = os.getenv('GITHUB_REPOSITORY', '')
-    github_actor = os.getenv('GITHUB_ACTOR', '')
-    github_step_summary = os.getenv('GITHUB_STEP_SUMMARY')
+    github_sha = os.getenv("GITHUB_SHA", "")
+    github_workflow = os.getenv("GITHUB_WORKFLOW", "")
+    github_job = os.getenv("GITHUB_JOB", "")
+    github_run_id = os.getenv("GITHUB_RUN_ID", "")
+    github_run_number = os.getenv("GITHUB_RUN_NUMBER", "")
+    github_repository = os.getenv("GITHUB_REPOSITORY", "")
+    github_actor = os.getenv("GITHUB_ACTOR", "")
+    github_step_summary = os.getenv("GITHUB_STEP_SUMMARY")
 
     # Detect if running in GitHub Actions
     is_github_actions = bool(github_run_id)
@@ -93,5 +94,5 @@ def build_context() -> Context:
         run_url=run_url,
         is_github_actions=is_github_actions,
         is_interactive=is_interactive,
-        step_summary_path=github_step_summary
+        step_summary_path=github_step_summary,
     )

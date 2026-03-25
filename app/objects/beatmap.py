@@ -65,10 +65,10 @@ Example Usage:
     if beatmap:
         print(f"Beatmap: {beatmap.full_name}")
         print(f"Status: {beatmap.status}")
-    
+
     # Fetch beatmap by ID
     beatmap = await Beatmap.from_bid(12345)
-    
+
     # Fetch entire beatmap set
     beatmap_set = await BeatmapSet.from_bsid(67890)
     for bmap in beatmap_set.maps:
@@ -87,13 +87,10 @@ import functools
 import hashlib
 from collections import defaultdict
 from collections.abc import Mapping
-from datetime import datetime
-from datetime import timedelta
-from enum import IntEnum
-from enum import unique
+from datetime import datetime, timedelta
+from enum import IntEnum, unique
 from pathlib import Path
-from typing import Any
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import httpx
 from tenacity import retry
@@ -103,11 +100,9 @@ import app.settings
 import app.state
 import app.utils
 from app.constants.gamemodes import GameMode
-from app.logging import Ansi
-from app.logging import log
+from app.logging import Ansi, log
 from app.repositories import maps as maps_repo
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 # from dataclasses import dataclass
 
@@ -997,7 +992,9 @@ class BeatmapSet:
                 {"set_id": bsid},
             )
 
-            current_maps = {row["id"]: row["status"] for row in res} if res is not None else {}
+            current_maps = (
+                {row["id"]: row["status"] for row in res} if res is not None else {}
+            )
 
             for api_bmap in api_response:
                 # newer version available for this map

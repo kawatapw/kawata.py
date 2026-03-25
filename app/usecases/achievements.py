@@ -40,13 +40,13 @@ Usage Pattern:
         desc="Pass your first map",
         cond="score.passed"
     )
-    
+
     # Fetch achievements with pagination
     achievements = await fetch_many(
         page=1,
         page_size=10
     )
-    
+
     # Process achievements for display
     for achievement in achievements:
         display_achievement(achievement)

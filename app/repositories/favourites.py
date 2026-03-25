@@ -42,16 +42,16 @@ Usage Pattern:
         userid=12345,
         setid=67890
     )
-    
+
     # Get all favourites for a user
     favourites = await fetch_all(userid=12345)
-    
+
     # Check if a specific mapset is favourited
     favourite = await fetch_one(
         userid=12345,
         setid=67890
     )
-    
+
     # Process favourites for display
     for fav in favourites:
         beatmap_set = await BeatmapSet.from_bsid(fav["setid"])
@@ -66,14 +66,9 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, Integer, func, insert, select
 
 import app.state.services
 from app.repositories import Base

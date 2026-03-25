@@ -52,7 +52,7 @@ Example Usage:
         type="color",
         value="#FF0000"
     )
-    
+
     # Access style properties
     style_type = style.type  # "color"
     style_value = style.value  # "#FF0000"
@@ -68,10 +68,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
-    from app.objects.player import Player
+    pass
 
 __all__ = ("Badge_Style",)
 

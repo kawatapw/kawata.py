@@ -51,20 +51,20 @@ Usage Pattern:
         description="Awarded for achieving first place",
         priority=10
     )
-    
+
     # Fetch badge by ID or name
     badge = await fetch_one(id=1)
     badge = await fetch_one(name="First Place")
-    
+
     # Fetch badge styles
     styles = await fetch_styles(badge_id=1)
-    
+
     # Update badge
     updated = await update(
         id=1,
         description="Updated description"
     )
-    
+
     # Delete badge
     deleted = await delete(id=1)
 
@@ -78,14 +78,10 @@ Related Files:
 from __future__ import annotations
 
 import textwrap
-from typing import Any
-from typing import cast
-from typing import TypedDict
+from typing import Any, TypedDict, cast
 
 import app.state.services
-from app._typing import _UnsetSentinel
-from app._typing import UNSET
-from app.objects import badge
+from app._typing import UNSET, _UnsetSentinel
 
 READ_PARAMS = textwrap.dedent(
     """\
@@ -93,11 +89,13 @@ READ_PARAMS = textwrap.dedent(
     """,
 )
 
+
 class BadgeStyle(TypedDict):
     id: int
     badge_id: int
     type: str
     value: str
+
 
 class Badge(TypedDict):
     id: int
@@ -105,6 +103,7 @@ class Badge(TypedDict):
     description: str
     priority: int
     badge_styles: list[BadgeStyle]
+
 
 class BadgeUpdateFields(TypedDict, total=False):
     name: str
@@ -119,7 +118,7 @@ async def create(
     priority: int,
 ) -> Badge:
     """Create a new badge in the database."""
-    query = f"""\
+    query = """\
         INSERT INTO badges (name, description, priority)
              VALUES (:name, :description, :priority)
     """
@@ -138,10 +137,14 @@ async def create(
     params = {
         "id": rec_id,
     }
-    badge: dict[str, Any] | None = await app.state.services.database.fetch_one(query, params)
+    badge: dict[str, Any] | None = await app.state.services.database.fetch_one(
+        query,
+        params,
+    )
 
     assert badge is not None
     return cast(Badge, badge)
+
 
 async def fetch_one(
     id: int | None = None,
@@ -161,10 +164,19 @@ async def fetch_one(
            AND description = COALESCE(:description, description)
            AND priority = COALESCE(:priority, priority)
     """
-    params: dict[str, Any] = {"id": id, "name": name, "description": description, "priority": priority}
-    badge: dict[str, Any] | None = await app.state.services.database.fetch_one(query, params)
+    params: dict[str, Any] = {
+        "id": id,
+        "name": name,
+        "description": description,
+        "priority": priority,
+    }
+    badge: dict[str, Any] | None = await app.state.services.database.fetch_one(
+        query,
+        params,
+    )
 
     return cast(Badge, badge) if badge is not None else None
+
 
 async def fetch_styles(badge_id: int) -> list[BadgeStyle]:
     """Fetch the styles of a badge from the database."""
@@ -176,8 +188,12 @@ async def fetch_styles(badge_id: int) -> list[BadgeStyle]:
     params: dict[str, Any] = {
         "badge_id": badge_id,
     }
-    styles: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(query, params)
+    styles: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(
+        query,
+        params,
+    )
     return cast(list[BadgeStyle], styles) if styles is not None else []
+
 
 async def fetch_count() -> int:
     """Fetch the number of badges in the database."""
@@ -188,6 +204,7 @@ async def fetch_count() -> int:
     rec: dict[str, Any] | None = await app.state.services.database.fetch_one(query)
     assert rec is not None
     return cast(int, rec["count"])
+
 
 async def fetch_many(
     page: int | None = None,
@@ -208,8 +225,12 @@ async def fetch_many(
         params["limit"] = page_size
         params["offset"] = (page - 1) * page_size
 
-    badges: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(query, params)
+    badges: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(
+        query,
+        params,
+    )
     return cast(list[Badge], badges) if badges is not None else []
+
 
 async def update(
     id: int,
@@ -242,8 +263,12 @@ async def update(
     params: dict[str, Any] = {
         "id": id,
     }
-    badge: dict[str, Any] | None = await app.state.services.database.fetch_one(query, params)
+    badge: dict[str, Any] | None = await app.state.services.database.fetch_one(
+        query,
+        params,
+    )
     return cast(Badge, badge) if badge is not None else None
+
 
 async def delete(id: int) -> Badge | None:
     """Delete a badge from the database."""
@@ -255,7 +280,10 @@ async def delete(id: int) -> Badge | None:
     params: dict[str, Any] = {
         "id": id,
     }
-    rec: dict[str, Any] | None = await app.state.services.database.fetch_one(query, params)
+    rec: dict[str, Any] | None = await app.state.services.database.fetch_one(
+        query,
+        params,
+    )
     if rec is None:
         return None
 

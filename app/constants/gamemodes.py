@@ -40,13 +40,13 @@ Mode Mapping:
 Example Usage:
     # Convert vanilla mode with relax mod to GameMode
     mode = GameMode.from_params(0, Mods.RELAX)  # Returns RELAX_OSU
-    
+
     # Get vanilla equivalent of any mode
     vanilla_mode = GameMode.RELAX_OSU.as_vanilla  # Returns 0
-    
+
     # Get string representation
     mode_str = repr(GameMode.VANILLA_OSU)  # Returns "vn!std"
-    
+
     # Get list of valid game modes
     valid_modes = GameMode.valid_gamemodes()
 
@@ -60,12 +60,10 @@ Related Files:
 from __future__ import annotations
 
 import functools
-from enum import IntEnum
-from enum import unique
+from enum import IntEnum, unique
 
 from app.constants.mods import Mods
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 GAMEMODE_REPR_LIST = (
     "vn!std",

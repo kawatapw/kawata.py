@@ -41,22 +41,22 @@ Discord Components:
 Usage Pattern:
     # Create a webhook for posting to Discord
     webhook = Webhook(url="https://discord.com/api/webhooks/...")
-    
+
     # Create an embed with content
     embed = Embed(
         title="Server Update",
         description="New features have been added!",
         color=0x00ff00
     )
-    
+
     # Add fields to the embed
     embed.add_field(name="Feature", value="New PP system", inline=True)
     embed.add_field(name="Status", value="Active", inline=True)
-    
+
     # Add footer and image
     embed.set_footer(text="osu! server", icon_url="https://...")
     embed.set_image(url="https://...")
-    
+
     # Add embed to webhook and post
     webhook.add_embed(embed)
     await webhook.post()
@@ -71,9 +71,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tenacity import retry
-from tenacity import stop_after_attempt
-from tenacity import wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.state import services
 

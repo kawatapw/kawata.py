@@ -141,7 +141,7 @@ jobs:
     #      if: ${{ github.event_name == 'workflow_run' }}
     #      run: |
     #        IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
-    #        if [ -n "$IMG_TAR" ]; then 
+    #        if [ -n "$IMG_TAR" ]; then
     #          docker load -i "$IMG_TAR"
     #          # Tag with the first tag from prep-build (usually short SHA) for consistency
     #          FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
@@ -214,20 +214,20 @@ jobs:
     #    - name: Stop containers
     #      if: always()
     #      run: docker compose down
-    #    
+    #
     #    - name: Parse Results
     #      run: |
     #        uv run --only-group ci python tools/ci/ci.py artifacts collect
-    #    
+    #
     #    - name: Generate Summary
     #      run: |
     #        uv run --only-group ci python tools/ci/ci.py summary generate --workflow test
-    #    
+    #
     #    - name: Finish Job
     #      if: always()
     #      run: |
     #        uv run --only-group ci python tools/ci/ci.py workflow finish --workflow test --job pytest --status ${{ job.status }}
-    #    
+    #
     #    - name: Upload CI State
     #      uses: actions/upload-artifact@v7
     #      with:
@@ -278,7 +278,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
         run: |
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
-          if [ -n "$IMG_TAR" ]; then 
+          if [ -n "$IMG_TAR" ]; then
             docker load -i "$IMG_TAR"
             # Tag with the first tag from prep-build (usually short SHA) for consistency
             FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
@@ -323,27 +323,27 @@ jobs:
         run: |
           echo "=== Capturing container logs for debugging ==="
           mkdir -p /tmp/container-logs
-          
+
           echo "Container status:"
           docker compose -f docker-compose.test.yml ps > /tmp/container-logs/container-status.txt 2>&1
           cat /tmp/container-logs/container-status.txt
           echo ""
-          
+
           echo "=== bancho-test logs ==="
           docker compose -f docker-compose.test.yml logs bancho-test > /tmp/container-logs/bancho-test.log 2>&1 || true
           cat /tmp/container-logs/bancho-test.log
           echo ""
-          
+
           echo "=== mysql-test logs ==="
           docker compose -f docker-compose.test.yml logs mysql-test > /tmp/container-logs/mysql-test.log 2>&1 || true
           cat /tmp/container-logs/mysql-test.log
           echo ""
-          
+
           echo "=== redis-test logs ==="
           docker compose -f docker-compose.test.yml logs redis-test > /tmp/container-logs/redis-test.log 2>&1 || true
           cat /tmp/container-logs/redis-test.log
           echo ""
-          
+
           echo "=== All container logs ==="
           docker compose -f docker-compose.test.yml logs > /tmp/container-logs/all-containers.log 2>&1 || true
           cat /tmp/container-logs/all-containers.log
@@ -372,19 +372,19 @@ jobs:
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py artifacts collect
-      
+
       - name: Generate Summary
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py summary generate \
             --workflow test \
             --artifact-dir ./all-artifacts
-      
+
       - name: Finish Job
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py workflow finish --workflow test --job run-test-suite --status ${{ job.status }}
-      
+
       - name: Upload CI State
         uses: actions/upload-artifact@v7
         if: always()

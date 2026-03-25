@@ -34,10 +34,10 @@ Router Organization:
 Usage Pattern:
     # The main router is used in the FastAPI application
     from app.api import api_router
-    
+
     # Include in FastAPI app
     app.include_router(api_router)
-    
+
     # Access sub-routers
     from app.api.v1 import apiv1_router
     from app.api.v2 import apiv2_router
@@ -62,6 +62,13 @@ api_router = APIRouter()
 api_router.include_router(apiv1_router)
 api_router.include_router(apiv2_router)
 
-from . import domains
-from . import init_api
-from . import middlewares
+from . import domains, init_api, middlewares  # noqa: E402
+
+__all__ = [
+    "api_router",
+    "apiv1_router",
+    "apiv2_router",
+    "domains",
+    "init_api",
+    "middlewares",
+]

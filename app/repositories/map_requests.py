@@ -55,22 +55,22 @@ Usage Pattern:
         player_id=67890,
         active=True
     )
-    
+
     # Get all active requests for a map
     requests = await fetch_all(
         map_id=12345,
         active=True
     )
-    
+
     # Get all requests by a player
     requests = await fetch_all(
         player_id=67890,
         active=None  # All requests
     )
-    
+
     # Mark requests as inactive (when map is ranked)
     await mark_batch_as_inactive([12345, 67890])
-    
+
     # Process requests for nominator review
     active_requests = await fetch_all(active=True)
     for request in active_requests:
@@ -89,17 +89,9 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
-from typing import TypedDict
-from typing import cast
+from typing import Any, TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Integer
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import Column, DateTime, Integer, func, insert, select, update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services

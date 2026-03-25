@@ -53,7 +53,7 @@ Example Usage:
         desc="Pass your first map",
         cond=lambda score, mode: score.passed
     )
-    
+
     # Check if achievement should be unlocked
     if achievement.cond(score, game_mode):
         unlock_achievement(player, achievement)

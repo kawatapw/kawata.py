@@ -41,13 +41,13 @@ Usage Pattern:
         start_date=datetime(2024, 3, 20),
         end_date=datetime(2024, 6, 20)
     )
-    
+
     # Fetch active season
     active = await fetch_active()
-    
+
     # Fetch seasons containing a specific time
     seasons = await fetch_seasons_containing_time(datetime.now())
-    
+
     # Update season stats
     await update_season_stats(season_id=1)
 
@@ -63,29 +63,28 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Any
-from typing import TypedDict
-from typing import cast
+from typing import Any, TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import ForeignKey
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import Text
-from sqlalchemy import Boolean
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.dialects.mysql import JSON
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
+from app.logging import Ansi, error_catcher, log
 from app.repositories import Base
-from app.logging import Ansi, log, error_catcher
 
 
 class SeasonSchedulesTable(Base):
@@ -97,11 +96,14 @@ class SeasonSchedulesTable(Base):
     schedule_type = Column("schedule_type", String(32), nullable=False)
     config = Column("config", JSON, nullable=False)
     is_default = Column("is_default", Boolean, nullable=False, server_default="0")
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
-
-    __table_args__ = (
-        Index("idx_season_schedules_name", name, unique=True),
+    created_at = Column(
+        "created_at",
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
     )
+
+    __table_args__ = (Index("idx_season_schedules_name", name, unique=True),)
 
 
 class SeasonsTable(Base):
@@ -109,14 +111,29 @@ class SeasonsTable(Base):
 
     id = Column("id", Integer, primary_key=True, autoincrement=True)
     name = Column("name", String(64), nullable=False)
-    schedule_id = Column("schedule_id", Integer, ForeignKey("season_schedules.id", ondelete="SET NULL"), nullable=True)
+    schedule_id = Column(
+        "schedule_id",
+        Integer,
+        ForeignKey("season_schedules.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     start_date = Column("start_date", DateTime, nullable=False)
     end_date = Column("end_date", DateTime, nullable=False)
     is_active = Column("is_active", Boolean, nullable=False, server_default="0")
-    end_calculated = Column("end_calculated", Boolean, nullable=False, server_default="0")
+    end_calculated = Column(
+        "end_calculated",
+        Boolean,
+        nullable=False,
+        server_default="0",
+    )
     awards_badges = Column("awards_badges", Boolean, nullable=False, server_default="0")
     description = Column("description", String(256), nullable=True)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
+    created_at = Column(
+        "created_at",
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
 
     __table_args__ = (
         Index("idx_seasons_schedule_id", schedule_id),
@@ -130,7 +147,12 @@ class SeasonConfigTable(Base):
     __tablename__ = "season_config"
 
     id = Column("id", Integer, primary_key=True, autoincrement=True)
-    season_id = Column("season_id", Integer, ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False)
+    season_id = Column(
+        "season_id",
+        Integer,
+        ForeignKey("seasons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     config_key = Column("config_key", String(64), nullable=False)
     config_value = Column("config_value", Text, nullable=True)
 
@@ -204,8 +226,11 @@ async def create(
     description: str | None = None,
 ) -> Season:
     """Create a new season in the database."""
-    log(f"Creating season: {name} (schedule_id: {schedule_id}, active: {is_active})", Ansi.LCYAN)
-    
+    log(
+        f"Creating season: {name} (schedule_id: {schedule_id}, active: {is_active})",
+        Ansi.LCYAN,
+    )
+
     try:
         insert_stmt = insert(SeasonsTable).values(
             name=name,
@@ -221,15 +246,24 @@ async def create(
 
         select_stmt = select(*SEASON_READ_PARAMS).where(SeasonsTable.id == rec_id)
         season = await app.state.services.database.fetch_one(select_stmt)
-        
+
         if season is None:
-            log(f"Failed to retrieve created season with ID: {rec_id}", Ansi.LRED, level=logging.ERROR)
+            log(
+                f"Failed to retrieve created season with ID: {rec_id}",
+                Ansi.LRED,
+                level=logging.ERROR,
+            )
             raise ValueError(f"Season with ID {rec_id} not found after creation")
-        
+
         log(f"Season created successfully: {name} (ID: {rec_id})", Ansi.LGREEN)
         return cast(Season, season)
     except Exception as e:
-        log(f"Error creating season '{name}': {e}", Ansi.LRED, level=logging.ERROR, exc_info=True)
+        log(
+            f"Error creating season '{name}': {e}",
+            Ansi.LRED,
+            level=logging.ERROR,
+            exc_info=True,
+        )
         raise
 
 
@@ -259,10 +293,7 @@ async def fetch_one(
 @error_catcher
 async def fetch_active() -> Season | None:
     """Fetch the currently active season."""
-    select_stmt = (
-        select(*SEASON_READ_PARAMS)
-        .where(SeasonsTable.is_active == True)
-    )
+    select_stmt = select(*SEASON_READ_PARAMS).where(SeasonsTable.is_active)
     season = await app.state.services.database.fetch_one(select_stmt)
     return cast(Season | None, season)
 
@@ -273,13 +304,16 @@ async def fetch_active_season_by_schedule(schedule_id: int) -> Season | None:
     select_stmt = (
         select(*SEASON_READ_PARAMS)
         .where(SeasonsTable.schedule_id == schedule_id)
-        .where(SeasonsTable.is_active == True)
+        .where(SeasonsTable.is_active)
     )
     season = await app.state.services.database.fetch_one(select_stmt)
     return cast(Season | None, season)
 
 
-async def fetch_season_by_start_date(schedule_id: int, start_date: datetime) -> Season | None:
+async def fetch_season_by_start_date(
+    schedule_id: int,
+    start_date: datetime,
+) -> Season | None:
     """Fetch a season by schedule_id and start_date (to prevent duplicates)."""
     select_stmt = (
         select(*SEASON_READ_PARAMS)
@@ -294,18 +328,17 @@ async def fetch_season_by_start_date(schedule_id: int, start_date: datetime) -> 
 @error_catcher
 async def fetch_schedule_by_id(schedule_id: int) -> SeasonSchedule | None:
     """Fetch a schedule by its ID."""
-    select_stmt = (
-        select(*SCHEDULE_READ_PARAMS)
-        .where(SeasonSchedulesTable.id == schedule_id)
+    select_stmt = select(*SCHEDULE_READ_PARAMS).where(
+        SeasonSchedulesTable.id == schedule_id,
     )
     schedule = await app.state.services.database.fetch_one(select_stmt)
     if schedule is None:
         return None
-    
+
     # Parse JSON config if it's a string
     if isinstance(schedule.get("config"), str):
         schedule["config"] = json.loads(schedule["config"])
-    
+
     return cast(SeasonSchedule, schedule)
 
 
@@ -313,7 +346,9 @@ async def fetch_schedule_by_id(schedule_id: int) -> SeasonSchedule | None:
 async def fetch_many_schedules() -> list[SeasonSchedule]:
     """Fetch all schedules."""
     select_stmt = select(*SCHEDULE_READ_PARAMS)
-    schedules: list[dict[str, Any]] = await app.state.services.database.fetch_all(select_stmt) or []
+    schedules: list[dict[str, Any]] = (
+        await app.state.services.database.fetch_all(select_stmt) or []
+    )
 
     # Parse JSON config for each schedule if it's a string
     for schedule in schedules:
@@ -326,18 +361,17 @@ async def fetch_many_schedules() -> list[SeasonSchedule]:
 @error_catcher
 async def fetch_default_schedule() -> SeasonSchedule | None:
     """Fetch the default/active schedule (is_default = True)."""
-    select_stmt = (
-        select(*SCHEDULE_READ_PARAMS)
-        .where(SeasonSchedulesTable.is_default == True)
+    select_stmt = select(*SCHEDULE_READ_PARAMS).where(
+        SeasonSchedulesTable.is_default,
     )
     schedule = await app.state.services.database.fetch_one(select_stmt)
     if schedule is None:
         return None
-    
+
     # Parse JSON config if it's a string
     if isinstance(schedule.get("config"), str):
         schedule["config"] = json.loads(schedule["config"])
-    
+
     return cast(SeasonSchedule, schedule)
 
 
@@ -345,16 +379,16 @@ async def fetch_default_schedule() -> SeasonSchedule | None:
 async def fetch_active_season_by_type() -> Season | None:
     """Fetch the active season for the configured active season type."""
     active_type_id = await app.state.services.database.fetch_val(
-        "SELECT value FROM server_data WHERE type = 'seasons_active_type_id'"
+        "SELECT value FROM server_data WHERE type = 'seasons_active_type_id'",
     )
-    
+
     if not active_type_id:
         return None
-    
+
     select_stmt = (
         select(*SEASON_READ_PARAMS)
         .where(SeasonsTable.schedule_id == int(active_type_id))
-        .where(SeasonsTable.is_active == True)
+        .where(SeasonsTable.is_active)
     )
     season = await app.state.services.database.fetch_one(select_stmt)
     return cast(Season | None, season)
@@ -370,12 +404,14 @@ async def fetch_non_active_seasons(
         select(*SEASON_READ_PARAMS)
         .where(SeasonsTable.start_date <= current_time)
         .where(SeasonsTable.end_date > current_time)
-        .where(SeasonsTable.is_active == True)
+        .where(SeasonsTable.is_active)
     )
-    
+
     if active_season_type_id is not None:
-        select_stmt = select_stmt.where(SeasonsTable.schedule_id != active_season_type_id)
-    
+        select_stmt = select_stmt.where(
+            SeasonsTable.schedule_id != active_season_type_id,
+        )
+
     seasons = await app.state.services.database.fetch_all(select_stmt)
     return cast(list[Season], seasons)
 
@@ -396,7 +432,7 @@ async def fetch_many(
 ) -> list[Season]:
     """Fetch multiple seasons from the database."""
     select_stmt = select(*SEASON_READ_PARAMS).order_by(SeasonsTable.start_date.desc())
-    
+
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
@@ -418,7 +454,7 @@ async def partial_update(
 ) -> Season | None:
     """Update a season in the database."""
     update_stmt = update(SeasonsTable).where(SeasonsTable.id == id)
-    
+
     if not isinstance(name, _UnsetSentinel):
         update_stmt = update_stmt.values(name=name)
     if not isinstance(schedule_id, _UnsetSentinel):
@@ -462,13 +498,15 @@ async def deactivate(id: int) -> Season | None:
 async def fetch_active_schedules() -> list[SeasonSchedule]:
     """Fetch all schedules that need checking for season transitions."""
     select_stmt = select(*SCHEDULE_READ_PARAMS)
-    schedules: list[dict[str, Any]] = await app.state.services.database.fetch_all(select_stmt) or []
-    
+    schedules: list[dict[str, Any]] = (
+        await app.state.services.database.fetch_all(select_stmt) or []
+    )
+
     # Parse JSON config for each schedule if it's a string
     for schedule in schedules:
         if isinstance(schedule.get("config"), str):
             schedule["config"] = json.loads(schedule["config"])
-    
+
     return cast(list[SeasonSchedule], schedules)
 
 
@@ -481,7 +519,11 @@ async def create_schedule(
     is_default: bool = False,
 ) -> SeasonSchedule:
     """Create a new season schedule with validation."""
-    log(f"Creating schedule: {name} (type: {schedule_type})", Ansi.LCYAN, level=logging.DEBUG)
+    log(
+        f"Creating schedule: {name} (type: {schedule_type})",
+        Ansi.LCYAN,
+        level=logging.DEBUG,
+    )
     insert_stmt = insert(SeasonSchedulesTable).values(
         name=name,
         description=description,
@@ -494,7 +536,11 @@ async def create_schedule(
     select_stmt = select(*SCHEDULE_READ_PARAMS).where(SeasonSchedulesTable.id == rec_id)
     schedule = await app.state.services.database.fetch_one(select_stmt)
     assert schedule is not None
-    log(f"Schedule created successfully: {name} (ID: {rec_id})", Ansi.LGREEN, level=logging.DEBUG)
+    log(
+        f"Schedule created successfully: {name} (ID: {rec_id})",
+        Ansi.LGREEN,
+        level=logging.DEBUG,
+    )
     return cast(SeasonSchedule, schedule)
 
 
@@ -513,7 +559,7 @@ async def fetch_seasons_containing_time(play_time: datetime) -> list[Season]:
 @error_catcher
 async def update_season_stats(season_id: int) -> None:
     """Update stats for a season (used for periodic updates of non-active seasons).
-    
+
     This reuses the same per-user seasonal calculation logic as tools/recalc.py
     to keep seasonal stats 1:1 with non-seasonal stats (weighted pp/acc).
     """
@@ -528,17 +574,20 @@ async def update_season_stats(season_id: int) -> None:
         )
         return
 
-    rows: list[dict[str, Any]] = await app.state.services.database.fetch_all(
-        """
+    rows: list[dict[str, Any]] = (
+        await app.state.services.database.fetch_all(
+            """
         SELECT DISTINCT s.userid AS user_id, s.mode
         FROM scores s
         WHERE s.play_time >= :start_date AND s.play_time < :end_date
         """,
-        {
-            "start_date": season["start_date"],
-            "end_date": season["end_date"],
-        },
-    ) or []
+            {
+                "start_date": season["start_date"],
+                "end_date": season["end_date"],
+            },
+        )
+        or []
+    )
 
     for row in rows:
         try:
@@ -565,7 +614,7 @@ async def update_season_stats(season_id: int) -> None:
 @error_catcher
 async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
     """Calculate stats for a user in a season by aggregating scores.
-    
+
     This function aggregates scores within the season's date range and updates
     the stats table with season_id. Uses weighted pp/accuracy calculation
     matching the logic in tools/recalc.py.
@@ -573,9 +622,13 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
     # Get season info
     season = await fetch_one(id=season_id)
     if not season:
-        log(f"Season ID {season_id} not found, skipping stats calculation", Ansi.LYELLOW, level=logging.WARNING)
+        log(
+            f"Season ID {season_id} not found, skipping stats calculation",
+            Ansi.LYELLOW,
+            level=logging.WARNING,
+        )
         return
-    
+
     # First check if there are any scores for this user/mode in the season date range
     # This prevents the "Column 'mode' cannot be null" error when no scores exist
     check_query = """
@@ -584,7 +637,7 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
         WHERE s.userid = :user_id AND s.mode = :mode
         AND s.play_time >= :start_date AND s.play_time < :end_date
     """
-    
+
     check_result = await app.state.services.database.fetch_one(
         check_query,
         {
@@ -594,11 +647,11 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
             "end_date": season["end_date"],
         },
     )
-    
+
     if not check_result or check_result["score_count"] == 0:
         # No scores for this user/mode in the season date range, skip
         return
-    
+
     # Get best scores for weighted pp/accuracy calculation (ranked/approved maps only)
     best_scores = await app.state.services.database.fetch_all(
         """
@@ -616,15 +669,15 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
             "end_date": season["end_date"],
         },
     )
-    
+
     total_scores = len(best_scores) if best_scores else 0
-    
+
     # Calculate weighted accuracy
     if total_scores > 0 and best_scores:
         weighted_acc = sum(row["acc"] * 0.95**i for i, row in enumerate(best_scores))
         bonus_acc = 100.0 / (20 * (1 - 0.95**total_scores))
         acc = (weighted_acc * bonus_acc) / 100
-        
+
         # Calculate weighted pp
         weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores))
         bonus_pp = 416.6667 * (1 - 0.9994**total_scores)
@@ -632,7 +685,7 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
     else:
         acc = 0.0
         pp = 0
-    
+
     # Aggregate other stats (tscore, rscore, plays, playtime, etc.)
     #
     # NOTE: the `stats` table uses different column types:
@@ -681,7 +734,7 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
             s_count = IF(VALUES(season_id) = season_id, VALUES(s_count), s_count),
             a_count = IF(VALUES(season_id) = season_id, VALUES(a_count), a_count)
     """
-    
+
     try:
         await app.state.services.database.execute(
             stats_query,
@@ -697,14 +750,14 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
                 "end_date": season["end_date"],
             },
         )
-        
+
         # Verify the stats were created/updated
         verify_query = """
             SELECT COUNT(*) as stats_count
             FROM stats
             WHERE id = :user_id AND mode = :mode AND season_id = :season_id
         """
-        
+
         verify_result = await app.state.services.database.fetch_one(
             verify_query,
             {
@@ -713,24 +766,35 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
                 "season_id": season_id,
             },
         )
-        
+
         if verify_result and verify_result["stats_count"] > 0:
-            log(f"Successfully calculated stats for user {user_id} mode {mode} season {season_id}",
-                Ansi.LGREEN, level=logging.DEBUG)
-            
+            log(
+                f"Successfully calculated stats for user {user_id} mode {mode} season {season_id}",
+                Ansi.LGREEN,
+                level=logging.DEBUG,
+            )
+
             # Update Redis leaderboard for this season
             await update_season_leaderboard(season_id, user_id, mode, pp)
-            
+
     except Exception as e:
-        log(f"Error calculating stats for user {user_id} mode {mode} season {season_id}: {e}",
-            Ansi.LRED, level=logging.ERROR)
+        log(
+            f"Error calculating stats for user {user_id} mode {mode} season {season_id}: {e}",
+            Ansi.LRED,
+            level=logging.ERROR,
+        )
         raise
 
 
 @error_catcher
-async def update_season_leaderboard(season_id: int, user_id: int, mode: int, pp: int) -> None:
+async def update_season_leaderboard(
+    season_id: int,
+    user_id: int,
+    mode: int,
+    pp: int,
+) -> None:
     """Update the Redis leaderboard for a specific season.
-    
+
     Args:
         season_id: The ID of the season.
         user_id: The ID of the user.
@@ -743,17 +807,20 @@ async def update_season_leaderboard(season_id: int, user_id: int, mode: int, pp:
             {str(user_id): pp},
         )
     except Exception as e:
-        log(f"Error updating season leaderboard for user {user_id} mode {mode} season {season_id}: {e}",
-            Ansi.LRED, level=logging.ERROR)
+        log(
+            f"Error updating season leaderboard for user {user_id} mode {mode} season {season_id}: {e}",
+            Ansi.LRED,
+            level=logging.ERROR,
+        )
 
 
 @error_catcher
 async def fetch_many_by_schedule(schedule_id: int) -> list[Season]:
     """Fetch all seasons for a specific schedule.
-    
+
     Args:
         schedule_id: The ID of the schedule to fetch seasons for.
-        
+
     Returns:
         A list of Season objects for the given schedule.
     """

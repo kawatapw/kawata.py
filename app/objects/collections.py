@@ -52,13 +52,13 @@ Example Usage:
     player = players.get(token="abc123")
     player = players.get(id=12345)
     player = players.get(name="PlayerName")
-    
+
     # Get channel by name
     channel = channels.get_by_name("#osu")
-    
+
     # Get free match slot
     match_id = matches.get_free()
-    
+
     # Check player privileges
     if player.priv & Privileges.STAFF:
         staff_players = players.staff
@@ -73,25 +73,19 @@ Related Files:
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from collections.abc import Iterator
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from typing import Any
-
-import databases.core
 
 import app.settings
 import app.state
 import app.utils
-from app.constants.privileges import ClanPrivileges
-from app.constants.privileges import Privileges
-from app.logging import Ansi, log, error_catcher
+from app.constants.privileges import ClanPrivileges, Privileges
+from app.logging import Ansi, error_catcher, log
 from app.objects.channel import Channel
+from app.objects.group import Group
 from app.objects.match import Match
 from app.objects.player import Player
-from app.objects.group import Group
 from app.repositories import channels as channels_repo
-from app.repositories import clans as clans_repo
 from app.repositories import users as users_repo
 from app.utils import make_safe_name
 
@@ -198,13 +192,13 @@ class Matches(list[Match | None]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{match} removed from matches list.")
 
+
 class Groups(list[Group]):
     """Active groups present on the server"""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    
     def __iter__(self) -> Iterator[Group]:
         return super().__iter__()
 
@@ -225,38 +219,39 @@ class Groups(list[Group]):
             if player in group.players:
                 return True
         return False
-    
+
     @error_catcher
     def get_group(self, player: Player) -> Group | None:
         for group in self:
             if player in group.players:
                 return group
         return None
-    
+
     @error_catcher
-    def player_invites(self, player:Player) -> list[Group]:
-        groups : list[Group] = []
+    def player_invites(self, player: Player) -> list[Group]:
+        groups: list[Group] = []
         for group in self:
             if player in group.invites:
                 groups.append(group)
         return groups
-    
+
     @error_catcher
-    def show_invite_str(self, player:Player) -> str:
+    def show_invite_str(self, player: Player) -> str:
         invites = self.player_invites(player)
-        base = "You have {} Pending invites\n".format(len(invites)) 
+        base = f"You have {len(invites)} Pending invites\n"
         for x in invites:
             base += f"type !accept {x.lead.safe_name} to join {x.lead.name}'s group\n"
         if self.has_group(player):
-            base += f"Warning !!! joining another group will make you leave the one you are in"
+            base += "Warning !!! joining another group will make you leave the one you are in"
         return base
 
     @error_catcher
-    def check_token(self, token:str) -> bool:
+    def check_token(self, token: str) -> bool:
         for group in self:
             if group.token == token:
                 return False
         return True
+
 
 class Players(list[Player]):
     """The currently active players on the server."""
@@ -361,7 +356,9 @@ class Players(list[Player]):
                 "longitude": 0.0,
                 "country": {
                     "acronym": player["country"],
-                    "numeric": app.state.services.country_codes[player["country"].lower()], # Fix API erroring due to uppercase country codes with .lower()
+                    "numeric": app.state.services.country_codes[
+                        player["country"].lower()
+                    ],  # Fix API erroring due to uppercase country codes with .lower()
                 },
             },
             silence_end=player["silence_end"],
@@ -461,7 +458,10 @@ async def initialize_ram_caches() -> None:
     # static api keys
     app.state.sessions.api_keys = {
         row["api_key"]: row["id"]
-        for row in (await app.state.services.database.fetch_all(
-            "SELECT id, api_key FROM users WHERE api_key IS NOT NULL",
-        ) or [])
+        for row in (
+            await app.state.services.database.fetch_all(
+                "SELECT id, api_key FROM users WHERE api_key IS NOT NULL",
+            )
+            or []
+        )
     }

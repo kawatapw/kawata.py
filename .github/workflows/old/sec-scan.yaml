@@ -1,4 +1,4 @@
-name: Security Scan 
+name: Security Scan
 # Checks for branches to run on are not working?
 # Trivy cannot load docker image for kawata.py?
 
@@ -275,7 +275,7 @@ jobs:
     #     if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_call' }}
     #     run: |
     #       IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
-    #       if [ -n "$IMG_TAR" ]; then 
+    #       if [ -n "$IMG_TAR" ]; then
     #         docker load -i "$IMG_TAR"
     #         # Tag with the first tag from prep-build (usually short SHA) for consistency
     #         FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')

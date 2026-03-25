@@ -98,17 +98,17 @@ jobs:
           # Use the first tag from prep-build (which is the short SHA)
           FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
           IMAGE="${GITHUB_OWNER}/${GITHUB_REPO}:${FIRST_TAG}"
-          
+
           # Build with all tags from prep-build
           TAGS="${{ inputs.tag_list }}"
           TAG_ARGS=""
           for TAG in $TAGS; do
             TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
           done
-          
+
           # Add --load to ensure the image is loaded into the local daemon for 'docker save'
           docker build $TAG_ARGS . --load
-          
+
           # Save the main image (short SHA) as artifact
           mkdir -p /tmp/artifacts
           docker save "${IMAGE}" -o /tmp/artifacts/docker-image-${GITHUB_SHA}.tar
@@ -118,7 +118,7 @@ jobs:
         with:
           name: docker-image
           path: /tmp/artifacts/docker-image-${{ github.sha }}.tar
-      
+
       - name: Parse Results
         if: always()
         run: |
@@ -139,7 +139,7 @@ jobs:
           uv run --only-group ci python tools/ci/ci.py summary generate \
             --workflow build \
             --artifact-dir ./all-artifacts
-      
+
       - name: Upload CI State
         if: always()
         uses: actions/upload-artifact@v7
@@ -152,7 +152,7 @@ jobs:
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py workflow finish --workflow build --job build --status ${{ job.status }}
-      
+
   finish:
     runs-on: ubuntu-latest
     if: always()

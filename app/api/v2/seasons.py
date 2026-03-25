@@ -37,16 +37,16 @@ Endpoints:
 Usage Pattern:
     # List seasons with pagination
     GET /api/v2/seasons?page=1&page_size=50
-    
+
     # Get specific season
     GET /api/v2/seasons/1
-    
+
     # Get season statistics
     GET /api/v2/seasons/1/stats?mode=0
-    
+
     # Get player season preference
     GET /api/v2/players/12345/season-preference
-    
+
     # Update player season preference
     POST /api/v2/players/12345/season-preference
 
@@ -61,16 +61,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status
 from fastapi.param_functions import Query
 
-import app.state.sessions
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure
-from app.api.v2.common.responses import Success
-from app.api.v2.models.seasons import Season
-from app.api.v2.models.seasons import SeasonStats
+from app.api.v2.common.responses import Failure, Success
+from app.api.v2.models.seasons import Season, SeasonStats
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
@@ -166,10 +162,12 @@ async def get_season_preference(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    return responses.success({
-        "player_id": player_id,
-        "preferred_lb_view": data.get("preferred_lb_view", "all_time"),
-    })
+    return responses.success(
+        {
+            "player_id": player_id,
+            "preferred_lb_view": data.get("preferred_lb_view", "all_time"),
+        },
+    )
 
 
 @router.post("/players/{player_id}/season-preference")
@@ -196,28 +194,34 @@ async def update_season_preference(
         preferred_lb_view=preferred_lb_view,
     )
 
-    return responses.success({
-        "player_id": player_id,
-        "preferred_lb_view": preferred_lb_view,
-    })
+    return responses.success(
+        {
+            "player_id": player_id,
+            "preferred_lb_view": preferred_lb_view,
+        },
+    )
 
 
 @router.get("/schedules")
 async def get_schedules() -> Success[list[dict[str, Any]]] | Failure:
     """List all season schedules."""
     schedules = await seasons_repo.fetch_many_schedules()
-    
+
     response: list[dict[str, Any]] = []
     for schedule in schedules:
-        response.append({
-            "id": schedule["id"],
-            "name": schedule["name"],
-            "description": schedule["description"],
-            "schedule_type": schedule["schedule_type"],
-            "is_default": schedule["is_default"],
-            "created_at": schedule["created_at"].isoformat() if schedule["created_at"] is not None else None,
-        })
-    
+        response.append(
+            {
+                "id": schedule["id"],
+                "name": schedule["name"],
+                "description": schedule["description"],
+                "schedule_type": schedule["schedule_type"],
+                "is_default": schedule["is_default"],
+                "created_at": schedule["created_at"].isoformat()
+                if schedule["created_at"] is not None
+                else None,
+            },
+        )
+
     return responses.success(response)
 
 
@@ -230,20 +234,26 @@ async def get_schedule(schedule_id: int) -> Success[dict[str, Any]] | Failure:
             message="Schedule not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    
-    return responses.success({
-        "id": schedule["id"],
-        "name": schedule["name"],
-        "description": schedule["description"],
-        "schedule_type": schedule["schedule_type"],
-        "config": schedule["config"],
-        "is_default": schedule["is_default"],
-        "created_at": schedule["created_at"].isoformat() if schedule["created_at"] is not None else None,
-    })
+
+    return responses.success(
+        {
+            "id": schedule["id"],
+            "name": schedule["name"],
+            "description": schedule["description"],
+            "schedule_type": schedule["schedule_type"],
+            "config": schedule["config"],
+            "is_default": schedule["is_default"],
+            "created_at": schedule["created_at"].isoformat()
+            if schedule["created_at"] is not None
+            else None,
+        },
+    )
 
 
 @router.get("/schedules/{schedule_id}/active-season")
-async def get_active_season_for_schedule(schedule_id: int) -> Success[dict[str, Any]] | Failure:
+async def get_active_season_for_schedule(
+    schedule_id: int,
+) -> Success[dict[str, Any]] | Failure:
     """Get the active season for a specific schedule."""
     schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
     if schedule is None:
@@ -251,22 +261,24 @@ async def get_active_season_for_schedule(schedule_id: int) -> Success[dict[str, 
             message="Schedule not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    
+
     active_season = await seasons_repo.fetch_active_season_by_schedule(schedule_id)
     if active_season is None:
         return responses.failure(
             message="No active season found for this schedule.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    
-    return responses.success({
-        "id": active_season["id"],
-        "name": active_season["name"],
-        "schedule_id": active_season["schedule_id"],
-        "start_date": active_season["start_date"].isoformat(),
-        "end_date": active_season["end_date"].isoformat(),
-        "is_active": active_season["is_active"],
-    })
+
+    return responses.success(
+        {
+            "id": active_season["id"],
+            "name": active_season["name"],
+            "schedule_id": active_season["schedule_id"],
+            "start_date": active_season["start_date"].isoformat(),
+            "end_date": active_season["end_date"].isoformat(),
+            "is_active": active_season["is_active"],
+        },
+    )
 
 
 @router.put("/players/{player_id}/preferred-schedule")
@@ -275,7 +287,7 @@ async def set_preferred_schedule(
     schedule_id: int,
 ) -> Success[dict[str, Any]] | Failure:
     """Set a player's preferred schedule type.
-    
+
     Args:
         player_id: The player's ID
         schedule_id: The schedule ID to set as preferred, or None to clear preference
@@ -286,7 +298,7 @@ async def set_preferred_schedule(
             message="Player not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    
+
     # Validate schedule exists if provided
     # Note: schedule_id is a path parameter, so it's always provided
     schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
@@ -295,16 +307,18 @@ async def set_preferred_schedule(
             message="Schedule not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    
+
     await users_repo.partial_update(
         id=player_id,
         preferred_schedule_id=schedule_id,
     )
-    
-    return responses.success({
-        "player_id": player_id,
-        "preferred_schedule_id": schedule_id,
-    })
+
+    return responses.success(
+        {
+            "player_id": player_id,
+            "preferred_schedule_id": schedule_id,
+        },
+    )
 
 
 @router.get("/players/{player_id}/preferred-schedule")
@@ -318,10 +332,10 @@ async def get_preferred_schedule(
             message="Player not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    
+
     preferred_schedule_id: int | None = data.get("preferred_schedule_id")
     schedule_info = None
-    
+
     if preferred_schedule_id is not None:
         schedule = await seasons_repo.fetch_schedule_by_id(preferred_schedule_id)
         if schedule:
@@ -330,9 +344,11 @@ async def get_preferred_schedule(
                 "name": schedule["name"],
                 "schedule_type": schedule["schedule_type"],
             }
-    
-    return responses.success({
-        "player_id": player_id,
-        "preferred_schedule_id": preferred_schedule_id,
-        "schedule": schedule_info,
-    })
+
+    return responses.success(
+        {
+            "player_id": player_id,
+            "preferred_schedule_id": preferred_schedule_id,
+            "schedule": schedule_info,
+        },
+    )

@@ -41,7 +41,7 @@ Usage Pattern:
         owner=12345,
         created_at=datetime.now()
     )
-    
+
     # Use in API endpoint
     @router.get("/clans/{clan_id}")
     async def get_clan(clan_id: int) -> Clan:
@@ -68,7 +68,7 @@ from . import BaseModel
 
 class Clan(BaseModel):
     """Pydantic model for clan data in API responses.
-    
+
     Attributes:
         id: Unique identifier for the clan
         name: Display name of the clan
@@ -76,6 +76,7 @@ class Clan(BaseModel):
         owner: Player ID of the clan owner
         created_at: Timestamp when the clan was created
     """
+
     id: int
     name: str
     tag: str

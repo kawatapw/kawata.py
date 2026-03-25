@@ -95,10 +95,10 @@ Usage Pattern:
         perfect=0,
         online_checksum="def456..."
     )
-    
+
     # Fetch score by ID
     score = await fetch_one(id=12345)
-    
+
     # Fetch scores with filtering
     scores = await fetch_many(
         map_md5="abc123...",
@@ -107,7 +107,7 @@ Usage Pattern:
         page=1,
         page_size=10
     )
-    
+
     # Update score
     updated = await partial_update(
         id=12345,
@@ -125,22 +125,30 @@ Related Files:
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import TypedDict
-from typing import cast
-from typing import Optional
-
-from sqlalchemy import Column, DateTime, Index, Integer, String, func, insert, select, update, outerjoin, and_
-from sqlalchemy.dialects.mysql import FLOAT
-from sqlalchemy.dialects.mysql import TINYINT
-
-import app.state.services
-import app.settings
-from app.logging import Ansi, log, logLevel
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
-from app.repositories import Base
 import json
+from datetime import datetime
+from typing import TypedDict, cast
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    and_,
+    func,
+    insert,
+    outerjoin,
+    select,
+    update,
+)
+from sqlalchemy.dialects.mysql import FLOAT, TINYINT
+
+import app.settings
+import app.state.services
+from app._typing import UNSET, _UnsetSentinel
+from app.logging import Ansi, log, logLevel
+from app.repositories import Base
 
 
 class ScoresTable(Base):
@@ -183,15 +191,24 @@ class ScoresTable(Base):
         Index("scores_pinned_index", pinned),
     )
 
+
 class ScoreInfoTable(Base):
     __tablename__ = "scoreinfo"
-    
-    scoreid = Column("scoreid", Integer, nullable=False, primary_key=True, autoincrement=False)
-    cheat_values = Column("cheat_values", String(1024, collation="utf8mb4_general_ci"), nullable=True)
-    
-    __table_args__ = (
-        Index("scoreinfo_scoreid_index", scoreid),
+
+    scoreid = Column(
+        "scoreid",
+        Integer,
+        nullable=False,
+        primary_key=True,
+        autoincrement=False,
     )
+    cheat_values = Column(
+        "cheat_values",
+        String(1024, collation="utf8mb4_general_ci"),
+        nullable=True,
+    )
+
+    __table_args__ = (Index("scoreinfo_scoreid_index", scoreid),)
 
 
 READ_PARAMS = (
@@ -228,7 +245,7 @@ class Score(TypedDict):
     acc: float
     max_combo: int
     mods: int
-    mods_readable: Optional[str]
+    mods_readable: str | None
     n300: int
     n100: int
     n50: int
@@ -245,7 +262,7 @@ class Score(TypedDict):
     perfect: int
     online_checksum: str
     pinned: int
-    cheat_values: Optional[str]
+    cheat_values: str | None
 
 
 async def create(
@@ -304,34 +321,48 @@ async def create(
 
 async def fetch_one(id: int) -> Score | None:
     try:
-        joined = outerjoin(ScoresTable, ScoreInfoTable, ScoresTable.id == ScoreInfoTable.scoreid)
-        select_stmt = select(*READ_PARAMS, ScoreInfoTable.cheat_values).select_from(joined).where(ScoresTable.id == id)
+        joined = outerjoin(
+            ScoresTable,
+            ScoreInfoTable,
+            ScoresTable.id == ScoreInfoTable.scoreid,
+        )
+        select_stmt = (
+            select(*READ_PARAMS, ScoreInfoTable.cheat_values)
+            .select_from(joined)
+            .where(ScoresTable.id == id)
+        )
         _score = await app.state.services.database.fetch_one(select_stmt)
 
-        if _score is not None and 'cheat_values' in _score and _score['cheat_values'] is not None:
+        if (
+            _score is not None
+            and "cheat_values" in _score
+            and _score["cheat_values"] is not None
+        ):
             try:
                 # Handle case where cheat_values is already a JSON object (not a string)
-                if isinstance(_score['cheat_values'], (dict, list)):
-                    cheat_values = _score['cheat_values']
+                if isinstance(_score["cheat_values"], dict | list):
+                    cheat_values = _score["cheat_values"]
                 else:
                     # Handle case where cheat_values is a JSON string
-                    cheat_values = json.loads(_score['cheat_values'])
+                    cheat_values = json.loads(_score["cheat_values"])
                     # Handle case where the parsed JSON is itself a JSON string
                     if isinstance(cheat_values, str):
                         cheat_values = json.loads(cheat_values)
-                
+
                 _score = dict(_score, cheat_values=cheat_values)
                 log(
-                    f"Fetched Score: {_score['id']}", Ansi.LYELLOW, 
+                    f"Fetched Score: {_score['id']}",
+                    Ansi.LYELLOW,
                     extra={
                         "filter": {
                             "debugLevel": 2,
                             "debugFocus": "scores",
                         },
-                        "Score": _score
-                        },
+                        "Score": _score,
+                    },
                     logger="console.debug",
-                    level=logLevel.DBGLV2)
+                    level=logLevel.DBGLV2,
+                )
             except (json.JSONDecodeError, TypeError, ValueError) as e:
                 # If parsing fails, keep the original value and log a warning
                 log(
@@ -339,12 +370,13 @@ async def fetch_one(id: int) -> Score | None:
                     Ansi.LYELLOW,
                     extra={
                         "score_id": id,
-                        "cheat_values_raw": _score['cheat_values'],
-                        "error": str(e)
+                        "cheat_values_raw": _score["cheat_values"],
+                        "error": str(e),
                     },
                     logger="console.debug",
-                    level=logLevel.DBGLV2)
-        
+                    level=logLevel.DBGLV2,
+                )
+
         return cast(Score | None, _score)
     except Exception as e:
         log(
@@ -379,6 +411,7 @@ async def fetch_count(
     if season_id is not None:
         # JOIN with seasons table to filter by play_time within season date range
         from app.repositories.seasons import SeasonsTable
+
         select_stmt = select_stmt.select_from(
             ScoresTable.__table__.join(
                 SeasonsTable.__table__,
@@ -387,7 +420,7 @@ async def fetch_count(
                     ScoresTable.play_time < SeasonsTable.end_date,
                     SeasonsTable.id == season_id,
                 ),
-            )
+            ),
         )
 
     rec = await app.state.services.database.fetch_one(select_stmt)
@@ -419,6 +452,7 @@ async def fetch_many(
     if season_id is not None:
         # JOIN with seasons table to filter by play_time within season date range
         from app.repositories.seasons import SeasonsTable
+
         select_stmt = select_stmt.select_from(
             ScoresTable.__table__.join(
                 SeasonsTable.__table__,
@@ -427,7 +461,7 @@ async def fetch_many(
                     ScoresTable.play_time < SeasonsTable.end_date,
                     SeasonsTable.id == season_id,
                 ),
-            )
+            ),
         )
 
     if page is not None and page_size is not None:
@@ -458,7 +492,7 @@ async def partial_update(
 
 async def fetch_oldest_play_time() -> datetime | None:
     """Fetch the oldest play_time from the scores table.
-    
+
     Returns:
         The oldest play_time datetime, or None if no scores exist.
     """

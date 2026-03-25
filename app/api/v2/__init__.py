@@ -37,10 +37,10 @@ API Organization:
 Usage Pattern:
     # Access through the main API router
     from app.api import api_router
-    
+
     # Or directly from v2 module
     from app.api.v2 import apiv2_router
-    
+
     # Individual endpoint modules
     from app.api.v2 import clans, maps, players, scores, client
 
@@ -55,12 +55,7 @@ Related Files:
 
 from fastapi import APIRouter
 
-from . import clans
-from . import maps
-from . import players
-from . import scores
-from . import seasons
-from . import client
+from . import clans, client, maps, players, scores, seasons
 
 apiv2_router = APIRouter(tags=["API v2"], prefix="/v2")
 

@@ -58,19 +58,19 @@ Database Migration:
 Usage Pattern:
     # Access services through app.state
     from app.state import services
-    
+
     # Use HTTP client
     response = await services.http_client.get(url)
-    
+
     # Use database
     result = await services.database.fetch_one(query)
-    
+
     # Use Redis cache
     await services.redis.set(key, value)
-    
+
     # Get geolocation
     geoloc = await services.fetch_geoloc(ip, headers)
-    
+
     # Check for updates
     await services.check_for_dependency_updates()
 
@@ -84,13 +84,10 @@ Related Files:
 from __future__ import annotations
 
 import ipaddress
-import logging
 import pickle
 import re
 import secrets
-from collections.abc import AsyncGenerator
-from collections.abc import Mapping
-from collections.abc import MutableMapping
+from collections.abc import AsyncGenerator, Mapping, MutableMapping
 from pathlib import Path
 from typing import TypedDict
 
@@ -104,8 +101,7 @@ import app.settings
 import app.state
 from app._typing import IPAddress
 from app.adapters.database import Database
-from app.logging import Ansi
-from app.logging import log
+from app.logging import Ansi, log
 
 STRANGE_LOG_DIR = Path.cwd() / ".data/logs/strange_occurrences/"
 
@@ -410,10 +406,12 @@ class Version:
         return None
 
 
-async def _get_latest_dependency_versions() -> AsyncGenerator[
-    tuple[str, Version, Version],
-    None,
-]:
+async def _get_latest_dependency_versions() -> (
+    AsyncGenerator[
+        tuple[str, Version, Version],
+        None,
+    ]
+):
     """Return the current installed & latest version for each dependency."""
     with open("requirements.txt") as f:
         dependencies = f.read().splitlines(keepends=False)

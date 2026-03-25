@@ -46,10 +46,10 @@ Logging Format:
 Usage Pattern:
     # Middleware is automatically applied to all requests
     # No manual invocation required
-    
+
     # Example log output:
     # [GET] 200 https://osu.example.com/api/v1/players | Request took: 15ms
-    
+
     # Process time header added to response:
     # process-time: 15.234
 
@@ -61,27 +61,27 @@ Related Files:
 
 from __future__ import annotations
 
-import time, json
+import json
+import time
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.base import RequestResponseEndpoint
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.logging import Ansi, log, magnitude_fmt_time, format_request
-import app.settings
+from app.logging import Ansi, format_request, log, magnitude_fmt_time
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
     """HTTP middleware for request/response metrics and logging.
-    
+
     This middleware intercepts all HTTP requests to provide comprehensive
     logging, performance metrics, and error handling. It measures request
     processing time, logs request details, and adds timing headers to responses.
-    
+
     The middleware handles both successful requests and errors, providing
     consistent monitoring across all API endpoints.
     """
+
     async def dispatch(
         self,
         request: Request,
@@ -99,9 +99,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                     "Exception": str(e),
                     "Request-URL": request.url,
                     "Request": json.dumps(format_request(request)),
-                    },
-                )
-            response = Response(content="Internal Server Error: Bad Request", status_code=500)
+                },
+            )
+            response = Response(
+                content="Internal Server Error: Bad Request",
+                status_code=500,
+            )
         end_time = time.perf_counter_ns()
 
         time_elapsed = end_time - start_time
@@ -115,11 +118,15 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             col,
             extra={
                 "Request": json.dumps(format_request(request)),
-                "Response": json.dumps({
-                    "Status-Code": str(response.status_code),
-                    "Headers": {k: str(v) for k, v in dict(response.headers).items()},
-                })
-            }
+                "Response": json.dumps(
+                    {
+                        "Status-Code": str(response.status_code),
+                        "Headers": {
+                            k: str(v) for k, v in dict(response.headers).items()
+                        },
+                    },
+                ),
+            },
         )
 
         response.headers["process-time"] = str(round(time_elapsed) / 1e6)

@@ -49,27 +49,27 @@ Usage Pattern:
         map_md5="abc123...",
         rating=8
     )
-    
+
     # Get all ratings for a user
     ratings = await fetch_many(
         userid=12345,
         page=1,
         page_size=10
     )
-    
+
     # Get all ratings for a map
     ratings = await fetch_many(
         map_md5="abc123...",
         page=1,
         page_size=10
     )
-    
+
     # Get specific user's rating for a map
     rating = await fetch_one(
         userid=12345,
         map_md5="abc123..."
     )
-    
+
     # Calculate average rating for a map
     ratings = await fetch_many(map_md5="abc123...")
     if ratings:
@@ -84,14 +84,9 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, Integer, String, insert, select
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services

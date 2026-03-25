@@ -41,11 +41,11 @@ Usage Pattern:
     with memoryview(await request.body()) as body_view:
         for packet in BanchoPacketReader(body_view, packet_map):
             await packet.handle(player)
-    
+
     # Writing packets to client
     packet_data = write(ServerPackets.USER_STATS, ...)
     player.enqueue(packet_data)
-    
+
     # Creating specific packets
     stats_packet = user_stats(player)
     message_packet = send_message(sender, msg, recipient, sender_id)
@@ -60,27 +60,18 @@ Related Files:
 
 from __future__ import annotations
 
+import json
 import random
 import struct
-from abc import ABC
-from abc import abstractmethod
-from collections.abc import Callable
-from collections.abc import Collection
-from collections.abc import Iterator
-from dataclasses import dataclass
-from dataclasses import field
-from enum import IntEnum
-from enum import unique
-from functools import cache
-from functools import lru_cache
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import NamedTuple
-from typing import cast
-from app import logging
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Collection, Iterator
+from dataclasses import dataclass, field
+from enum import IntEnum, unique
+from functools import cache, lru_cache
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
-import json
-from app.state.sessions import groups, players
+from app import logging
+from app.state.sessions import groups
 
 # from app.objects.beatmap import BeatmapInfo
 
@@ -162,8 +153,8 @@ class ClientPackets(IntEnum):
     IDENTIFY = 126
     SPECTATE_FRAMES_FIX = 1176  # These fix packets that are sent during spectating, currently we do nothing with them but they must exist in this list for spectating to work properly and not disconnect user.
     SPECTATE_FRAMES_FIX1 = 3584
-    SPECTATE_FRAMES_FIX2 = 51200  
-    
+    SPECTATE_FRAMES_FIX2 = 51200
+
     CREATE_GROUP = 110
     DISBAND_GROUP = 111
     INVITE_GROUP = 112
@@ -241,11 +232,11 @@ class ServerPackets(IntEnum):
     RTX = 105  # unused
     MATCH_ABORT = 106
     SWITCH_TOURNAMENT_SERVER = 107
-    
+
     GROUP_JOIN = 122
     GROUP_LEAVE = 123
     GROUP_INVITE = 124
-    GROUP_USERS= 125
+    GROUP_USERS = 125
     IDENTIFY = 127
 
     def __repr__(self) -> str:
@@ -380,6 +371,7 @@ class MultiplayerMatch:
 
 
 class BasePacket(ABC):
+    @abstractmethod
     def __init__(self, reader: BanchoPacketReader) -> None: ...
 
     @abstractmethod
@@ -428,7 +420,9 @@ class BanchoPacketReader:
         p_len = 0
         while self.body_view:  # len(self.view) < 7?
             if len(self.body_view) < 7 and i < 1:
-                logging.log(f"Packet too short to read header, skipping. {self.body_view}")
+                logging.log(
+                    f"Packet too short to read header, skipping. {self.body_view}",
+                )
                 i += 1
                 continue
             p_type, p_len = self._read_header()
@@ -684,11 +678,11 @@ def write_string(s: str) -> bytes:
     return ret
 
 
-def write_i32_list(l: Collection[int]) -> bytearray:
-    """Write `l` into bytes (int32 list)."""
-    ret = bytearray(len(l).to_bytes(2, "little"))
+def write_i32_list(items: Collection[int]) -> bytearray:
+    """Write `items` into bytes (int32 list)."""
+    ret = bytearray(len(items).to_bytes(2, "little"))
 
-    for i in l:
+    for i in items:
         ret += i.to_bytes(4, "little", signed=True)
 
     return ret
@@ -827,7 +821,11 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
             ret += p_args
         elif p_type in _noexpand_types:
             if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
-                logging.log(f"Integer value out of range for 'i' format code", level=logging.logLevel.WARNING, extra={"value": p_args})
+                logging.log(
+                    "Integer value out of range for 'i' format code",
+                    level=logging.logLevel.WARNING,
+                    extra={"value": p_args},
+                )
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:
             ret += _expand_types[p_type](*p_args)
@@ -1385,33 +1383,37 @@ def switch_tournament_server(ip: str) -> bytes:
     # but we can send it either way xd.
     return write(ServerPackets.SWITCH_TOURNAMENT_SERVER, (ip, osuTypes.string))
 
+
 # packet id: 127
 def identify(version: int) -> bytes:
     return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
 
+
 def group_join() -> bytes:
     return write(ServerPackets.GROUP_JOIN)
+
 
 def group_leave() -> bytes:
     return write(ServerPackets.GROUP_LEAVE)
 
-def group_users(player:Player) -> bytes:
+
+def group_users(player: Player) -> bytes:
     group = groups.get_group(player)
     users = []
     if group is not None:
         for user in group.players:
             lead = 1 if user.id == group.lead.id else 0
 
-            users.append({
-                "Name": user.name,
-                "ID" : str(user.id),
-                "Lead": str(lead)
-            })
-    return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
+            users.append({"Name": user.name, "ID": str(user.id), "Lead": str(lead)})
+    return write(
+        ServerPackets.GROUP_USERS,
+        (json.dumps(users, indent=5), osuTypes.string),
+    )
 
-def group_invite(lead:Player) -> bytes:
-    invite = {
-		"From":lead.name,
-		"ID":lead.id
-	}
-    return write(ServerPackets.GROUP_INVITE, (json.dumps(invite, indent=5), osuTypes.string))
+
+def group_invite(lead: Player) -> bytes:
+    invite = {"From": lead.name, "ID": lead.id}
+    return write(
+        ServerPackets.GROUP_INVITE,
+        (json.dumps(invite, indent=5), osuTypes.string),
+    )

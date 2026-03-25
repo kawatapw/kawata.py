@@ -91,7 +91,7 @@ Usage Pattern:
         custom_badge_icon=None,
         userpage_content=None
     )
-    
+
     # Use in API endpoint
     @router.get("/players/{player_id}")
     async def get_player(player_id: int) -> Player:
@@ -117,7 +117,7 @@ from . import BaseModel
 
 class Player(BaseModel):
     """Pydantic model for player data in API responses.
-    
+
     Attributes:
         id: Unique identifier for the player
         name: Display name of the player
@@ -136,6 +136,7 @@ class Player(BaseModel):
         custom_badge_icon: Custom badge icon URL
         userpage_content: User profile content
     """
+
     id: int
     name: str
     safe_name: str
@@ -161,7 +162,7 @@ class Player(BaseModel):
 
 class PlayerStatus(BaseModel):
     """Pydantic model for player status data in API responses.
-    
+
     Attributes:
         login_time: Unix timestamp when player logged in
         action: Current action (idle, playing, editing, etc.)
@@ -170,6 +171,7 @@ class PlayerStatus(BaseModel):
         mods: Current mods applied
         beatmap_id: Current beatmap being played
     """
+
     login_time: int
     action: int
     info_text: str
@@ -180,7 +182,7 @@ class PlayerStatus(BaseModel):
 
 class PlayerStats(BaseModel):
     """Pydantic model for player statistics data in API responses.
-    
+
     Attributes:
         id: Player ID
         mode: Game mode
@@ -199,6 +201,7 @@ class PlayerStats(BaseModel):
         s_count: Number of S grades
         a_count: Number of A grades
     """
+
     id: int
     mode: int
     tscore: int

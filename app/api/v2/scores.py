@@ -39,13 +39,13 @@ Filtering Options:
 Usage Pattern:
     # List scores with pagination
     GET /api/v2/scores?page=1&page_size=50
-    
+
     # Filter by beatmap and mods
     GET /api/v2/scores?map_md5=abc123&mods=0
-    
+
     # Filter by player and mode
     GET /api/v2/scores?user_id=12345&mode=0
-    
+
     # Get specific score
     GET /api/v2/scores/67890
 
@@ -57,13 +57,11 @@ Related Files:
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status
 from fastapi.param_functions import Query
 
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure
-from app.api.v2.common.responses import Success
+from app.api.v2.common.responses import Failure, Success
 from app.api.v2.models.scores import Score
 from app.repositories import scores as scores_repo
 

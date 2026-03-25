@@ -6,19 +6,13 @@ import asyncio
 import math
 import os
 import sys
-from collections.abc import Awaitable
-from collections.abc import Iterator
-from collections.abc import Sequence
-from dataclasses import dataclass
-from dataclasses import field
-from datetime import datetime
+from collections.abc import Awaitable, Iterator, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import databases
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from akatsuki_pp_py import Beatmap, Calculator
 from redis import asyncio as aioredis
 
 _project_root = Path(__file__).resolve().parent.parent
@@ -29,7 +23,6 @@ try:
     import app.settings
     import app.state.services
     from app.constants.gamemodes import GameMode
-    from app.constants.mods import Mods
     from app.constants.privileges import Privileges
     from app.objects.beatmap import ensure_osu_file_is_available
 except ModuleNotFoundError:
@@ -86,7 +79,7 @@ async def recalculate_score(
     if math.isnan(new_pp) or math.isinf(new_pp):
         new_pp = 0.0
 
-    #new_pp = min(new_pp, 9999.999)
+    # new_pp = min(new_pp, 9999.999)
 
     await ctx.database.execute(
         "UPDATE scores SET pp = :new_pp WHERE id = :id",
@@ -258,7 +251,9 @@ async def recalculate_season_user(
     )
 
     if debug_mode_enabled:
-        print(f"Recalculated user ID {id} mode {game_mode.value} season {season_id} ({pp:.3f}pp, {acc:.3f}%)")
+        print(
+            f"Recalculated user ID {id} mode {game_mode.value} season {season_id} ({pp:.3f}pp, {acc:.3f}%)",
+        )
 
 
 async def process_season_user_chunk(
@@ -274,7 +269,11 @@ async def process_season_user_chunk(
     await asyncio.gather(*tasks)
 
 
-async def recalculate_season_users(season_id: int, mode: GameMode, ctx: Context) -> None:
+async def recalculate_season_users(
+    season_id: int,
+    mode: GameMode,
+    ctx: Context,
+) -> None:
     """Recalculate stats for all users in a specific season."""
     user_ids = [
         row["userid"]
@@ -293,7 +292,7 @@ async def recalculate_season_users(season_id: int, mode: GameMode, ctx: Context)
 async def recalculate_all_seasons(mode: GameMode, ctx: Context) -> None:
     """Recalculate stats for all seasons."""
     seasons = await ctx.database.fetch_all(
-        "SELECT id, name FROM seasons ORDER BY start_date"
+        "SELECT id, name FROM seasons ORDER BY start_date",
     )
 
     for season in seasons:

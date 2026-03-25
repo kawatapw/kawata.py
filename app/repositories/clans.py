@@ -54,22 +54,22 @@ Usage Pattern:
         tag="MC",
         owner=player_id
     )
-    
+
     # Fetch clan by ID, name, tag, or owner
     clan = await fetch_one(id=1)
     clan = await fetch_one(name="My Clan")
     clan = await fetch_one(tag="MC")
     clan = await fetch_one(owner=player_id)
-    
+
     # Fetch clans with pagination
     clans = await fetch_many(page=1, page_size=10)
-    
+
     # Update clan
     updated = await partial_update(
         id=1,
         name="Updated Clan Name"
     )
-    
+
     # Delete clan
     deleted = await delete_one(id=1)
 
@@ -83,23 +83,23 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 

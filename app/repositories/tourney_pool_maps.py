@@ -52,30 +52,30 @@ Usage Pattern:
         mods=0,
         slot=1
     )
-    
+
     # Get all maps in a pool
     maps = await fetch_many(pool_id=1)
-    
+
     # Get maps by mod and slot
     maps = await fetch_many(
         pool_id=1,
         mods=0,
         slot=1
     )
-    
+
     # Get specific map by pool and pick
     pool_map = await fetch_by_pool_and_pick(
         pool_id=1,
         mods=0,
         slot=1
     )
-    
+
     # Remove a map from a pool
     deleted = await delete_map_from_pool(
         pool_id=1,
         map_id=12345
     )
-    
+
     # Clear entire pool
     deleted_maps = await delete_all_in_pool(pool_id=1)
 
@@ -89,15 +89,9 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import delete
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, Index, Integer, delete, insert, select
 
 import app.state.services
 from app.repositories import Base

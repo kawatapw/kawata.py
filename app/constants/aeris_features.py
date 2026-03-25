@@ -38,10 +38,10 @@ Example Usage:
     # Check if cheat detection is enabled
     if player.features & AerisFeatures.Cheats:
         enable_cheat_monitoring()
-    
+
     # Enable both group and cheat features
     player.features = AerisFeatures.Groups | AerisFeatures.Cheats
-    
+
     # Check if any features are enabled
     if player.features != AerisFeatures.None_:
         enable_anti_cheat()
@@ -56,28 +56,29 @@ Related Files:
 
 class AerisFeatures:
     """Feature flag constants for the Aeris anti-cheat system.
-    
+
     This class provides bitwise constants that control which security features
     are enabled for player sessions. The flags use bitwise operations for
     efficient storage and checking, allowing multiple features to be combined
     into a single integer value.
-    
+
     Attributes:
         None_ (int): No features enabled (0). Disables all anti-cheat monitoring.
         Groups (int): Group-based monitoring enabled (1). Tracks player group activities.
         Cheats (int): Cheat detection enabled (2). Monitors for cheating behavior.
         All (int): All features enabled (~0). Maximum security monitoring.
-    
+
     Usage:
         These flags are typically stored in player session data and checked
         using bitwise AND operations. Multiple features can be combined using
         bitwise OR operations.
-    
+
     Example:
         >>> features = AerisFeatures.Groups | AerisFeatures.Cheats
         >>> if features & AerisFeatures.Cheats:
         ...     print("Cheat detection enabled")
     """
+
     None_ = 0
     Groups = 1 << 0
     Cheats = 1 << 1

@@ -61,16 +61,16 @@ Authentication:
 Usage Pattern:
     # Search for players
     GET /api/v1/search_players?q=player_name
-    
+
     # Get player information
     GET /api/v1/get_player_info?scope=all&id=12345
-    
+
     # Get player scores
     GET /api/v1/get_player_scores?scope=best&id=12345&mode=0&limit=10
-    
+
     # Get beatmap information
     GET /api/v1/get_map_info?id=12345
-    
+
     # Calculate PP (requires API key)
     GET /api/v1/calculate_pp?id=12345&acc=95&mods=0
     Authorization: Bearer your_api_key
@@ -83,44 +83,37 @@ Related Files:
     - app/state/sessions.py: Session and API key management
 """
 
-from __future__ import annotations
+# from __future__ import annotations
 
-import asyncio
 import hashlib
-import struct
-import orjson
 import json
+import struct
 from pathlib import Path as SystemPath
 from typing import Any, Literal
 
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import status, HTTPException, Request
+import orjson
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.param_functions import Query
-from fastapi.responses import ORJSONResponse
-from fastapi.responses import Response
+from fastapi.responses import ORJSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
-from app.logging import Ansi
-from app.logging import log, logLevel, error_catcher
 import app.packets
 import app.state
 import app.usecases.performance
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.objects.beatmap import Beatmap
-from app.objects.beatmap import ensure_osu_file_is_available
-from app.objects.beatmap import RankedStatus
+from app.logging import error_catcher, log, logLevel
+from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
 from app.repositories import clans as clans_repo
+from app.repositories import maps as maps_repo
 from app.repositories import scores as scores_repo
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
 from app.repositories import users as users_repo
-from app.repositories import maps as maps_repo
 from app.usecases.performance import ScoreParams
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
@@ -131,6 +124,7 @@ SCREENSHOTS_PATH = SystemPath.cwd() / ".data/ss"
 
 router = APIRouter()
 http_bearer_scheme = HTTPBearer(auto_error=False)
+api_key_dependency = Depends(http_bearer_scheme)
 
 # NOTE: The V1 APIs should not be used if a V2 API is available.
 #       These APIs may be deprecated in the future.
@@ -158,18 +152,18 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 @router.get("/calculate_pp")
 @error_catcher
 async def api_calculate_pp(
-    token: HTTPCredentials | None = Depends(http_bearer_scheme),
-    beatmap_id: int = Query(None, alias="id", min=0, max=2_147_483_647),
-    nkatu: int = Query(None, max=2_147_483_647),
-    ngeki: int = Query(None, max=2_147_483_647),
-    n100: int = Query(None, max=2_147_483_647),
-    n50: int = Query(None, max=2_147_483_647),
-    misses: int = Query(0, max=2_147_483_647),
-    mods: int = Query(0, min=0, max=2_147_483_647),
-    mode: int = Query(0, min=0, max=11),
-    combo: int = Query(None, max=2_147_483_647),
-    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
-) -> Response:
+    token: HTTPCredentials | None = api_key_dependency,  # noqa: B008
+    beatmap_id: int = Query(None, alias="id", min=0, max=2_147_483_647),  # noqa: B008
+    nkatu: int = Query(None, max=2_147_483_647),  # noqa: B008
+    ngeki: int = Query(None, max=2_147_483_647),  # noqa: B008
+    n100: int = Query(None, max=2_147_483_647),  # noqa: B008
+    n50: int = Query(None, max=2_147_483_647),  # noqa: B008
+    misses: int = Query(0, max=2_147_483_647),  # noqa: B008
+    mods: int = Query(0, min=0, max=2_147_483_647),  # noqa: B008
+    mode: int = Query(0, min=0, max=11),  # noqa: B008
+    combo: int = Query(None, max=2_147_483_647),  # noqa: B008
+    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),  # noqa: B008
+) -> ORJSONResponse:
     """Calculates the PP of a specified map with specified score parameters."""
 
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
@@ -224,7 +218,7 @@ async def api_calculate_pp(
     # "Inject" the accuracy into the list of results
     final_results = [
         performance_result | {"accuracy": score.acc}
-        for performance_result, score in zip(results, scores)
+        for performance_result, score in zip(results, scores, strict=False)
     ]
 
     return ORJSONResponse(
@@ -334,7 +328,10 @@ async def api_get_player_info(
         api_data["stats"] = {}
 
         # get all stats
-        all_stats = await stats_repo.fetch_many(player_id=resolved_user_id, season_id=season_id)
+        all_stats = await stats_repo.fetch_many(
+            player_id=resolved_user_id,
+            season_id=season_id,
+        )
 
         for mode_stats in all_stats:
             rank = await app.state.services.redis.zrevrank(
@@ -377,13 +374,21 @@ async def api_get_player_info(
 @router.get("/get_player_status")
 @error_catcher
 async def api_get_player_status(
-    user_ids: str | None = Query(None, alias="ids", description="Comma-separated list of user IDs"),
-    usernames: str | None = Query(None, alias="names", description="Comma-separated list of usernames"),
+    user_ids: str | None = Query(
+        None,
+        alias="ids",
+        description="Comma-separated list of user IDs",
+    ),
+    usernames: str | None = Query(
+        None,
+        alias="names",
+        description="Comma-separated list of usernames",
+    ),
     user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
 ) -> Response:
     """Return player status for one or more players.
-    
+
     Supports both single player (backward compatible) and multiple players via comma-separated lists.
     """
     # Validate input parameters
@@ -391,24 +396,24 @@ async def api_get_player_status(
     has_multiple_names = usernames is not None
     has_single_id = user_id is not None
     has_single_name = username is not None
-    
+
     # Check for conflicting parameters
     if (has_multiple_ids and has_single_id) or (has_multiple_names and has_single_name):
         return ORJSONResponse(
             {"status": "Cannot use both single and multiple parameter variants."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     if (has_multiple_ids or has_single_id) and (has_multiple_names or has_single_name):
         return ORJSONResponse(
             {"status": "Must provide either IDs or names, not both."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     # Parse input into a list of identifiers
     identifiers: list[str] = []
     is_id_mode = False
-    
+
     if has_multiple_ids and user_ids is not None:
         identifiers = [id.strip() for id in user_ids.split(",") if id.strip()]
         is_id_mode = True
@@ -426,17 +431,17 @@ async def api_get_player_status(
             {"status": "Must provide either ids or names."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     # Limit the number of identifiers to prevent abuse
     if len(identifiers) > 100:
         return ORJSONResponse(
             {"status": "Too many identifiers. Maximum 100 allowed."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     # Check if this is a single player request (backward compatibility)
     is_single_player = len(identifiers) == 1 and (has_single_id or has_single_name)
-    
+
     # Process each identifier
     results: dict[str, dict[str, Any]] = {}
     for identifier in identifiers:
@@ -460,21 +465,21 @@ async def api_get_player_status(
                     continue
             else:
                 player = app.state.sessions.players.get(name=identifier)
-            
+
             if not player:
                 # Player not online, check database
                 if is_id_mode:
                     row = await users_repo.fetch_one(id=int(identifier))
                 else:
                     row = await users_repo.fetch_one(name=identifier)
-                
+
                 if not row:
                     results[identifier] = {
                         "status": "error",
                         "message": "Player not found",
                     }
                     continue
-                
+
                 results[identifier] = {
                     "status": "success",
                     "player_status": {
@@ -488,7 +493,7 @@ async def api_get_player_status(
                     bmap = await Beatmap.from_md5(player.status.map_md5)
                 else:
                     bmap = None
-                
+
                 results[identifier] = {
                     "status": "success",
                     "player_status": {
@@ -503,7 +508,7 @@ async def api_get_player_status(
                         },
                     },
                 }
-        
+
         except Exception as e:
             log(
                 f"Error processing player status for {identifier}: {e}",
@@ -519,7 +524,7 @@ async def api_get_player_status(
                 "status": "error",
                 "message": "Internal server error",
             }
-    
+
     # Return backward-compatible format for single player requests
     if is_single_player:
         identifier = identifiers[0]
@@ -544,7 +549,7 @@ async def api_get_player_status(
                     {"status": error_message},
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
-    
+
     # Return batch format for multiple players
     return ORJSONResponse(
         {
@@ -671,10 +676,7 @@ async def api_get_player_scores(
     params["limit"] = limit
 
     db_rows = await app.state.services.database.fetch_all(" ".join(query), params)
-    rows = [
-        dict(row)
-        for row in (db_rows if db_rows is not None else [])
-    ]
+    rows = [dict(row) for row in (db_rows if db_rows is not None else [])]
 
     # fetch & return info from sql
     for row in rows:
@@ -698,19 +700,19 @@ async def api_get_player_scores(
             else None
         ),
     }
-    
+
     # Add mods_readable to each score
     for row in rows:
         mods = Mods(row["mods"])
         mods_readable = app.constants.mods.get_mods_string(mods)
         row["mods_readable"] = mods_readable
-    
+
     # load cheat values back into json
     for row in rows:
         if row["cheat_values"]:  # Check if cheat_values is not None or empty
             try:
                 # Handle case where cheat_values is already a JSON object (not a string)
-                if isinstance(row["cheat_values"], (dict, list)):
+                if isinstance(row["cheat_values"], dict | list):
                     row["cheat_values"] = row["cheat_values"]
                 else:
                     # Handle case where cheat_values is a JSON string
@@ -722,7 +724,10 @@ async def api_get_player_scores(
                         row["cheat_values"] = parsed
             except (json.JSONDecodeError, TypeError, ValueError) as e:
                 # Log the error and set to empty dict
-                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "scores",
+                ]:
                     log(
                         f"Failed to parse cheat_values for score {row.get('id', 'unknown')}: {e}",
                         logger="console.error",
@@ -730,12 +735,11 @@ async def api_get_player_scores(
                         extra={
                             "cheat_values": row["cheat_values"],
                             "error": e,
-                        }
+                        },
                     )
                 row["cheat_values"] = {}
         else:
             row["cheat_values"] = {}  # Set to an empty dict if there's no data
-
 
     return ORJSONResponse(
         {
@@ -945,7 +949,7 @@ async def api_get_map_scores(
     rows = await app.state.services.database.fetch_all(" ".join(query), params)
     if rows is None:
         rows = []
-    
+
     # Add mods_readable to each score
     for row in rows:
         mods = Mods(row["mods"])
@@ -971,15 +975,18 @@ async def api_get_score_info(
     try:
         score = await scores_repo.fetch_one(score_id)
     except Exception as e:
-        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "scores"]:
+        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+            "all",
+            "scores",
+        ]:
             log(
-                f"Failed to grab Score Info",
+                "Failed to grab Score Info",
                 logger="console.error",
                 level=logLevel.ERROR,
                 extra={
                     "score": score,
                     "error": e,
-                }
+                },
             )
     if score is None:
         return ORJSONResponse(
@@ -990,8 +997,16 @@ async def api_get_score_info(
     mods_readable = app.constants.mods.get_mods_string(mods)
     score["mods_readable"] = mods_readable
     if b == 1:
-        beatmap_info = await Beatmap.from_md5(score["map_md5"])  # Access md5 as a key in the score dictionary
-        return ORJSONResponse({"status": "success", "score": score, "beatmap_info": beatmap_info.as_dict if beatmap_info else None})
+        beatmap_info = await Beatmap.from_md5(
+            score["map_md5"],
+        )  # Access md5 as a key in the score dictionary
+        return ORJSONResponse(
+            {
+                "status": "success",
+                "score": score,
+                "beatmap_info": beatmap_info.as_dict if beatmap_info else None,
+            },
+        )
     else:
         return ORJSONResponse({"status": "success", "score": score})
 
@@ -1210,7 +1225,7 @@ async def api_get_global_leaderboard(
     )
     if rows is None:
         rows = []
-    for i, row in enumerate(rows): # Grab Badges for every player TODO: Optimize
+    for i, row in enumerate(rows):  # Grab Badges for every player TODO: Optimize
         player = dict(row)
         badges_response = await api_get_badges(user_id=player["player_id"])
         badges_data = orjson.loads(badges_response.body)
@@ -1221,6 +1236,7 @@ async def api_get_global_leaderboard(
     return ORJSONResponse(
         {"status": "success", "leaderboard": [dict(row) for row in rows]},
     )
+
 
 @router.get("/get_top_players")
 @error_catcher
@@ -1267,6 +1283,7 @@ async def api_get_top_players() -> Response:
     return ORJSONResponse(
         {"status": "success", "leaderboard": leaderboard},
     )
+
 
 @router.get("/get_clan")
 @error_catcher
@@ -1398,6 +1415,7 @@ async def api_get_pool(
         },
     )
 
+
 @router.get("/get_friends")
 @error_catcher
 async def api_get_friends(
@@ -1413,9 +1431,9 @@ async def api_get_friends(
         )
 
     # get user info from username or id
-    if username: 
+    if username:
         user_info = app.state.sessions.players.get(name=username)
-    else: # if userid
+    else:  # if userid
         user_info = app.state.sessions.players.get(id=user_id)
     if user_info is None:
         return ORJSONResponse(
@@ -1429,7 +1447,7 @@ async def api_get_friends(
         # Query for all friends of the resolved user_id
         friends = await app.state.services.database.fetch_all(
             "SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'",
-            {"user_id": resolved_user_id}
+            {"user_id": resolved_user_id},
         )
         if friends is None:
             friends = []
@@ -1439,13 +1457,15 @@ async def api_get_friends(
 
     elif scope == "mutuals":
         # Query for all mutual friends of the resolved user_id
-        mutuals = await app.state.services.database.fetch_all("""
+        mutuals = await app.state.services.database.fetch_all(
+            """
         SELECT r1.user2
             FROM relationships r1
             INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2
             WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
             """,
-            {"user_id": resolved_user_id})
+            {"user_id": resolved_user_id},
+        )
         if mutuals is None:
             mutuals = []
 
@@ -1454,27 +1474,32 @@ async def api_get_friends(
 
     elif scope == "all":
         # Query for both friends and mutual friends of the resolved user_id
-        friends = await app.state.services.database.fetch_all("""
+        friends = await app.state.services.database.fetch_all(
+            """
             SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'
             """,
-            {"user_id": resolved_user_id}
+            {"user_id": resolved_user_id},
         )
         if friends is None:
             friends = []
         friends = [row["user2"] for row in friends]
 
-        mutuals = await app.state.services.database.fetch_all("""
+        mutuals = await app.state.services.database.fetch_all(
+            """
             SELECT r1.user2
             FROM relationships r1
             INNER JOIN relationships r2 ON r1.user2 = r2.user1 AND r1.user1 = r2.user2
             WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
             """,
-            {"user_id": resolved_user_id})
+            {"user_id": resolved_user_id},
+        )
         if mutuals is None:
             mutuals = []
 
         mutuals = [row["user2"] for row in mutuals]
-        return ORJSONResponse({"status": "success", "friends": friends, "mutuals": mutuals})
+        return ORJSONResponse(
+            {"status": "success", "friends": friends, "mutuals": mutuals},
+        )
 
 
 @router.get("/get_badges")
@@ -1483,45 +1508,50 @@ async def api_get_badges(
     user_id: int = Query(..., alias="id", ge=1, le=2_147_483_647),
 ) -> ORJSONResponse:
     badges = []
-    
+
     # Select badge_id from user_badges where userid = user_id
     user_badges = await app.state.services.database.fetch_all(
         "SELECT badge_id FROM user_badges WHERE userid = :user_id",
-        {"user_id": user_id}
+        {"user_id": user_id},
     )
     if user_badges is None:
         user_badges = []
-    
+
     for user_badge in user_badges:
         badge_id = user_badge["badge_id"]
-        
+
         badge = await app.state.services.database.fetch_one(
             "SELECT * FROM badges WHERE id = :badge_id",
-            {"badge_id": badge_id}
+            {"badge_id": badge_id},
         )
-        
+
         if badge is None:
             continue
-        
+
         badge_styles = await app.state.services.database.fetch_all(
             "SELECT * FROM badge_styles WHERE badge_id = :badge_id",
-            {"badge_id": badge_id}
+            {"badge_id": badge_id},
         )
-        
+
         badge = dict(badge)
-        badge["styles"] = {style["type"]: style["value"] for style in badge_styles} if badge_styles else {}
-        
+        badge["styles"] = (
+            {style["type"]: style["value"] for style in badge_styles}
+            if badge_styles
+            else {}
+        )
+
         badges.append(badge)
-        
+
         # Sort the badges based on priority
-        badges.sort(key=lambda x: x['priority'], reverse=True)
-    
+        badges.sort(key=lambda x: x["priority"], reverse=True)
+
     return ORJSONResponse(content={"badges": badges})
+
 
 @router.post("/update_map_status")
 @error_catcher
 async def api_update_map_status(
-    token: HTTPCredentials | None = Depends(http_bearer_scheme),
+    token: HTTPCredentials | None = api_key_dependency,
     map_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
     set_id: int | None = Query(None, alias="sid", ge=0, le=2_147_483_647),
     status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
@@ -1529,11 +1559,13 @@ async def api_update_map_status(
     """Update the status of a given beatmap."""
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
-            {"status": f"Invalid API key."},
+            {"status": "Invalid API key."},
         )
     if token.credentials != app.settings.BOT_API_KEY:
         return ORJSONResponse(
-            {"status": f"This endpoint is locked down and should only be used by the server."},
+            {
+                "status": "This endpoint is locked down and should only be used by the server.",
+            },
         )
     if map_id is None and set_id is None:
         return ORJSONResponse(
@@ -1556,7 +1588,11 @@ async def api_update_map_status(
             # update all maps in the set
             beatmap_set = await maps_repo.fetch_many(set_id=set_id)
             for _bmap in beatmap_set:
-                await maps_repo.partial_update(_bmap["id"], status=new_status, frozen=True)
+                await maps_repo.partial_update(
+                    _bmap["id"],
+                    status=new_status,
+                    frozen=True,
+                )
             # make sure cache and db are synced about the newest change
             if set_id in app.state.cache.beatmapset:
                 for beatmap in app.state.cache.beatmapset[set_id].maps:
@@ -1594,8 +1630,8 @@ async def api_update_map_status(
         {"map_ids": map_ids},
     )
 
-
     return ORJSONResponse({"status": "success"})
+
 
 # def requires_api_key(f: Callable) -> Callable:
 #     @wraps(f)

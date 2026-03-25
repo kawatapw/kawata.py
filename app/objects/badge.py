@@ -53,7 +53,7 @@ Example Usage:
         priority=10,
         badge_styles={gold_style, border_style}
     )
-    
+
     # Access badge properties
     badge_name = badge.name  # "First Place"
     badge_priority = badge.priority  # 10
@@ -69,12 +69,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from typing import TYPE_CHECKING
-from typing import Optional
 from app.objects.badge_style import Badge_Style
 
 if TYPE_CHECKING:
-    from app.objects.player import Player
+    pass
 
 __all__ = ("Badge",)
 
@@ -88,7 +86,7 @@ class Badge:
         name: str,
         description: str,
         priority: int,
-        badge_styles: Optional[set[Badge_Style]] = None,
+        badge_styles: set[Badge_Style] | None = None,
     ) -> None:
         """A class representing one of bancho.py's clans."""
         self.id = id

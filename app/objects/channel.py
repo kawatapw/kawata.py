@@ -60,13 +60,13 @@ Example Usage:
         read_priv=Privileges.UNRESTRICTED,
         write_priv=Privileges.UNRESTRICTED
     )
-    
+
     # Add player to channel
     channel.append(player)
-    
+
     # Send message to channel
     channel.send("Hello everyone!", sender=player)
-    
+
     # Check if player can write
     if channel.can_write(player.privileges):
         channel.send("Message", sender=player)

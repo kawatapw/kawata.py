@@ -39,14 +39,14 @@ Usage Pattern:
         user_id=12345,
         achievement_id=1
     )
-    
+
     # Fetch user achievements with pagination
     user_achievements = await fetch_many(
         user_id=12345,
         page=1,
         page_size=10
     )
-    
+
     # Process user achievements for display
     for user_achievement in user_achievements:
         display_user_achievement(user_achievement)
@@ -61,8 +61,7 @@ Related Files:
 from __future__ import annotations
 
 import app.repositories.user_achievements
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories.user_achievements import UserAchievement
 
 

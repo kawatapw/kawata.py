@@ -151,30 +151,65 @@ File: [`app/repositories/score_hunts.py`](app/repositories/score_hunts.py)
 
 ```python
 # Hunts
-async def create_hunt(name: str, description: str, map_id: int, mode: int, start_time: datetime, end_time: datetime, created_by: int, max_participants: int | None = None) -> ScoreHunt: ...
-async def fetch_hunt(id: int | None = None, status: str | None = None, mode: int | None = None) -> ScoreHunt | None: ...
+async def create_hunt(
+    name: str,
+    description: str,
+    map_id: int,
+    mode: int,
+    start_time: datetime,
+    end_time: datetime,
+    created_by: int,
+    max_participants: int | None = None,
+) -> ScoreHunt: ...
+async def fetch_hunt(
+    id: int | None = None, status: str | None = None, mode: int | None = None
+) -> ScoreHunt | None: ...
 async def fetch_active_hunts(mode: int | None = None) -> list[ScoreHunt]: ...
-async def fetch_hunts(page: int | None = None, page_size: int | None = None) -> list[ScoreHunt]: ...
+async def fetch_hunts(
+    page: int | None = None, page_size: int | None = None
+) -> list[ScoreHunt]: ...
 async def update_hunt_status(id: int, status: str) -> ScoreHunt | None: ...
 
+
 # Restrictions
-async def add_restriction(hunt_id: int, restriction_type: str, restriction_value: str, is_allowed: bool = True) -> ScoreHuntRestriction: ...
+async def add_restriction(
+    hunt_id: int, restriction_type: str, restriction_value: str, is_allowed: bool = True
+) -> ScoreHuntRestriction: ...
 async def fetch_restrictions(hunt_id: int) -> list[ScoreHuntRestriction]: ...
-async def validate_score(hunt_id: int, mods: int, cheat_values: dict | None) -> tuple[bool, str | None]: ...
+async def validate_score(
+    hunt_id: int, mods: int, cheat_values: dict | None
+) -> tuple[bool, str | None]: ...
+
 
 # Submissions
-async def record_submission(hunt_id: int, user_id: int, score_id: int, is_valid: bool = True, validation_notes: str | None = None) -> ScoreHuntSubmission: ...
-async def fetch_submissions(hunt_id: int, user_id: int | None = None, is_valid: bool | None = None) -> list[ScoreHuntSubmission]: ...
+async def record_submission(
+    hunt_id: int,
+    user_id: int,
+    score_id: int,
+    is_valid: bool = True,
+    validation_notes: str | None = None,
+) -> ScoreHuntSubmission: ...
+async def fetch_submissions(
+    hunt_id: int, user_id: int | None = None, is_valid: bool | None = None
+) -> list[ScoreHuntSubmission]: ...
+
 
 # Results
-async def record_result(hunt_id: int, user_id: int, placement: int, score_value: int, points_awarded: int) -> ScoreHuntResult: ...
+async def record_result(
+    hunt_id: int, user_id: int, placement: int, score_value: int, points_awarded: int
+) -> ScoreHuntResult: ...
 async def fetch_results(hunt_id: int) -> list[ScoreHuntResult]: ...
 async def determine_winners(hunt_id: int) -> list[ScoreHuntResult]: ...
 
+
 # Points
-async def award_points(user_id: int, points: int, season_id: int | None = None) -> None: ...
+async def award_points(
+    user_id: int, points: int, season_id: int | None = None
+) -> None: ...
 async def fetch_points(user_id: int, season_id: int | None = None) -> int: ...
-async def fetch_leaderboard(season_id: int | None = None, limit: int = 10) -> list[dict]: ...
+async def fetch_leaderboard(
+    season_id: int | None = None, limit: int = 10
+) -> list[dict]: ...
 ```
 
 ### Commands
@@ -183,21 +218,26 @@ async def fetch_leaderboard(season_id: int | None = None, limit: int = 10) -> li
 async def hunt_create(ctx: Context) -> str | None:
     """Create a new score hunt."""
 
+
 @command(Privileges.ADMINISTRATOR)
 async def hunt_start(ctx: Context) -> str | None:
     """Start a score hunt."""
+
 
 @command(Privileges.ADMINISTRATOR)
 async def hunt_end(ctx: Context) -> str | None:
     """End a score hunt and determine winners."""
 
+
 @command(Privileges.UNRESTRICTED)
 async def hunt_list(ctx: Context) -> str | None:
     """List active score hunts."""
 
+
 @command(Privileges.UNRESTRICTED)
 async def hunt_info(ctx: Context) -> str | None:
     """Show info about a score hunt."""
+
 
 @command(Privileges.UNRESTRICTED)
 async def hunt_leaderboard(ctx: Context) -> str | None:
@@ -220,30 +260,35 @@ async def process_score_hunts() -> None:
 ## Score Validation Logic
 
 ```python
-async def validate_score_for_hunt(hunt_id: int, score: Score) -> tuple[bool, str | None]:
+async def validate_score_for_hunt(
+    hunt_id: int, score: Score
+) -> tuple[bool, str | None]:
     """Validate a score against hunt restrictions."""
     restrictions = await fetch_restrictions(hunt_id)
-    
+
     for restriction in restrictions:
-        if restriction['restriction_type'] == 'mod':
-            if restriction['is_allowed']:
-                if not (score.mods & get_mod_value(restriction['restriction_value'])):
+        if restriction["restriction_type"] == "mod":
+            if restriction["is_allowed"]:
+                if not (score.mods & get_mod_value(restriction["restriction_value"])):
                     return False, f"Mod {restriction['restriction_value']} required"
             else:
-                if score.mods & get_mod_value(restriction['restriction_value']):
+                if score.mods & get_mod_value(restriction["restriction_value"]):
                     return False, f"Mod {restriction['restriction_value']} not allowed"
-        
-        elif restriction['restriction_type'] == 'cheat':
+
+        elif restriction["restriction_type"] == "cheat":
             cheat_values = get_cheat_values(score)
-            if restriction['is_allowed']:
-                if restriction['restriction_value'] not in cheat_values:
+            if restriction["is_allowed"]:
+                if restriction["restriction_value"] not in cheat_values:
                     return False, f"Cheat {restriction['restriction_value']} required"
             else:
-                if restriction['restriction_value'] in cheat_values:
-                    return False, f"Cheat {restriction['restriction_value']} not allowed"
-        
+                if restriction["restriction_value"] in cheat_values:
+                    return (
+                        False,
+                        f"Cheat {restriction['restriction_value']} not allowed",
+                    )
+
         # ... other restriction types
-    
+
     return True, None
 ```
 

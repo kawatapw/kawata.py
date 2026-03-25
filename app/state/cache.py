@@ -38,17 +38,17 @@ Usage Pattern:
     # Access beatmap cache
     beatmap = app.state.cache.beatmap.get(md5_hash)
     beatmap = app.state.cache.beatmap.get(beatmap_id)
-    
+
     # Access beatmap set cache
     beatmap_set = app.state.cache.beatmapset.get(set_id)
-    
+
     # Check password hash cache
     md5_hash = app.state.cache.bcrypt.get(bcrypt_hash)
-    
+
     # Check unsubmitted beatmaps
     if md5_hash in app.state.cache.unsubmitted:
         handle_unsubmitted_beatmap(md5_hash)
-    
+
     # Check beatmaps needing updates
     if md5_hash in app.state.cache.needs_update:
         update_beatmap(md5_hash)
@@ -65,8 +65,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.objects.beatmap import Beatmap
-    from app.objects.beatmap import BeatmapSet
+    from app.objects.beatmap import Beatmap, BeatmapSet
 
 
 bcrypt: dict[bytes, bytes] = {}  # {bcrypt: md5, ...}

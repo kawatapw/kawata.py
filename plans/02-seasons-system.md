@@ -252,14 +252,14 @@ Scores are submitted normally without any season_id. The score submission proces
 # In app/api/domains/osu.py (score submission)
 async def submit_score(...):
     # ... existing score submission logic ...
-    
+
     # Update all-time stats (existing logic)
     await stats_repo.partial_update(
         player_id=user_id,
         mode=mode,
         # ... stat updates ...
     )
-    
+
     # Update ONLY the active season stats on score submit
     # Errors are logged but do not fail the score submission
     if seasons_enabled:
@@ -295,7 +295,7 @@ Non-active seasons are updated periodically via background task to keep stats re
 # In app/bg_loops.py
 async def update_non_active_season_stats(interval: int = 300) -> None:
     """Periodically update stats for non-active seasons.
-    
+
     Args:
         interval: Update interval in seconds (default: 300 seconds / 5 minutes)
     """
@@ -303,31 +303,31 @@ async def update_non_active_season_stats(interval: int = 300) -> None:
         seasons_enabled = await app.state.services.database.fetch_val(
             "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
         )
-        
+
         if seasons_enabled != '1':
             await asyncio.sleep(interval)
             continue
-        
+
         # Get all seasons that are currently active (within their date range)
         # but are NOT the active season type
         active_season_type_id = await app.state.services.database.fetch_val(
             "SELECT value FROM server_data WHERE type = 'seasons_active_type_id'"
         )
-        
+
         current_time = datetime.now()
         non_active_seasons = await seasons_repo.fetch_non_active_seasons(
             active_season_type_id=int(active_season_type_id) if active_season_type_id else None,
             current_time=current_time,
         )
-        
+
         for season in non_active_seasons:
             # Skip seasons that have had their end calculation done
             if season.end_calculated:
                 continue
-            
+
             # Update stats for this season
             await seasons_repo.update_season_stats(season.id)
-        
+
         await asyncio.sleep(interval)
 ```
 
@@ -349,12 +349,12 @@ async def update_non_active_season_stats(interval: int = 300) -> None:
 # Redis caching for leaderboards
 async def get_season_leaderboard(season_id: int, mode: int, page: int = 1) -> list[PlayerStats]:
     cache_key = f"leaderboard:season:{season_id}:mode:{mode}:page:{page}"
-    
+
     # Try cache first
     cached = await redis.get(cache_key)
     if cached:
         return json.loads(cached)
-    
+
     # Query database
     results = await stats_repo.fetch_many(
         season_id=season_id,
@@ -362,11 +362,11 @@ async def get_season_leaderboard(season_id: int, mode: int, page: int = 1) -> li
         page=page,
         page_size=50
     )
-    
+
     # Cache with TTL (5 minutes for active, 15 minutes for historical)
     ttl = 300 if is_active_season(season_id) else 900
     await redis.setex(cache_key, ttl, json.dumps(results))
-    
+
     return results
 ```
 
@@ -375,15 +375,15 @@ async def get_season_leaderboard(season_id: int, mode: int, page: int = 1) -> li
 class Player:
     # ... existing fields ...
     preferred_lb_view: str = "all_time"
-    
+
     # Cache for individual stats (all-time and active season)
     _stats_cache: dict[str, Stat] = {}
-    
+
     def get_cached_stats(self, season_id: int | None = None) -> Stat | None:
         """Get cached stats for a specific season or all-time."""
         cache_key = f"stats_{season_id or 'alltime'}"
         return self._stats_cache.get(cache_key)
-    
+
     def set_cached_stats(self, stats: Stat, season_id: int | None = None) -> None:
         """Cache stats for a specific season or all-time."""
         cache_key = f"stats_{season_id or 'alltime'}"
@@ -711,31 +711,31 @@ from typing import Any
 
 class ScheduleTypeProvider(ABC):
     """Base class for schedule type provider modules."""
-    
+
     @property
     @abstractmethod
     def name(self) -> str:
         """Unique identifier for this provider module."""
         pass
-    
+
     @property
     @abstractmethod
     def schedule_types(self) -> list[str]:
         """List of schedule type identifiers this module provides."""
         pass
-    
+
     @abstractmethod
     def get_config_schema(self, schedule_type: str) -> dict[str, Any]:
         """Get the JSON schema for a specific schedule type.
-        
+
         Args:
             schedule_type: The schedule type identifier
-            
+
         Returns:
             JSON schema dict for the schedule type configuration
         """
         pass
-    
+
     @abstractmethod
     def calculate_next_season(
         self,
@@ -744,17 +744,17 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> tuple[datetime, datetime]:
         """Calculate the start and end dates for the next season.
-        
+
         Args:
             schedule_type: The schedule type identifier
             current_time: The current datetime
             config: The schedule configuration from the database
-            
+
         Returns:
             A tuple of (start_date, end_date) for the next season
         """
         pass
-    
+
     @abstractmethod
     def get_season_name(
         self,
@@ -763,17 +763,17 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> str:
         """Generate a name for the season based on its start date.
-        
+
         Args:
             schedule_type: The schedule type identifier
             start_date: The start date of the season
             config: The schedule configuration from the database
-            
+
         Returns:
             A human-readable name for the season
         """
         pass
-    
+
     @abstractmethod
     def validate_config(
         self,
@@ -781,11 +781,11 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> bool:
         """Validate the schedule configuration.
-        
+
         Args:
             schedule_type: The schedule type identifier
             config: The schedule configuration to validate
-            
+
         Returns:
             True if the configuration is valid, False otherwise
         """
@@ -978,7 +978,7 @@ File: [`app/bg_loops.py`](app/bg_loops.py)
 ```python
 async def check_season_schedules(interval: int = 60) -> None:
     """Check and auto-start/end seasons based on schedule configuration.
-    
+
     Args:
         interval: Check interval in seconds (default: 60 seconds)
     """
@@ -988,14 +988,14 @@ async def check_season_schedules(interval: int = 60) -> None:
             seasons_enabled = await app.state.services.database.fetch_val(
                 "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
             )
-            
+
             if seasons_enabled != '1':
                 await asyncio.sleep(interval)
                 continue
-            
+
             # Get all schedules that need checking
             schedules = await seasons_repo.fetch_active_schedules()
-            
+
             for schedule in schedules:
                 # Get the provider for this schedule type
                 provider = get_provider_for_schedule_type(schedule.schedule_type)
@@ -1006,7 +1006,7 @@ async def check_season_schedules(interval: int = 60) -> None:
                         level=logLevel.ERROR,
                     )
                     continue
-                
+
                 # Check if a new season should start
                 current_time = datetime.now()
                 start_date, end_date = provider.calculate_next_season(
@@ -1014,22 +1014,22 @@ async def check_season_schedules(interval: int = 60) -> None:
                     current_time,
                     schedule.config,
                 )
-                
+
                 # Create new season if needed
                 # ... (implementation details)
-                
+
         except Exception as e:
             log(
                 f"Error in check_season_schedules: {e}",
                 Ansi.LRED,
                 level=logLevel.ERROR,
             )
-        
+
         await asyncio.sleep(interval)
 
 async def update_non_active_season_stats(interval: int = 300) -> None:
     """Periodically update stats for non-active seasons.
-    
+
     Args:
         interval: Update interval in seconds (default: 300 seconds / 5 minutes)
     """
@@ -1038,28 +1038,28 @@ async def update_non_active_season_stats(interval: int = 300) -> None:
             seasons_enabled = await app.state.services.database.fetch_val(
                 "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
             )
-            
+
             if seasons_enabled != '1':
                 await asyncio.sleep(interval)
                 continue
-            
+
             # Get all seasons that are currently active (within their date range)
             # but are NOT the active season type
             active_season_type_id = await app.state.services.database.fetch_val(
                 "SELECT value FROM server_data WHERE type = 'seasons_active_type_id'"
             )
-            
+
             current_time = datetime.now()
             non_active_seasons = await seasons_repo.fetch_non_active_seasons(
                 active_season_type_id=int(active_season_type_id) if active_season_type_id else None,
                 current_time=current_time,
             )
-            
+
             for season in non_active_seasons:
                 # Skip seasons that have had their end calculation done
                 if season.end_calculated:
                     continue
-                
+
                 # Update stats for this season with retry logic
                 max_retries = 3
                 for attempt in range(max_retries):
@@ -1075,14 +1075,14 @@ async def update_non_active_season_stats(interval: int = 300) -> None:
                             )
                         else:
                             await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                            
+
         except Exception as e:
             log(
                 f"Error in update_non_active_season_stats: {e}",
                 Ansi.LRED,
                 level=logLevel.ERROR,
             )
-        
+
         await asyncio.sleep(interval)
 ```
 

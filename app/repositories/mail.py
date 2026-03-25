@@ -57,19 +57,19 @@ Usage Pattern:
         to_id=recipient_id,
         msg="Hello, how are you?"
     )
-    
+
     # Get all messages for a user
     messages = await fetch_all_mail_to_user(
         user_id=12345,
         read=False  # Only unread messages
     )
-    
+
     # Mark conversation as read
     await mark_conversation_as_read(
         to_id=recipient_id,
         from_id=sender_id
     )
-    
+
     # Process messages for display
     for message in messages:
         sender_name = message["from_name"]
@@ -86,20 +86,14 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import Column, Integer, String, func, insert, select, update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
 from app.repositories import Base
+from app.repositories.users import UsersTable
 
 
 class MailTable(Base):
@@ -153,9 +147,6 @@ async def create(from_id: int, to_id: int, msg: str) -> Mail:
     return cast(Mail, mail)
 
 
-from app.repositories.users import UsersTable
-
-
 async def fetch_all_mail_to_user(
     user_id: int,
     read: bool | None = None,
@@ -182,7 +173,7 @@ async def mark_conversation_as_read(to_id: int, from_id: int) -> list[Mail]:
     select_stmt = select(*READ_PARAMS).where(
         MailTable.to_id == to_id,
         MailTable.from_id == from_id,
-        MailTable.read == False,
+        MailTable.read.is_(False),
     )
     mail = await app.state.services.database.fetch_all(select_stmt)
     if not mail:
@@ -192,7 +183,7 @@ async def mark_conversation_as_read(to_id: int, from_id: int) -> list[Mail]:
         update(MailTable)
         .where(MailTable.to_id == to_id)
         .where(MailTable.from_id == from_id)
-        .where(MailTable.read == False)
+        .where(MailTable.read.is_(False))
         .values(read=True)
     )
     await app.state.services.database.execute(update_stmt)

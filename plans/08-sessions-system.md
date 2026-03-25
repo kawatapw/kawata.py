@@ -164,22 +164,40 @@ File: [`app/repositories/sessions.py`](app/repositories/sessions.py)
 
 ```python
 # Sessions
-async def create_session(user_id: int, name: str, description: str, goal_type: str, goal_value: str, goal_server: int | None = None) -> Session: ...
-async def fetch_session(id: int | None = None, user_id: int | None = None, is_active: bool | None = None) -> Session | None: ...
+async def create_session(
+    user_id: int,
+    name: str,
+    description: str,
+    goal_type: str,
+    goal_value: str,
+    goal_server: int | None = None,
+) -> Session: ...
+async def fetch_session(
+    id: int | None = None, user_id: int | None = None, is_active: bool | None = None
+) -> Session | None: ...
 async def fetch_active_session(user_id: int) -> Session | None: ...
-async def fetch_user_sessions(user_id: int, page: int | None = None, page_size: int | None = None) -> list[Session]: ...
+async def fetch_user_sessions(
+    user_id: int, page: int | None = None, page_size: int | None = None
+) -> list[Session]: ...
 async def activate_session(id: int) -> Session | None: ...
 async def deactivate_session(id: int) -> Session | None: ...
 async def update_session(id: int, **kwargs) -> Session | None: ...
 
+
 # Session Stats
 async def create_session_stats(session_id: int, mode: int) -> SessionStat: ...
-async def fetch_session_stats(session_id: int, mode: int | None = None) -> list[SessionStat]: ...
-async def update_session_stats(session_id: int, mode: int, **kwargs) -> SessionStat | None: ...
+async def fetch_session_stats(
+    session_id: int, mode: int | None = None
+) -> list[SessionStat]: ...
+async def update_session_stats(
+    session_id: int, mode: int, **kwargs
+) -> SessionStat | None: ...
+
 
 # Session Scores
 async def add_session_score(session_id: int, score_id: int) -> SessionScore: ...
 async def fetch_session_scores(session_id: int) -> list[SessionScore]: ...
+
 
 # Progress Tracking
 async def calculate_progress(session_id: int) -> dict: ...
@@ -190,14 +208,23 @@ async def check_goal_completion(session_id: int) -> bool: ...
 File: [`app/repositories/external_servers.py`](app/repositories/external_servers.py)
 
 ```python
-async def create_server(name: str, api_url: str, api_key: str | None = None) -> ExternalServer: ...
-async def fetch_server(id: int | None = None, name: str | None = None) -> ExternalServer | None: ...
+async def create_server(
+    name: str, api_url: str, api_key: str | None = None
+) -> ExternalServer: ...
+async def fetch_server(
+    id: int | None = None, name: str | None = None
+) -> ExternalServer | None: ...
 async def fetch_active_servers() -> list[ExternalServer]: ...
 async def update_server(id: int, **kwargs) -> ExternalServer | None: ...
 
+
 async def sync_leaderboard(server_id: int) -> None: ...
-async def fetch_external_rank(server_id: int, user_id: str, mode: int) -> int | None: ...
-async def fetch_cached_leaderboard(server_id: int, mode: int, limit: int = 50) -> list[dict]: ...
+async def fetch_external_rank(
+    server_id: int, user_id: str, mode: int
+) -> int | None: ...
+async def fetch_cached_leaderboard(
+    server_id: int, mode: int, limit: int = 50
+) -> list[dict]: ...
 ```
 
 ### Commands
@@ -206,34 +233,42 @@ async def fetch_cached_leaderboard(server_id: int, mode: int, limit: int = 50) -
 async def session_create(ctx: Context) -> str | None:
     """Create a new session with a goal."""
 
+
 @command(Privileges.UNRESTRICTED)
 async def session_start(ctx: Context) -> str | None:
     """Activate a session."""
+
 
 @command(Privileges.UNRESTRICTED)
 async def session_end(ctx: Context) -> str | None:
     """Deactivate current session."""
 
+
 @command(Privileges.UNRESTRICTED)
 async def session_list(ctx: Context) -> str | None:
     """List your sessions."""
+
 
 @command(Privileges.UNRESTRICTED)
 async def session_info(ctx: Context) -> str | None:
     """Show session details and progress."""
 
+
 @command(Privileges.UNRESTRICTED)
 async def session_goal(ctx: Context) -> str | None:
     """Update session goal."""
+
 
 # External Servers
 @command(Privileges.ADMINISTRATOR)
 async def server_add(ctx: Context) -> str | None:
     """Add an external server for cross-server leaderboards."""
 
+
 @command(Privileges.UNRESTRICTED)
 async def server_list(ctx: Context) -> str | None:
     """List available external servers."""
+
 
 @command(Privileges.ADMINISTRATOR)
 async def server_sync(ctx: Context) -> str | None:

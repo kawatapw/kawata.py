@@ -35,16 +35,16 @@ Model Configuration:
 Usage Pattern:
     # Create a model from database mapping
     from app.api.v2.models import BaseModel
-    
+
     class PlayerModel(BaseModel):
         id: int
         name: str
         country: str
-    
+
     # Create from database row
     player_data = {"id": 123, "name": "Player", "country": "US"}
     player = PlayerModel.from_mapping(player_data)
-    
+
     # Use in API endpoint
     @router.get("/players/{player_id}")
     async def get_player(player_id: int) -> PlayerModel:
@@ -62,8 +62,7 @@ Related Files:
 # isort: dont-add-imports
 
 from collections.abc import Mapping
-from typing import Any
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel as _pydantic_BaseModel
 from pydantic import ConfigDict
@@ -73,27 +72,28 @@ T = TypeVar("T", bound="BaseModel")
 
 class BaseModel(_pydantic_BaseModel):
     """Base Pydantic model for all v2 API response models.
-    
+
     This class extends Pydantic's BaseModel with application-specific
     configurations and utility methods for creating model instances
     from database query results and other mapping structures.
-    
+
     Attributes:
         model_config: Configuration for whitespace stripping and validation
     """
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
     @classmethod
     def from_mapping(cls: type[T], mapping: Mapping[str, Any]) -> T:
         """Create a model instance from a mapping structure.
-        
+
         This method allows easy creation of Pydantic models from database
         query results or other dictionary-like structures, using only the
         fields defined in the model.
-        
+
         Args:
             mapping: A mapping structure (e.g., database row) with model fields
-            
+
         Returns:
             A new instance of the model with data from the mapping
         """

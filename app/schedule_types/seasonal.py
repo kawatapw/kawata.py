@@ -40,10 +40,10 @@ Integration Points:
 Usage Pattern:
     # Get the seasonal provider
     provider = SeasonalScheduleProvider()
-    
+
     # Calculate next season
     start, end = provider.calculate_next_season("seasonal", datetime.now(), config)
-    
+
     # Get season name
     name = provider.get_season_name("seasonal", datetime.now(), config)
 
@@ -59,7 +59,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.schedule_types.base import ScheduleTypeProvider
-
 
 # Approximate astronomical season dates (Northern Hemisphere)
 # These are based on typical equinox/solstice dates
@@ -82,7 +81,7 @@ SOUTHERN_SEASONS = [
 
 class SeasonalScheduleProvider(ScheduleTypeProvider):
     """Provider for world seasons based on astronomical events.
-    
+
     This provider implements scheduling based on the four astronomical
     seasons (spring, summer, fall, winter) determined by equinoxes
     and solstices.
@@ -100,10 +99,10 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
 
     def get_config_schema(self, schedule_type: str) -> dict[str, Any]:
         """Get the JSON schema for seasonal schedule type.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "seasonal")
-            
+
         Returns:
             JSON schema dict for the seasonal schedule type configuration
         """
@@ -132,26 +131,26 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> tuple[datetime, datetime]:
         """Calculate the start and end dates for the next season.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "seasonal")
             current_time: The current datetime
             config: The schedule configuration from the database
-            
+
         Returns:
             A tuple of (start_date, end_date) for the next season
         """
         tz_name = config.get("timezone", "UTC")
         hemisphere = config.get("hemisphere", "northern")
         tz = ZoneInfo(tz_name)
-        
+
         current_time = current_time.astimezone(tz)
         year = current_time.year
-        
+
         seasons = NORTHERN_SEASONS if hemisphere == "northern" else SOUTHERN_SEASONS
-        
+
         # Find current or next season
-        for i, (name, start_m, start_d, end_m, end_d) in enumerate(seasons):
+        for _, start_m, start_d, end_m, end_d in seasons:
             # Handle year wrap-around for winter
             if start_m > end_m:
                 # Season spans year boundary (e.g., Winter: Dec 21 - Mar 19)
@@ -161,19 +160,19 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
                         end_date = datetime(year + 1, end_m, end_d, tzinfo=tz)
                     else:
                         end_date = datetime(year, end_m, end_d, tzinfo=tz)
-                    
+
                     if current_time < end_date:
                         return start_date, end_date
             else:
                 # Normal season within same year
                 start_date = datetime(year, start_m, start_d, tzinfo=tz)
                 end_date = datetime(year, end_m, end_d, tzinfo=tz)
-                
+
                 if start_date <= current_time < end_date:
                     return start_date, end_date
-        
+
         # If we get here, find the next season
-        for i, (name, start_m, start_d, end_m, end_d) in enumerate(seasons):
+        for _, start_m, start_d, end_m, end_d in seasons:
             if start_m > end_m:
                 # Year boundary season
                 if current_time.month < start_m:
@@ -185,7 +184,7 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
                 if current_time < start_date:
                     end_date = datetime(year, end_m, end_d, tzinfo=tz)
                     return start_date, end_date
-        
+
         # Default to next year's spring
         start_date = datetime(year + 1, 3, 20, tzinfo=tz)
         end_date = datetime(year + 1, 6, 20, tzinfo=tz)
@@ -198,25 +197,25 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> str:
         """Generate a name for the season based on its start date.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "seasonal")
             start_date: The start date of the season
             config: The schedule configuration from the database
-            
+
         Returns:
             A human-readable name for the season (e.g., "Spring 2024")
         """
         hemisphere = config.get("hemisphere", "northern")
         seasons = NORTHERN_SEASONS if hemisphere == "northern" else SOUTHERN_SEASONS
-        
+
         month = start_date.month
         day = start_date.day
-        
-        for name, start_m, start_d, end_m, end_d in seasons:
+
+        for name, start_m, start_d, _, _ in seasons:
             if start_m == month and start_d == day:
                 return f"{name} {start_date.year}"
-        
+
         # Fallback
         return f"Season {start_date.strftime('%Y-%m-%d')}"
 
@@ -226,21 +225,21 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> bool:
         """Validate the schedule configuration.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "seasonal")
             config: The schedule configuration to validate
-            
+
         Returns:
             True if the configuration is valid, False otherwise
         """
         if schedule_type != "seasonal":
             return False
-        
+
         hemisphere = config.get("hemisphere", "northern")
         if hemisphere not in ("northern", "southern"):
             return False
-        
+
         return True
 
     def calculate_seasons_for_range(
@@ -251,37 +250,37 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> list[tuple[datetime, datetime]]:
         """Calculate all seasons within a date range for seasonal schedule.
-        
+
         This method generates all seasons that would have occurred between start_date
         and end_date based on the seasonal schedule type's rules.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "seasonal")
             start_date: The start of the date range (oldest score time)
             end_date: The end of the date range (current time)
             config: The schedule configuration from the database
-            
+
         Returns:
             A list of (start_date, end_date) tuples for each season in the range,
             ordered from oldest to newest.
         """
         if schedule_type != "seasonal":
             return []
-        
+
         tz_name = config.get("timezone", "UTC")
         hemisphere = config.get("hemisphere", "northern")
         tz = ZoneInfo(tz_name)
-        
+
         start_date = start_date.astimezone(tz)
         end_date = end_date.astimezone(tz)
-        
+
         seasons = NORTHERN_SEASONS if hemisphere == "northern" else SOUTHERN_SEASONS
-        
+
         result = []
         current_year = start_date.year
-        
+
         while True:
-            for name, start_m, start_d, end_m, end_d in seasons:
+            for _name, start_m, start_d, end_m, end_d in seasons:
                 # Handle year wrap-around for winter
                 if start_m > end_m:
                     # Season spans year boundary (e.g., Winter: Dec 21 - Mar 19)
@@ -291,15 +290,15 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
                     # Normal season within same year
                     season_start = datetime(current_year, start_m, start_d, tzinfo=tz)
                     season_end = datetime(current_year, end_m, end_d, tzinfo=tz)
-                
+
                 # Only add if the season overlaps with our range
                 if season_start < end_date and season_end > start_date:
                     result.append((season_start, season_end))
-            
+
             current_year += 1
-            
+
             # Stop if we've passed the end date
             if datetime(current_year, 1, 1, tzinfo=tz) >= end_date:
                 break
-        
+
         return result

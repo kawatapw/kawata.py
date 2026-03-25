@@ -55,13 +55,13 @@ Usage Pattern:
         osu_ver=date(2023, 12, 15),
         osu_stream="stable"
     )
-    
+
     # Get login count for a user
     count = await fetch_count(user_id=12345)
-    
+
     # Get login count for an IP
     count = await fetch_count(ip="192.168.1.1")
-    
+
     # Get logins with filtering
     logins = await fetch_many(
         user_id=12345,
@@ -69,7 +69,7 @@ Usage Pattern:
         page=1,
         page_size=10
     )
-    
+
     # Analyze login patterns
     for login in logins:
         analyze_login_pattern(login["ip"], login["datetime"])
@@ -83,19 +83,10 @@ Related Files:
 
 from __future__ import annotations
 
-from datetime import date
-from datetime import datetime
-from typing import TypedDict
-from typing import cast
+from datetime import date, datetime
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Date
-from sqlalchemy import DateTime
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, Date, DateTime, Integer, String, func, insert, select
 
 import app.state.services
 from app.repositories import Base

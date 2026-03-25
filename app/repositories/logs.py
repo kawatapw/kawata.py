@@ -60,7 +60,7 @@ Usage Pattern:
         action="restrict",
         msg="Cheating detected"
     )
-    
+
     # Log a silence action
     log = await create(
         from_id=moderator_id,
@@ -69,7 +69,7 @@ Usage Pattern:
         msg="Inappropriate language",
         action_type=1
     )
-    
+
     # Process log entries for audit
     log_id = log["id"]
     moderator = log["from_id"]
@@ -87,23 +87,14 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, DateTime, Integer, String, func, insert, select
+from sqlalchemy import SmallInteger as TinyInt
 
 import app.state.services
 from app.repositories import Base
 
-
-from sqlalchemy import SmallInteger as TinyInt
-from sqlalchemy import Text
 
 class LogTable(Base):
     __tablename__ = "logs"
@@ -113,8 +104,14 @@ class LogTable(Base):
     to_id = Column("to_id", Integer, nullable=False)
     action = Column("action", String(32), nullable=False)
     msg = Column("msg", String(2048, collation="utf8"), nullable=True)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
+    created_at = Column(
+        "created_at",
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
     action_type = Column("action_type", TinyInt, nullable=False, default=0)
+
 
 READ_PARAMS = (
     LogTable.id,
@@ -126,6 +123,7 @@ READ_PARAMS = (
     LogTable.action_type,
 )
 
+
 class Log(TypedDict):
     id: int
     from_id: int
@@ -135,6 +133,7 @@ class Log(TypedDict):
     created_at: datetime
     action_type: int
 
+
 async def create(
     from_id: int,
     to_id: int,
@@ -143,7 +142,7 @@ async def create(
     action_type: int = 0,
 ) -> Log:
     """Create a new log entry in the database."""
-    
+
     insert_stmt = insert(LogTable).values(
         {
             "from_id": from_id,

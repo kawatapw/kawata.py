@@ -34,13 +34,13 @@ Integration Points:
 Usage Pattern:
     # Get a provider by name
     provider = get_schedule_provider("manual")
-    
+
     # Get provider for a specific schedule type
     provider = get_provider_for_schedule_type("custom")
-    
+
     # Calculate next season
     start, end = provider.calculate_next_season("custom", datetime.now(), config)
-    
+
     # Validate configuration
     is_valid = provider.validate_config("custom", config)
 
@@ -55,10 +55,10 @@ Related Files:
 from __future__ import annotations
 
 from app.schedule_types.base import ScheduleTypeProvider
+from app.schedule_types.international_fixed_calendar import IFCScheduleProvider
 from app.schedule_types.manual import ManualScheduleProvider
 from app.schedule_types.seasonal import SeasonalScheduleProvider
 from app.schedule_types.standard_calendar import StandardCalendarProvider
-from app.schedule_types.international_fixed_calendar import IFCScheduleProvider
 
 # Registry of all available schedule type providers
 SCHEDULE_PROVIDERS: dict[str, type[ScheduleTypeProvider]] = {
@@ -71,10 +71,10 @@ SCHEDULE_PROVIDERS: dict[str, type[ScheduleTypeProvider]] = {
 
 def get_schedule_provider(provider_name: str) -> ScheduleTypeProvider | None:
     """Get a schedule type provider instance by name.
-    
+
     Args:
         provider_name: The name of the provider (e.g., "manual", "standard_calendar")
-        
+
     Returns:
         An instance of the provider, or None if not found
     """
@@ -86,10 +86,10 @@ def get_schedule_provider(provider_name: str) -> ScheduleTypeProvider | None:
 
 def get_provider_for_schedule_type(schedule_type: str) -> ScheduleTypeProvider | None:
     """Get the provider that handles a specific schedule type.
-    
+
     Args:
         schedule_type: The schedule type identifier (e.g., "custom", "half_year")
-        
+
     Returns:
         The provider instance that handles this schedule type, or None if not found
     """
@@ -102,7 +102,7 @@ def get_provider_for_schedule_type(schedule_type: str) -> ScheduleTypeProvider |
 
 def get_all_schedule_types() -> list[str]:
     """Get a list of all available schedule types across all providers.
-    
+
     Returns:
         A list of all schedule type identifiers
     """
@@ -118,10 +118,10 @@ def register_schedule_provider(
     provider_class: type[ScheduleTypeProvider],
 ) -> None:
     """Register a new schedule type provider.
-    
+
     This function allows custom schedule type providers to be registered
     at runtime, enabling extensibility without modifying core code.
-    
+
     Args:
         name: The name to register the provider under
         provider_class: The provider class to register

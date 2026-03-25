@@ -10,15 +10,16 @@ reasonable defaults and then applies overrides from, in order of priority:
 The final configuration dictionary is passed around to other modules and
 backends and is expected to be JSON-serializable.
 """
+
 import argparse
 import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 import yaml
 
 
-def load_config(args: argparse.Namespace) -> Dict[str, Any]:
+def load_config(args: argparse.Namespace) -> dict[str, Any]:
     """Load and resolve configuration for a single CI invocation.
 
     The configuration precedence is:
@@ -39,33 +40,33 @@ def load_config(args: argparse.Namespace) -> Dict[str, Any]:
     """
 
     config = {
-        'storage': 'artifact',
-        'artifact': {'prefix': 'ci-data'},
-        'report': {'generate_final_report': True},
-        'summary': {'include_artifacts': True}
+        "storage": "artifact",
+        "artifact": {"prefix": "ci-data"},
+        "report": {"generate_final_report": True},
+        "summary": {"include_artifacts": True},
     }
 
     # Load from config.yaml
-    config_path = args.config or os.getenv('CI_CONFIG_PATH') or '.ci/config.yaml'
+    config_path = args.config or os.getenv("CI_CONFIG_PATH") or ".ci/config.yaml"
     if Path(config_path).exists():
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             yaml_config = yaml.safe_load(f)
             if yaml_config:
                 config = deep_merge(config, yaml_config)
 
     # Override with environment variables
-    storage_env = os.getenv('CI_STORAGE')
+    storage_env = os.getenv("CI_STORAGE")
     if storage_env:
-        config['storage'] = storage_env
+        config["storage"] = storage_env
 
     # Override with CLI arguments
     if args.storage:
-        config['storage'] = args.storage
+        config["storage"] = args.storage
 
     return config
 
 
-def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge two dictionaries.
 
     Values from ``override`` take precedence over values from ``base``.

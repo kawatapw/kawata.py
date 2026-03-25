@@ -66,7 +66,7 @@ Usage Pattern:
         time_elapsed=180,
         perfect=False
     )
-    
+
     # Use in API endpoint
     @router.get("/scores/{score_id}")
     async def get_score(score_id: int) -> Score:
@@ -94,7 +94,7 @@ from .seasons import SeasonInfo
 
 class Score(BaseModel):
     """Pydantic model for score data in API responses.
-    
+
     Attributes:
         id: Unique identifier for the score
         map_md5: Beatmap MD5 hash
@@ -118,6 +118,7 @@ class Score(BaseModel):
         perfect: Whether the score is a full combo
         season: Season information (if seasons enabled)
     """
+
     id: int
     map_md5: str
     userid: int

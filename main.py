@@ -37,10 +37,10 @@ Server Configuration:
 Usage Pattern:
     # Run the server directly
     python main.py
-    
+
     # Or run with uvicorn command
     uvicorn app.api.init_api:asgi_app --host 0.0.0.0 --port 8000
-    
+
     # Debug mode with auto-reload
     DEBUG_LEVEL=1 python main.py
 
@@ -67,10 +67,10 @@ app.logging.configure_logging()
 
 def main() -> int:
     """Main entry point for the osu! server application.
-    
+
     This function initializes the server, displays startup information,
     and launches the uvicorn ASGI server with the configured settings.
-    
+
     Returns:
         int: Exit code (0 for success)
     """

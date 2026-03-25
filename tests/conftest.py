@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 
 import httpx
 import pytest
 import respx
+import structlog
 from asgi_lifespan import LifespanManager
 from asgi_lifespan._types import ASGIApp
 from fastapi import status
-import structlog
-import logging
 
 from app.api.init_api import asgi_app
 
@@ -55,7 +55,8 @@ async def http_client(app: ASGIApp) -> AsyncIterator[httpx.AsyncClient]:
     async with httpx.AsyncClient(app=app, base_url="http://test") as client:
         yield client
 
-@pytest.fixture(autouse=True, scope='session')
+
+@pytest.fixture(autouse=True, scope="session")
 def configure_test_logging():
     """Configure structlog and logging for tests."""
     # 1. Configure structlog to use standard library logging
@@ -81,20 +82,20 @@ def configure_test_logging():
     # (Optional, but helpful for debugging tests)
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
-    
+
     # Get the 'console' logger used by your log function
-    console_logger = logging.getLogger('console')
+    console_logger = logging.getLogger("console")
     console_logger.setLevel(logging.DEBUG)
     console_logger.addHandler(handler)
-    
+
     # Ensure the root logger is also set up
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(handler)
 
     yield
-    
+
     # Cleanup if necessary
 
-pytest_plugins = []
 
+pytest_plugins = []

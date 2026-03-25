@@ -161,7 +161,11 @@ class ClanPermissions:
     MANAGE_SETTINGS = [ClanPrivileges.Owner, ClanPrivileges.Officer]
     DISBAND_CLAN = [ClanPrivileges.Owner]
     TRANSFER_OWNERSHIP = [ClanPrivileges.Owner]
-    VIEW_WAR_HISTORY = [ClanPrivileges.Owner, ClanPrivileges.Officer, ClanPrivileges.Member]
+    VIEW_WAR_HISTORY = [
+        ClanPrivileges.Owner,
+        ClanPrivileges.Officer,
+        ClanPrivileges.Member,
+    ]
 ```
 
 ## Code Changes
@@ -183,38 +187,69 @@ async def create(
     max_members: int = 10,
 ) -> Clan: ...
 
-async def fetch_one(id: int | None = None, name: str | None = None, tag: str | None = None, owner: int | None = None) -> Clan | None: ...
 
-async def fetch_many(page: int | None = None, page_size: int | None = None) -> list[Clan]: ...
+async def fetch_one(
+    id: int | None = None,
+    name: str | None = None,
+    tag: str | None = None,
+    owner: int | None = None,
+) -> Clan | None: ...
+
+
+async def fetch_many(
+    page: int | None = None, page_size: int | None = None
+) -> list[Clan]: ...
+
 
 async def partial_update(id: int, **kwargs) -> Clan | None: ...
 
+
 async def delete_one(id: int) -> Clan | None: ...
+
 
 # Clan Stats
 async def calculate_stats(clan_id: int, mode: int) -> ClanStat: ...
 async def fetch_stats(clan_id: int, mode: int | None = None) -> list[ClanStat]: ...
 async def update_stats(clan_id: int) -> None: ...  # Smart batching
 
+
 # Clan Invites
 async def create_invite(clan_id: int, user_id: int, invited_by: int) -> ClanInvite: ...
-async def fetch_invite(id: int | None = None, clan_id: int | None = None, user_id: int | None = None) -> ClanInvite | None: ...
+async def fetch_invite(
+    id: int | None = None, clan_id: int | None = None, user_id: int | None = None
+) -> ClanInvite | None: ...
 async def accept_invite(id: int) -> ClanInvite | None: ...
 async def reject_invite(id: int) -> ClanInvite | None: ...
 
+
 # Clan Join Requests
-async def create_join_request(clan_id: int, user_id: int, message: str | None = None) -> ClanJoinRequest: ...
-async def fetch_join_request(id: int | None = None, clan_id: int | None = None, user_id: int | None = None) -> ClanJoinRequest | None: ...
+async def create_join_request(
+    clan_id: int, user_id: int, message: str | None = None
+) -> ClanJoinRequest: ...
+async def fetch_join_request(
+    id: int | None = None, clan_id: int | None = None, user_id: int | None = None
+) -> ClanJoinRequest | None: ...
 async def accept_join_request(id: int) -> ClanJoinRequest | None: ...
 async def reject_join_request(id: int) -> ClanJoinRequest | None: ...
 
+
 # Clan Wars
-async def create_war(challenger_clan_id: int, defender_clan_id: int, map_id: int, start_time: datetime, end_time: datetime) -> ClanWar: ...
-async def fetch_war(id: int | None = None, clan_id: int | None = None, status: str | None = None) -> ClanWar | None: ...
+async def create_war(
+    challenger_clan_id: int,
+    defender_clan_id: int,
+    map_id: int,
+    start_time: datetime,
+    end_time: datetime,
+) -> ClanWar: ...
+async def fetch_war(
+    id: int | None = None, clan_id: int | None = None, status: str | None = None
+) -> ClanWar | None: ...
 async def accept_war(id: int) -> ClanWar | None: ...
 async def decline_war(id: int) -> ClanWar | None: ...
 async def calculate_war_results(war_id: int) -> list[ClanWarResult]: ...
-async def fetch_war_scores(war_id: int, clan_id: int) -> list[Score]: ...  # Filter existing scores
+async def fetch_war_scores(
+    war_id: int, clan_id: int
+) -> list[Score]: ...  # Filter existing scores
 ```
 
 ### Commands
@@ -224,50 +259,62 @@ async def fetch_war_scores(war_id: int, clan_id: int) -> list[Score]: ...  # Fil
 async def clan_invite(ctx: Context) -> str | None:
     """Invite a player to your clan."""
 
+
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_kick(ctx: Context) -> str | None:
     """Kick a member from your clan."""
+
 
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_promote(ctx: Context) -> str | None:
     """Promote a member to officer."""
 
+
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_demote(ctx: Context) -> str | None:
     """Demote an officer to member."""
+
 
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_settings(ctx: Context) -> str | None:
     """Manage clan settings (description, icons, etc.)."""
 
+
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_requests(ctx: Context) -> str | None:
     """View pending join requests."""
+
 
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_accept(ctx: Context) -> str | None:
     """Accept a join request."""
 
+
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_reject(ctx: Context) -> str | None:
     """Reject a join request."""
+
 
 # Clan Wars
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_war_challenge(ctx: Context) -> str | None:
     """Challenge another clan to a war."""
 
+
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_war_accept(ctx: Context) -> str | None:
     """Accept a war challenge."""
+
 
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_war_decline(ctx: Context) -> str | None:
     """Decline a war challenge."""
 
+
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_war_status(ctx: Context) -> str | None:
     """View current war status."""
+
 
 @clan_commands.add(Privileges.UNRESTRICTED)
 async def clan_war_history(ctx: Context) -> str | None:

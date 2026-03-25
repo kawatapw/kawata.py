@@ -27,15 +27,15 @@ Integration Points:
 Usage Pattern:
     # Use custom JSON response in endpoints
     from app.api.v2.common.json import ORJSONResponse
-    
+
     @router.get("/endpoint")
     async def endpoint() -> ORJSONResponse:
         data = {"key": "value"}
         return ORJSONResponse(content=data)
-    
+
     # Direct JSON serialization
     from app.api.v2.common.json import dumps
-    
+
     json_bytes = dumps({"key": "value"})
 
 Related Files:

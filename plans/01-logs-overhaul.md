@@ -195,7 +195,7 @@ async def create(
     type: int = 0,
 ) -> Log:
     """Create a new log entry in the database."""
-    
+
     # Generate a unique hash for the log entry
     log_content = f"{_from}{to}{action}{msg}{type}"
     log_hash = hashlib.sha256(log_content.encode()).hexdigest()
@@ -229,7 +229,7 @@ async def create(
     action_type: int = 0,
 ) -> Log:
     """Create a new log entry in the database."""
-    
+
     insert_stmt = insert(LogTable).values(
         {
             "from_id": from_id,
@@ -241,7 +241,7 @@ async def create(
         },
     )
     result = await app.state.services.database.execute(insert_stmt)
-    
+
     # Get the auto-generated id
     log_id = result.lastrowid
 
@@ -265,7 +265,7 @@ Search for all `logs_repo.create` calls and update parameter names:
        msg=" ".join(ctx.args[1:]),
        type=3,
    )
-   
+
    # New:
    await logs_repo.create(
        from_id=ctx.player.id,
@@ -285,7 +285,7 @@ Search for all `logs_repo.create` calls and update parameter names:
        action="restrict",
        msg=reason,
    )
-   
+
    # New:
    await logs_repo.create(
        from_id=admin.id,
@@ -304,7 +304,7 @@ Search for all `logs_repo.create` calls and update parameter names:
        action="unrestrict",
        msg=reason,
    )
-   
+
    # New:
    await logs_repo.create(
        from_id=admin.id,
@@ -323,7 +323,7 @@ Search for all `logs_repo.create` calls and update parameter names:
        action="silence",
        msg=reason,
    )
-   
+
    # New:
    await logs_repo.create(
        from_id=admin.id,
@@ -342,7 +342,7 @@ Search for all `logs_repo.create` calls and update parameter names:
        action="unsilence",
        msg=reason,
    )
-   
+
    # New:
    await logs_repo.create(
        from_id=admin.id,

@@ -33,10 +33,10 @@ Supported Assets:
 Usage Pattern:
     # Request beatmap thumbnail
     GET /b/12345/thumbnail.jpg -> Redirects to https://b.ppy.sh/b/12345/thumbnail.jpg
-    
+
     # Request beatmap preview
     GET /b/12345/preview.mp3 -> Redirects to https://b.ppy.sh/b/12345/preview.mp3
-    
+
     # Request any beatmap asset
     GET /b/{beatmap_id}/{asset_path} -> Redirects to https://b.ppy.sh/b/{beatmap_id}/{asset_path}
 
@@ -48,8 +48,7 @@ Related Files:
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status
 from fastapi.requests import Request
 from fastapi.responses import RedirectResponse
 
@@ -63,17 +62,17 @@ router = APIRouter(tags=["Beatmaps"])
 @router.get("/{file_path:path}")
 async def everything(request: Request) -> RedirectResponse:
     """Proxy any beatmap asset requests to the official osu! CDN.
-    
+
     This endpoint acts as a catch-all proxy that redirects requests for
     beatmap static assets (thumbnails, previews, etc.) to the official
     osu! beatmap content delivery network at b.ppy.sh.
-    
+
     Args:
         request: The incoming HTTP request containing the file path
-        
+
     Returns:
         RedirectResponse: HTTP 301 redirect to the official osu! CDN
-        
+
     Example:
         GET /b/12345/thumbnail.jpg -> Redirects to https://b.ppy.sh/b/12345/thumbnail.jpg
     """

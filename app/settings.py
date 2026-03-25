@@ -42,16 +42,16 @@ Configuration Categories:
 Usage Pattern:
     # Access configuration values
     from app import settings
-    
+
     # Database connection
     db_dsn = settings.DB_DSN
-    
+
     # Debug settings
     debug_level = settings.DEBUG_LEVEL
-    
+
     # API keys
     api_key = settings.OSU_API_KEY
-    
+
     # Feature flags
     if settings.DEVELOPER_MODE:
         enable_developer_features()
@@ -71,8 +71,7 @@ from urllib.parse import quote
 
 from dotenv import load_dotenv
 
-from app.settings_utils import read_bool
-from app.settings_utils import read_list
+from app.settings_utils import read_bool, read_list
 
 load_dotenv()
 
@@ -103,10 +102,14 @@ REDIS_AUTH_STRING = f"{REDIS_USER}:{REDIS_PASS}@" if REDIS_USER and REDIS_PASS e
 REDIS_DSN = f"redis://{REDIS_AUTH_STRING}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 OSU_API_KEY = os.environ.get("OSU_API_KEY") or None
-BOT_API_KEY = os.environ.get("BOT_API_KEY") or None # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
+BOT_API_KEY = (
+    os.environ.get("BOT_API_KEY") or None
+)  # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
 
 DOMAIN = os.environ["DOMAIN"]
-USINGROOTDOMAIN = read_bool(os.environ["USINGROOTDOMAIN"]) # if true, server will accept osu.domain requests from the root domain as well as osu.domain
+USINGROOTDOMAIN = read_bool(
+    os.environ["USINGROOTDOMAIN"],
+)  # if true, server will accept osu.domain requests from the root domain as well as osu.domain
 MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]
 MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 

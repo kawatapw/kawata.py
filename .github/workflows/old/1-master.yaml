@@ -21,7 +21,7 @@ jobs:
   initial-summary:
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'push' || github.event_name == 'pull_request' || 
+      (github.event_name == 'push' || github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call')
     steps:
       - name: Generate initial summary
@@ -33,13 +33,13 @@ jobs:
           echo "**SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "**PR Number:** ${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
             echo "**PR Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Workflow Configuration" >> $GITHUB_STEP_SUMMARY
           echo "- **Build:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
           echo "- **Lint:** ${{ github.event_name == 'pull_request' && '✅ PR only' || '✅ Push/Manual' }}" >> $GITHUB_STEP_SUMMARY
@@ -108,7 +108,7 @@ jobs:
       github_owner: ${{ needs.prepare.outputs.github_owner }}
       github_repo: ${{ needs.prepare.outputs.github_repo }}
     secrets: inherit
-  
+
   # Publish job (only on specific branches, after release)
   publish:
     needs: [prepare, build, lint, sec-scan, test, release]

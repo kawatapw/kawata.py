@@ -58,7 +58,7 @@ Usage Pattern:
         uninstall_id="ghi789...",
         disk_serial="jkl012..."
     )
-    
+
     # Check for hardware matches (multi-account detection)
     matches = await fetch_any_hardware_matches_for_user(
         userid=12345,
@@ -67,7 +67,7 @@ Usage Pattern:
         uninstall_id="ghi789...",
         disk_serial="jkl012..."
     )
-    
+
     # Process matches for anti-cheat
     for match in matches:
         if match["priv"] & Privileges.UNRESTRICTED:
@@ -83,16 +83,9 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import CHAR
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Integer
-from sqlalchemy import func
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import CHAR, Column, DateTime, Integer, func, or_, select
 from sqlalchemy.dialects.mysql import Insert as MysqlInsert
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.sql import ColumnElement

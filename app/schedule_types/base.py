@@ -28,19 +28,19 @@ Usage Pattern:
         @property
         def name(self) -> str:
             return "my_schedule"
-        
+
         @property
         def schedule_types(self) -> list[str]:
             return ["my_type"]
-        
+
         def calculate_next_season(self, schedule_type, current_time, config):
             # Calculate and return (start_date, end_date)
             pass
-        
+
         def get_season_name(self, schedule_type, start_date, config):
             # Return human-readable season name
             pass
-        
+
         def validate_config(self, schedule_type, config):
             # Return True if config is valid
             pass
@@ -55,15 +55,14 @@ Related Files:
 
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
 
 class ScheduleTypeProvider(ABC):
     """Base class for schedule type provider modules.
-    
+
     All schedule type providers must implement this interface to be registered
     with the seasons system. Providers can implement one or more schedule types.
     """
@@ -72,7 +71,7 @@ class ScheduleTypeProvider(ABC):
     @abstractmethod
     def name(self) -> str:
         """Unique identifier for this provider module.
-        
+
         Returns:
             A string identifier for this provider (e.g., "manual", "standard_calendar")
         """
@@ -82,7 +81,7 @@ class ScheduleTypeProvider(ABC):
     @abstractmethod
     def schedule_types(self) -> list[str]:
         """List of schedule type identifiers this module provides.
-        
+
         Returns:
             A list of schedule type strings this provider handles
             (e.g., ["custom", "half_year", "third_year", "quarter_year"])
@@ -92,10 +91,10 @@ class ScheduleTypeProvider(ABC):
     @abstractmethod
     def get_config_schema(self, schedule_type: str) -> dict[str, Any]:
         """Get the JSON schema for a specific schedule type.
-        
+
         Args:
             schedule_type: The schedule type identifier
-            
+
         Returns:
             JSON schema dict for the schedule type configuration
         """
@@ -109,12 +108,12 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> tuple[datetime, datetime]:
         """Calculate the start and end dates for the next season.
-        
+
         Args:
             schedule_type: The schedule type identifier
             current_time: The current datetime
             config: The schedule configuration from the database
-            
+
         Returns:
             A tuple of (start_date, end_date) for the next season
         """
@@ -128,12 +127,12 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> str:
         """Generate a name for the season based on its start date.
-        
+
         Args:
             schedule_type: The schedule type identifier
             start_date: The start date of the season
             config: The schedule configuration from the database
-            
+
         Returns:
             A human-readable name for the season (e.g., "Spring 2024")
         """
@@ -146,11 +145,11 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> bool:
         """Validate the schedule configuration.
-        
+
         Args:
             schedule_type: The schedule type identifier
             config: The schedule configuration to validate
-            
+
         Returns:
             True if the configuration is valid, False otherwise
         """
@@ -165,17 +164,17 @@ class ScheduleTypeProvider(ABC):
         config: dict[str, Any],
     ) -> list[tuple[datetime, datetime]]:
         """Calculate all seasons within a date range.
-        
+
         This method is used for retroactive season creation. It should generate
         all seasons that would have occurred between start_date and end_date
         based on the schedule type's rules.
-        
+
         Args:
             schedule_type: The schedule type identifier
             start_date: The start of the date range (oldest score time)
             end_date: The end of the date range (current time)
             config: The schedule configuration from the database
-            
+
         Returns:
             A list of (start_date, end_date) tuples for each season in the range,
             ordered from oldest to newest.

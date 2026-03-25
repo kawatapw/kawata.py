@@ -57,11 +57,11 @@ Usage Pattern:
         write_priv=Privileges.UNRESTRICTED,
         auto_join=True
     )
-    
+
     # Fetch channel by ID or name
     channel = await fetch_one(id=1)
     channel = await fetch_one(name="#osu")
-    
+
     # Fetch channels with filtering
     channels = await fetch_many(
         read_priv=Privileges.UNRESTRICTED,
@@ -69,13 +69,13 @@ Usage Pattern:
         page=1,
         page_size=10
     )
-    
+
     # Update channel
     updated = await partial_update(
         name="#osu",
         topic="Updated topic"
     )
-    
+
     # Delete channel
     deleted = await delete_one(name="#osu")
 
@@ -88,23 +88,23 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import (
+    Column,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 

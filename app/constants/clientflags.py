@@ -43,7 +43,7 @@ Example Usage:
     # Check if speed hack was detected
     if player.client_flags & ClientFlags.SPEED_HACK_DETECTED:
         flag_player_for_review()
-    
+
     # Check for multiple cheat indicators
     suspicious_flags = ClientFlags.SPEED_HACK_DETECTED | ClientFlags.RAW_MOUSE_DISCREPANCY
     if player.client_flags & suspicious_flags:
@@ -58,11 +58,9 @@ Related Files:
 
 from __future__ import annotations
 
-from enum import IntFlag
-from enum import unique
+from enum import IntFlag, unique
 
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 
 @unique

@@ -44,19 +44,19 @@ Usage Pattern:
     # Basic logging
     from app.logging import log, Ansi
     log("Server started", Ansi.LGREEN)
-    
+
     # Error logging with context
     log("Database connection failed", Ansi.LRED, extra={
         "error": str(e),
         "host": db_host,
         "port": db_port
     })
-    
+
     # Debug logging with filtering
     log("Processing request", Ansi.LBLUE, extra={
         "filter": {"debugLevel": 2, "debugFocus": "requests"}
     })
-    
+
     # Error catching decorator
     @error_catcher
     async def risky_function():
@@ -72,60 +72,47 @@ Related Files:
 
 from __future__ import annotations
 
-import sys
-import logging.config
-from logging.handlers import HTTPHandler
-import re
-from collections.abc import Mapping
-from collections.abc import MutableMapping
-from enum import IntEnum
-from zoneinfo import ZoneInfo
-
-from requests import request
-import yaml, os
-import json
-import jsons  # type: ignore[import-untyped]
-from app import settings
-from app._typing import IPAddress
-import structlog
-import structlog.stdlib
-import importlib
-import datetime
-import inspect
-from pythonjsonlogger import jsonlogger
-from logging import Handler
-import traceback
-import time
 import asyncio
-import functools
-from typing import Any, TypeVar, ParamSpec, Callable, NoReturn, Coroutine, overload, cast
-import types
-
-# Incredibly Stupid Required Imports for Error_Catcher
-from fastapi import status
-from fastapi.datastructures import FormData
-from fastapi.datastructures import UploadFile
-from fastapi.exceptions import HTTPException
-from fastapi.param_functions import Depends
-from fastapi.param_functions import File
-from fastapi.param_functions import Form
-from fastapi.param_functions import Header
-from fastapi.param_functions import Path
-from fastapi.param_functions import Query
-from fastapi.requests import Request
-from fastapi.responses import FileResponse
-from fastapi.responses import ORJSONResponse
-from fastapi.responses import RedirectResponse
-from fastapi.responses import Response
-from fastapi.routing import APIRouter
-from starlette.datastructures import UploadFile as StarletteUploadFile
-from starlette.requests import Request
-from starlette.responses import RedirectResponse
-from starlette import status
 
 # Stupid Dumb Fucking Json Serialization BS IMPORTS OMFG I'M LOSING MY MIND
 import decimal
-from ipaddress import IPv4Network, IPv4Address, ip_address
+import functools
+import importlib
+import inspect
+import json
+import logging.config
+import os
+import re
+import sys
+import time
+import traceback
+import types
+from collections.abc import Callable, Mapping, MutableMapping
+from datetime import date, datetime
+from datetime import time as datetime_time
+from enum import IntEnum
+from ipaddress import IPv4Address, IPv4Network, ip_address
+from logging import Handler
+from typing import (
+    Any,
+    ParamSpec,
+    TypeVar,
+    cast,
+)
+from zoneinfo import ZoneInfo
+
+import jsons  # type: ignore[import-untyped]
+import structlog
+import structlog.stdlib
+import yaml
+
+# Incredibly Stupid Required Imports for Error_Catcher
+from fastapi.requests import Request
+from pythonjsonlogger import jsonlogger
+
+from app import settings
+from app._typing import IPAddress
+
 
 class IPResolver:
     def __init__(self) -> None:
@@ -144,7 +131,7 @@ class IPResolver:
 
         ip = self.cache.get(ip_str)
         if ip is None:
-            if ip_str != '':
+            if ip_str != "":
                 ip = ip_address(ip_str)
                 self.cache[ip_str] = ip
             else:
@@ -152,29 +139,39 @@ class IPResolver:
 
         return ip
 
+
 ip_resolver: IPResolver = IPResolver()
+
 
 def ipv4network_serializer(obj: IPv4Network, **kwargs: Any) -> str:
     return str(obj)
 
+
 def ipv4address_serializer(obj: IPv4Address, **kwargs: Any) -> str:
     return str(obj)
+
 
 jsons.set_serializer(ipv4network_serializer, IPv4Network)
 jsons.set_serializer(ipv4address_serializer, IPv4Address)
 
-def setup_logging(default_path: str = 'logging.yaml', default_level: int = logging.INFO, env_key: str = 'LOG_CFG') -> None:
+
+def setup_logging(
+    default_path: str = "logging.yaml",
+    default_level: int = logging.INFO,
+    env_key: str = "LOG_CFG",
+) -> None:
     """Setup logging configuration"""
     path = default_path
     value = os.getenv(env_key, None)
     if value:
         path = value
     if os.path.exists(path):
-        with open(path, 'rt') as f:
+        with open(path) as f:
             config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
     else:
         logging.basicConfig(level=default_level)
+
 
 def setup_structlog() -> None:
     structlog.configure(
@@ -195,87 +192,94 @@ def setup_structlog() -> None:
         cache_logger_on_first_use=True,
     )
 
+
 def configure_logging() -> None:
     setup_logging()
     setup_structlog()
+
 
 def serialize_value(value: Any, seen: set[int] | None = None) -> Any:
     """Serialize a value to a JSON-compatible format, extracting meaningful information from objects."""
     if seen is None:
         seen = set()
-    
+
     try:
         # Handle basic types first
-        if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        if isinstance(value, datetime | date | datetime_time):
             return value.isoformat()
         elif isinstance(value, decimal.Decimal):
             return float(value)
         elif isinstance(value, bytes):
-            return value.decode('utf-8')
-        elif isinstance(value, (int, float, str, bool, type(None))):
+            return value.decode("utf-8")
+        elif isinstance(value, int | float | str | bool | None):
             return value
-        elif isinstance(value, (list, set, tuple)):
+        elif isinstance(value, list | set | tuple):
             return [serialize_value(item, seen) for item in value]
         elif isinstance(value, dict):
             return {str(key): serialize_value(val, seen) for key, val in value.items()}
-        
+
         # Handle Request objects specially
-        if hasattr(value, '__class__') and (
-            (hasattr(value, 'method') and hasattr(value, 'headers') and hasattr(value, 'path')) or
-            type(value).__name__ == 'Request'
+        if hasattr(value, "__class__") and (
+            (
+                hasattr(value, "method")
+                and hasattr(value, "headers")
+                and hasattr(value, "path")
+            )
+            or type(value).__name__ == "Request"
         ):
             # This is likely a Request object, format it properly
             try:
                 return format_request(value)
             except Exception:
                 pass
-        
+
         # Handle complex objects
         if id(value) in seen:
             return f"<Circular Reference: {type(value).__name__} id={id(value)}>"
-        
+
         seen.add(id(value))
-        
+
         # Try to extract meaningful information from objects
-        if hasattr(value, '__dict__'):
+        if hasattr(value, "__dict__"):
             # For objects with __dict__, extract key attributes
             obj_info = {
-                '__type__': type(value).__name__,
-                '__module__': getattr(value, '__module__', None),
+                "__type__": type(value).__name__,
+                "__module__": getattr(value, "__module__", None),
             }
-            
+
             # Try to get a name or identifier
-            if hasattr(value, 'name'):
-                obj_info['name'] = value.name
-            elif hasattr(value, 'id'):
-                obj_info['id'] = value.id
-            elif hasattr(value, 'username'):
-                obj_info['username'] = value.username
-            elif hasattr(value, 'title'):
-                obj_info['title'] = value.title
-            
+            if hasattr(value, "name"):
+                obj_info["name"] = value.name
+            elif hasattr(value, "id"):
+                obj_info["id"] = value.id
+            elif hasattr(value, "username"):
+                obj_info["username"] = value.username
+            elif hasattr(value, "title"):
+                obj_info["title"] = value.title
+
             # Add a string representation without memory address
             str_repr = str(value)
             # Remove memory address from repr if present
-            if ' at 0x' in str_repr:
+            if " at 0x" in str_repr:
                 str_repr = f"<{type(value).__name__}>"
-            obj_info['repr'] = str_repr
-            
+            obj_info["repr"] = str_repr
+
             return obj_info
         else:
             # For objects without __dict__, use string representation
             str_repr = str(value)
             # Remove memory address from repr if present
-            if ' at 0x' in str_repr:
+            if " at 0x" in str_repr:
                 return f"<{type(value).__name__}>"
             return str_repr
-            
+
     except Exception:
         # If anything fails, return a safe string representation
         try:
             return str(value)
-        except:
+        except Exception:
             return f"<Unserializable: {type(value).__name__}>"
+
 
 def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any]:
     if seen is None:
@@ -291,37 +295,49 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
 
     return serializable_record
 
+
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
-    def format(self, record: logging.LogRecord) -> bytes: # type: ignore[override]
+    def format(self, record: logging.LogRecord) -> bytes:  # type: ignore[override]
         # Convert only keys and values that are not of type str, int, float, bool, or None
         # Exclude exc_info as it needs to remain a tuple for proper exception formatting
         record.__dict__ = {
-            str(k) if not isinstance(k, (str, int, float, bool, type(None))) else k: # type: ignore[redundant-expr]
-            str(v) if not isinstance(v, (str, int, float, bool, type(None))) and k != 'exc_info' else v
+            str(k)
+            if not isinstance(k, str | int | float | bool | type(None))
+            else k:  # type: ignore[redundant-expr]
+            str(v)
+            if not isinstance(v, str | int | float | bool | type(None))
+            and k != "exc_info"
+            else v
             for k, v in record.__dict__.items()
         }
 
         # Check if the message contains any placeholders as this throws an error when formatting on string_record
-        if not re.search(r'%\(.+?\)s', record.msg) and record.args:
+        if not re.search(r"%\(.+?\)s", record.msg) and record.args:
             record.args = None
 
         string_record = super().format(record)
-        return string_record.encode('utf-8')
+        return string_record.encode("utf-8")
 
 
-console_logger = logging.getLogger('console')
+console_logger = logging.getLogger("console")
 console_handlers = console_logger.handlers
+
 
 def get_timestamp(full: bool = False, tz: ZoneInfo | None = None) -> str:
     fmt = "%d/%m/%Y %I:%M:%S%p" if full else "%I:%M:%S%p"
-    return f"{datetime.datetime.now(tz=tz):{fmt}}"
+    return f"{datetime.now(tz=tz):{fmt}}"
+
 
 def fromtimestamp(timestamp: float) -> str:
-    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
+
 
 ANSI_ESCAPE_REGEX = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]")
+
+
 def escape_ansi(line: str) -> str:
     return ANSI_ESCAPE_REGEX.sub("", line)
+
 
 class Ansi(IntEnum):
     # Default colours
@@ -349,6 +365,7 @@ class Ansi(IntEnum):
     def __repr__(self) -> str:
         return f"\x1b[{self.value}m"
 
+
 class logLevel(IntEnum):
     """
     Represents the log levels for Pythons Built in logger.
@@ -373,44 +390,53 @@ class logLevel(IntEnum):
 
     def __repr__(self) -> str:
         return f"\x1b[{self.value}m"
-    
+
     @classmethod
     def add_Log_Levels(cls) -> None:
-        logging.addLevelName(cls.VERBOSE, 'VERBOSE')
-        logging.addLevelName(cls.DBGLV2, 'DBGLV2')
-        logging.addLevelName(cls.DBGLV1, 'DBGLV1')
+        logging.addLevelName(cls.VERBOSE, "VERBOSE")
+        logging.addLevelName(cls.DBGLV2, "DBGLV2")
+        logging.addLevelName(cls.DBGLV1, "DBGLV1")
         # Add the custom log levels to the NAME_TO_LEVEL dictionary in structlog
         # Use getattr to avoid type checking issues with non-exported attribute
-        name_to_level = getattr(structlog.stdlib, 'NAME_TO_LEVEL', {})
-        name_to_level['verbose'] = cls.VERBOSE
-        name_to_level['dbglv2'] = cls.DBGLV2
-        name_to_level['dbglv1'] = cls.DBGLV1
+        name_to_level = getattr(structlog.stdlib, "NAME_TO_LEVEL", {})
+        name_to_level["verbose"] = cls.VERBOSE
+        name_to_level["dbglv2"] = cls.DBGLV2
+        name_to_level["dbglv1"] = cls.DBGLV1
+
+
 logLevel.add_Log_Levels()
+
 
 class DebugFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         # Get the 'filter' field from the 'extra' dictionary
-        filter_field = record.__dict__.get('filter')
+        filter_field = record.__dict__.get("filter")
         # If the 'filter' field is not present, don't filter the record
         if filter_field is None:
             return True
 
         # Get the debug level and focus
-        debug_level = filter_field.get('debugLevel', 0)
-        debug_focus = filter_field.get('debugFocus', 'all')
-        logging.getLogger('console').debug(f"settings.DEBUG_FOCUS: {settings.DEBUG_FOCUS}", extra={'CodeRegion': 'Logging', "Func": "DebugFilter.filter"})
-        logging.getLogger('console').debug(f"debug_focus: {debug_focus}", extra={'CodeRegion': 'Logging', "Func": "DebugFilter.filter"})
-
+        debug_level = filter_field.get("debugLevel", 0)
+        debug_focus = filter_field.get("debugFocus", "all")
+        logging.getLogger("console").debug(
+            f"settings.DEBUG_FOCUS: {settings.DEBUG_FOCUS}",
+            extra={"CodeRegion": "Logging", "Func": "DebugFilter.filter"},
+        )
+        logging.getLogger("console").debug(
+            f"debug_focus: {debug_focus}",
+            extra={"CodeRegion": "Logging", "Func": "DebugFilter.filter"},
+        )
 
         # Check if the debug level is sufficient
         if debug_level > settings.DEBUG_LEVEL:
             return False
 
         # Check if the debug focus is 'all' or matches the logger name
-        if settings.DEBUG_FOCUS != 'all' and settings.DEBUG_FOCUS != debug_focus:
+        if settings.DEBUG_FOCUS != "all" and settings.DEBUG_FOCUS != debug_focus:
             return False
 
         return True
+
 
 debug_filter = DebugFilter()
 console_logger.addFilter(debug_filter)
@@ -429,6 +455,7 @@ for handler in console_handlers:
     else:
         handler.setLevel(logLevel.DEBUG)
 
+
 def getHandlerByName(name: str, logger: logging.Logger) -> Handler | None:
     for handler in logger.handlers:
         if handler.get_name() == name:
@@ -436,60 +463,67 @@ def getHandlerByName(name: str, logger: logging.Logger) -> Handler | None:
     return None
 
 
-def _serialize_function_args(args: tuple[Any, ...], extra: dict[str, object]) -> tuple[tuple[Any, ...], dict[str, object]]:
+def _serialize_function_args(
+    args: tuple[Any, ...],
+    extra: dict[str, object],
+) -> tuple[tuple[Any, ...], dict[str, object]]:
     """Serialize function arguments for logging."""
     if not args:
         return args, extra
-    
+
     # Use the new serialize_value function for proper serialization
     serialized_args = [serialize_value(arg) for arg in args]
-    
-    extra['extra_args'] = tuple(serialized_args)
-    
+
+    extra["extra_args"] = tuple(serialized_args)
+
     return (), extra
 
 
-def _serialize_locals(arg_info: inspect.ArgInfo, extra: dict[str, object], log_level: int) -> dict[str, object]:
+def _serialize_locals(
+    arg_info: inspect.ArgInfo,
+    extra: dict[str, object],
+    log_level: int,
+) -> dict[str, object]:
     """Serialize local variables for logging."""
     if log_level < 21:
         return extra
-    
+
     try:
         # Use the new serialize_value function for proper serialization
         serialized_locals = {}
         for k, v in arg_info.locals.items():
             serialized_locals[k] = serialize_value(v)
-        
-        extra['locals'] = json.dumps(serialized_locals)
+
+        extra["locals"] = json.dumps(serialized_locals)
     except TypeError:
         # If even the simplified serialization fails, store as string representation
-        extra['locals'] = str(arg_info.locals)
-    
+        extra["locals"] = str(arg_info.locals)
+
     return extra
 
 
 def _add_stack_trace(extra: dict[str, object], log_level: int) -> dict[str, object]:
     """Add stack trace information to the extra fields."""
     # Add stack trace to the 'extra' fields
-    extra['stack_trace'] = json.dumps(traceback.format_stack())
-    
+    extra["stack_trace"] = json.dumps(traceback.format_stack())
+
     if log_level >= 40:
         # Add minimal stack trace information
         stack_info = inspect.stack()
         if stack_info:
             # Only include the immediate caller frame
             caller_frame = stack_info[1] if len(stack_info) > 1 else stack_info[0]
-            extra['caller_file'] = caller_frame.filename
-            extra['caller_line'] = caller_frame.lineno
-            extra['caller_function'] = caller_frame.function
-        
+            extra["caller_file"] = caller_frame.filename
+            extra["caller_line"] = caller_frame.lineno
+            extra["caller_function"] = caller_frame.function
+
         # Add exception info if available
         exc_info = sys.exc_info()
         if exc_info[0] is not None:
-            extra['error_type'] = exc_info[0].__name__
-            extra['error_message'] = str(exc_info[1])
-            extra['stack_trace'] = traceback.format_exc()
-    
+            extra["error_type"] = exc_info[0].__name__
+            extra["error_message"] = str(exc_info[1])
+            extra["stack_trace"] = traceback.format_exc()
+
     return extra
 
 
@@ -500,7 +534,7 @@ def log(
     msg: str,
     start_color: Ansi | None = None,
     extra: Mapping[str, object] | None = None,
-    logger: str = '',
+    logger: str = "",
     level: int = logging.INFO,
     levelow: bool = False,
     exc_info: bool = False,
@@ -516,19 +550,19 @@ def log(
         log_obj = structlog.get_logger(logger)
     else:
         if start_color is Ansi.LYELLOW:
-            log_obj = structlog.get_logger('console.warn')
+            log_obj = structlog.get_logger("console.warn")
         elif start_color is Ansi.LRED:
-            log_obj = structlog.get_logger('console.error')
+            log_obj = structlog.get_logger("console.error")
         else:
             if level:
                 if level <= 19:
-                    log_obj = structlog.get_logger('console.debug')
+                    log_obj = structlog.get_logger("console.debug")
                 else:
-                    log_obj = structlog.get_logger('console.info')
+                    log_obj = structlog.get_logger("console.info")
             else:
-                log_obj = structlog.get_logger('console.info')
+                log_obj = structlog.get_logger("console.info")
 
-    if level == logging.INFO and levelow != True:
+    if level == logging.INFO and not levelow:
         if start_color is Ansi.LYELLOW:
             log_level = logging.WARNING
         elif start_color is Ansi.LRED:
@@ -537,7 +571,6 @@ def log(
             log_level = logging.INFO
     else:
         log_level = level
-    
 
     # TODO: decouple colors from the base logging function; move it to
     # be a formatter-specific concern such that we can log without color.
@@ -554,21 +587,22 @@ def log(
         # Fallback if we can't get the frame
         # Create a simple object with the required attributes
         class FrameInfoFallback:
-            filename: str = '<unknown>'
+            filename: str = "<unknown>"
             lineno: int = 0
-            function: str = '<unknown>'
+            function: str = "<unknown>"
+
         info: inspect.Traceback | FrameInfoFallback = FrameInfoFallback()
     else:
         info = inspect.getframeinfo(frame.f_back)
-    
+
     # Add Timestamp and Message to the 'extra' fields
     extra_dict = dict(extra) if extra else {}
-    
-    extra_dict['@timestamp'] = datetime.datetime.now().isoformat()
-    extra_dict['Message'] = escape_ansi(msg)
-    
+
+    extra_dict["@timestamp"] = datetime.now().isoformat()
+    extra_dict["Message"] = escape_ansi(msg)
+
     # Check if the message contains any placeholders
-    if not re.search(r'%\(.+?\)s', msg) and args:
+    if not re.search(r"%\(.+?\)s", msg) and args:
         # Use helper method to serialize function arguments
         args, extra_dict = _serialize_function_args(args, extra_dict)
 
@@ -578,15 +612,18 @@ def log(
     else:
         # Fallback if we can't get the frame
         arg_info = inspect.ArgInfo(args=[], varargs=None, keywords=None, locals={})
-    
+
     msg = f"{color_prefix}{msg}{color_suffix}"
 
-    
     # Create a LogRecord with the correct information
-    exc_info_value: tuple[type[BaseException], BaseException, types.TracebackType | None] | tuple[None, None, None] | None = None
+    exc_info_value: (
+        tuple[type[BaseException], BaseException, types.TracebackType | None]
+        | tuple[None, None, None]
+        | None
+    ) = None
     if exc_info:
         exc_info_value = sys.exc_info()
-    
+
     record = logging.LogRecord(
         name=log_obj.name,
         level=log_level,
@@ -595,13 +632,13 @@ def log(
         msg=f"{msg}",
         args=args or None,
         exc_info=exc_info_value,
-        func=info.function
+        func=info.function,
     )
-    
-    extra_dict['service.name'] = settings.SERVICE_NAME
-    extra_dict['container.name'] = settings.CONTAINER_NAME
-    extra_dict['method_name'] = logging.getLevelName(record.levelno).lower()
-    
+
+    extra_dict["service.name"] = settings.SERVICE_NAME
+    extra_dict["container.name"] = settings.CONTAINER_NAME
+    extra_dict["method_name"] = logging.getLevelName(record.levelno).lower()
+
     # Use helper methods to serialize locals and add stack trace
     extra_dict = _serialize_locals(arg_info, extra_dict, log_level)
     extra_dict = _add_stack_trace(extra_dict, log_level)
@@ -614,35 +651,56 @@ def log(
     debug_filter = DebugFilter()
 
     # Get the console handlers
-    console_handler = getHandlerByName('console', log_obj)
+    console_handler = getHandlerByName("console", log_obj)
 
     # Add the filter to the handlers
     if console_handler is not None:
         console_handler.addFilter(debug_filter)
-    
+
     # Handle the record
     log_obj.handle(record)
 
+
 def format_request(request: Request) -> dict[str, Any]:
     # Example: Exclude 'Cookie' and 'Authorization' headers
-    excluded_headers = ['accept-encoding', 'cf-ray', 'cf-warp-tag-id', 'connection', 'x-forwarded-server']
-
+    excluded_headers = [
+        "accept-encoding",
+        "cf-ray",
+        "cf-warp-tag-id",
+        "connection",
+        "x-forwarded-server",
+    ]
 
     return {
         "Method": str(request.method),
         "URL": f"{request.headers['host']}{request['path']}",
-        "URL-Path": request['path'],
+        "URL-Path": request["path"],
         "Query-Parameters": dict(request.query_params),
-        "headers": {k: str(v) for k, v in dict(request.headers).items() if k not in excluded_headers},
+        "headers": {
+            k: str(v)
+            for k, v in dict(request.headers).items()
+            if k not in excluded_headers
+        },
         "Client-IP": str(ip_resolver.get_ip(request.headers)),
         "Client-Country": str(request.headers.get("cf-ipcountry", "")),
         "User-Agent": str(request.headers.get("user-agent", "Unknown")),
         "Req-Info": getattr(request.state, "req_info", {}),
     }
 
+
 class StructlogFormatter(logging.Formatter):
-    def __init__(self, processors: list[Any] | None = None, exclude: list[str] | None = None, *args: Any, **kwargs: Any) -> None:
-        super().__init__('', *args, **kwargs)  # Pass an empty string as the format string
+    def __init__(
+        self,
+        processors: list[Any] | None = None,
+        exclude: list[str] | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            "",
+            *args,
+            **kwargs,
+        )  # Pass an empty string as the format string
         if processors is None:
             processors = []
         self.processors = [
@@ -652,47 +710,49 @@ class StructlogFormatter(logging.Formatter):
 
     def _import_processor(self, processor: Any) -> Any:
         if isinstance(processor, str):
-            module_name, class_name = processor.rsplit('.', 1)
+            module_name, class_name = processor.rsplit(".", 1)
             module = importlib.import_module(module_name)
             return getattr(module, class_name)()
         elif isinstance(processor, dict):
-            module_name, class_name = processor['class'].rsplit('.', 1)
+            module_name, class_name = processor["class"].rsplit(".", 1)
             module = importlib.import_module(module_name)
             class_ = getattr(module, class_name)
-            args = processor.get('args', [])
-            kwargs = processor.get('kwargs', {})
+            args = processor.get("args", [])
+            kwargs = processor.get("kwargs", {})
             return class_(*args, **kwargs)
 
     def format(self, record: logging.LogRecord) -> str:
         event_dict: dict[str, Any] = {
-            'event': escape_ansi(record.msg),
-            'logger': record.name,
-            'level': record.levelname,
-            'timestamp': record.created,
+            "event": escape_ansi(record.msg),
+            "logger": record.name,
+            "level": record.levelname,
+            "timestamp": record.created,
         }
         # Exclude attributes that are in self.exclude
         # Also exclude exc_info as it contains non-serializable traceback objects
         extra_dict: dict[str, Any] = {
-            k: v for k, v in record.__dict__.items()
-            if k not in event_dict and k not in self.exclude and k != 'exc_info'
+            k: v
+            for k, v in record.__dict__.items()
+            if k not in event_dict and k not in self.exclude and k != "exc_info"
         }
         event_dict.update(extra_dict)
         for processor in self.processors:
             event_dict = processor(None, None, event_dict)
-        
+
         # Convert the dictionary to a JSON string
         return json.dumps(event_dict, cls=LogEncoder, indent=2)
 
 
 TIME_ORDER_SUFFIXES: list[str] = ["nsec", "μsec", "msec", "sec"]
 
+
 def magnitude_fmt_time(nanosec: int | float) -> str:
-    suffix = None
     for suffix in TIME_ORDER_SUFFIXES:
         if nanosec < 1000:
-            break
+            return f"{nanosec:.2f} {suffix}"
         nanosec /= 1000
-    return f"{nanosec:.2f} {suffix}"
+    return f"{nanosec:.2f} {TIME_ORDER_SUFFIXES[-1]}"
+
 
 class LogEncoder(json.JSONEncoder):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -705,10 +765,10 @@ class LogEncoder(json.JSONEncoder):
         self.currently_processing.add(id(o))
 
         try:
-            if isinstance(o, datetime.datetime):
+            if isinstance(o, datetime):
                 return o.isoformat()
             elif isinstance(o, bytes):
-                return o.decode('utf-8')
+                return o.decode("utf-8")
             elif hasattr(o, "__dict__"):
                 return {k: self.default(v) for k, v in o.__dict__.items()}
             else:
@@ -735,11 +795,14 @@ class LogEncoder(json.JSONEncoder):
             new_dict[k] = v
         return new_dict
 
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
+
 def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
     if asyncio.iscoroutinefunction(func):
+
         @functools.wraps(func)
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
@@ -747,18 +810,35 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
             except Exception as e:
                 # Capture the exception info before doing anything else
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                
-                log(f"Error in {func.__name__}: {e}", start_color=Ansi.LRED, level=logging.ERROR, extra={
-                    "error": f"{e}",
-                    "original_traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
-                    "exception_location": traceback.extract_tb(exc_traceback)[-1],  # Last frame is where exception occurred
-                    "function_name": func.__name__,
-                    "function_module": func.__module__
-                })
+
+                log(
+                    f"Error in {func.__name__}: {e}",
+                    start_color=Ansi.LRED,
+                    level=logging.ERROR,
+                    extra={
+                        "error": f"{e}",
+                        "original_traceback": "".join(
+                            traceback.format_exception(
+                                exc_type,
+                                exc_value,
+                                exc_traceback,
+                            ),
+                        ),
+                        "exception_location": traceback.extract_tb(exc_traceback)[
+                            -1
+                        ],  # Last frame is where exception occurred
+                        "function_name": func.__name__,
+                        "function_module": func.__module__,
+                    },
+                )
                 # Re-raise the exception to maintain expected behavior
                 raise
+
+        # Preserve __globals__ for forward reference resolution
+        async_wrapper.__globals__.update(func.__globals__)
         return async_wrapper  # type: ignore[return-value]
     else:
+
         @functools.wraps(func)
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
@@ -766,14 +846,30 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
             except Exception as e:
                 # Capture the exception info before doing anything else
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                
-                log(f"Error in {func.__name__}: {e}", start_color=Ansi.LRED, level=logging.ERROR, extra={
-                    "error": f"{e}",
-                    "original_traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
-                    "exception_location": traceback.extract_tb(exc_traceback)[-1],  # Last frame is where exception occurred
-                    "function_name": func.__name__,
-                    "function_module": func.__module__
-                })
+
+                log(
+                    f"Error in {func.__name__}: {e}",
+                    start_color=Ansi.LRED,
+                    level=logging.ERROR,
+                    extra={
+                        "error": f"{e}",
+                        "original_traceback": "".join(
+                            traceback.format_exception(
+                                exc_type,
+                                exc_value,
+                                exc_traceback,
+                            ),
+                        ),
+                        "exception_location": traceback.extract_tb(exc_traceback)[
+                            -1
+                        ],  # Last frame is where exception occurred
+                        "function_name": func.__name__,
+                        "function_module": func.__module__,
+                    },
+                )
                 # Re-raise the exception to maintain expected behavior
                 raise
+
+        # Preserve __globals__ for forward reference resolution
+        sync_wrapper.__globals__.update(func.__globals__)
         return sync_wrapper

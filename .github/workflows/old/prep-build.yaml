@@ -51,18 +51,18 @@ jobs:
           # Install uv
           curl -LsSf https://astral.sh/uv/install.sh | sh
           export PATH="$HOME/.cargo/bin:$PATH"
-          
+
           # Get version from pyproject.toml using a single-line Python command
           VERSION=$(python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
           SHORT_SHA=${GITHUB_SHA::7}
           BRANCH=${GITHUB_REF#refs/heads/}
-          
+
           # Convert branch name to lowercase and replace slashes with hyphens
           BRANCH_TAG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/\//-/g')
-          
+
           # Define base tags
           TAGS="$SHORT_SHA $BRANCH_TAG"
-          
+
           # Add specific tags based on branch (ensure these are also lowercase if they add new text)
           # Note: 'BE-Master', 'BE-Staging', 'BE-Dev' will still add uppercase tags if not handled.
           # You might want to change these to 'be-master', 'be-staging', 'be-dev' or convert them.
@@ -70,10 +70,10 @@ jobs:
           if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS be-staging"; fi # Changed BE-Staging to be-staging
           if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS be-dev"; fi # Changed BE-Dev to be-dev
           if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
-          
+
           # Always add ci short sha
           TAGS="$TAGS ci-${SHORT_SHA}"
-          
+
           # Set outputs
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_STEP_SUMMARY

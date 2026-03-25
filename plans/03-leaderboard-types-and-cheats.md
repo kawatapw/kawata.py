@@ -123,13 +123,21 @@ async def create(
     is_default: bool = False,
 ) -> LeaderboardType: ...
 
-async def fetch_one(id: int | None = None, name: str | None = None, is_default: bool | None = None) -> LeaderboardType | None: ...
+
+async def fetch_one(
+    id: int | None = None, name: str | None = None, is_default: bool | None = None
+) -> LeaderboardType | None: ...
+
 
 async def fetch_default() -> LeaderboardType | None: ...
 
+
 async def fetch_many() -> list[LeaderboardType]: ...
 
-async def validate_score(leaderboard_type_id: int, mods: int, cheat_values: dict | None) -> bool: ...
+
+async def validate_score(
+    leaderboard_type_id: int, mods: int, cheat_values: dict | None
+) -> bool: ...
 ```
 
 ### New Repository
@@ -137,16 +145,31 @@ File: [`app/repositories/cheats.py`](app/repositories/cheats.py)
 
 ```python
 # Cheat Definitions
-async def create_definition(name: str, category: str, description: str | None = None) -> CheatDefinition: ...
-async def fetch_definition(id: int | None = None, name: str | None = None) -> CheatDefinition | None: ...
+async def create_definition(
+    name: str, category: str, description: str | None = None
+) -> CheatDefinition: ...
+async def fetch_definition(
+    id: int | None = None, name: str | None = None
+) -> CheatDefinition | None: ...
 async def fetch_definitions(category: str | None = None) -> list[CheatDefinition]: ...
 
+
 # Cheat Versions
-async def create_version(cheat_id: int, version_name: str, client_identifier: str, default_config: dict) -> CheatVersion: ...
+async def create_version(
+    cheat_id: int, version_name: str, client_identifier: str, default_config: dict
+) -> CheatVersion: ...
 async def fetch_versions(cheat_id: int) -> list[CheatVersion]: ...
 
+
 # Season Cheat Rules
-async def create_rule(season_id: int, cheat_id: int, allowed: bool = True, min_value: float | None = None, max_value: float | None = None, config_overrides: dict | None = None) -> SeasonCheatRule: ...
+async def create_rule(
+    season_id: int,
+    cheat_id: int,
+    allowed: bool = True,
+    min_value: float | None = None,
+    max_value: float | None = None,
+    config_overrides: dict | None = None,
+) -> SeasonCheatRule: ...
 async def fetch_rules(season_id: int) -> list[SeasonCheatRule]: ...
 async def get_effective_config(season_id: int, cheat_id: int) -> dict: ...
 ```
@@ -172,6 +195,7 @@ async def validate_for_leaderboard(
 @command(Privileges.UNRESTRICTED)
 async def leaderboard_list(ctx: Context) -> str | None:
     """List all available leaderboard types."""
+
 
 @command(Privileges.UNRESTRICTED)
 async def leaderboard_info(ctx: Context) -> str | None:

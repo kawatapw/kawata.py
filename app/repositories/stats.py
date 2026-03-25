@@ -73,13 +73,13 @@ Game Modes:
 Usage Pattern:
     # Create statistics for a specific mode
     stat = await create(player_id=12345, mode=0)
-    
+
     # Create statistics for all modes
     stats = await create_all_modes(player_id=12345)
-    
+
     # Fetch statistics for a player and mode
     stat = await fetch_one(player_id=12345, mode=0)
-    
+
     # Fetch statistics with filtering
     stats = await fetch_many(
         player_id=12345,
@@ -87,7 +87,7 @@ Usage Pattern:
         page=1,
         page_size=10
     )
-    
+
     # Update statistics
     updated = await partial_update(
         player_id=12345,
@@ -107,25 +107,14 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import BigInteger
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import BigInteger, Column, Index, Integer, func, insert, select, update
+from sqlalchemy.dialects.mysql import FLOAT, INTEGER, TINYINT
 from sqlalchemy.dialects.mysql import insert as mysql_insert
-from sqlalchemy.dialects.mysql import FLOAT
-from sqlalchemy.dialects.mysql import INTEGER
-from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 
@@ -134,7 +123,13 @@ class StatsTable(Base):
 
     id = Column("id", Integer, nullable=False, primary_key=True)
     mode = Column("mode", TINYINT(1), primary_key=True)
-    season_id = Column("season_id", INTEGER(unsigned=True), nullable=False, default=0, primary_key=True)
+    season_id = Column(
+        "season_id",
+        INTEGER(unsigned=True),
+        nullable=False,
+        default=0,
+        primary_key=True,
+    )
     tscore = Column("tscore", BigInteger, nullable=False, server_default="0")
     rscore = Column("rscore", BigInteger, nullable=False, server_default="0")
     pp = Column("pp", Integer, nullable=False, server_default="0")
@@ -207,7 +202,11 @@ class Stat(TypedDict):
 
 async def create(player_id: int, mode: int, season_id: int = 0) -> Stat:
     """Create a new player stats entry in the database."""
-    insert_stmt = insert(StatsTable).values(id=player_id, mode=mode, season_id=season_id)
+    insert_stmt = insert(StatsTable).values(
+        id=player_id,
+        mode=mode,
+        season_id=season_id,
+    )
     rec_id = await app.state.services.database.execute(insert_stmt)
 
     select_stmt = select(*READ_PARAMS).where(StatsTable.id == rec_id)
@@ -258,7 +257,8 @@ async def create_all_modes_for_season(player_id: int, season_id: int) -> list[St
     Safe to call repeatedly; duplicates are ignored/no-op due to unique key.
     """
     values = [
-        {"id": player_id, "mode": mode, "season_id": season_id} for mode in SEASONAL_MODES
+        {"id": player_id, "mode": mode, "season_id": season_id}
+        for mode in SEASONAL_MODES
     ]
     insert_stmt = mysql_insert(StatsTable).values(values)
     insert_stmt = insert_stmt.on_duplicate_key_update(id=insert_stmt.inserted.id)
@@ -291,7 +291,11 @@ async def ensure_season_rows_for_users(season_id: int, user_ids: list[int]) -> N
     await app.state.services.database.execute(insert_stmt)
 
 
-async def fetch_one(player_id: int, mode: int, season_id: int | None = None) -> Stat | None:
+async def fetch_one(
+    player_id: int,
+    mode: int,
+    season_id: int | None = None,
+) -> Stat | None:
     """Fetch a player stats entry from the database."""
     select_stmt = (
         select(*READ_PARAMS)
@@ -420,4 +424,3 @@ async def partial_update(
         select_stmt = select_stmt.where(StatsTable.season_id == 0)
     stat = await app.state.services.database.fetch_one(select_stmt)
     return cast(Stat | None, stat)
-

@@ -109,7 +109,7 @@ jobs:
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
-      
+
       - name: Upload CI State
         if: always()
         uses: actions/upload-artifact@v7
@@ -204,7 +204,7 @@ jobs:
           uv run --only-group ci python tools/ci/ci.py summary generate \
             --workflow lint \
             --artifact-dir ./all-artifacts
-      
+
       - name: Upload CI State
         if: always()
         uses: actions/upload-artifact@v7

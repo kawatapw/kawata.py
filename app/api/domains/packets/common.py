@@ -30,7 +30,7 @@ Usage Pattern:
         async def handle(self, player: Player) -> None:
             # Handle public message
             pass
-    
+
     # Register a restricted packet handler
     @register(ClientPackets.CHEAT_PACKET, restricted=True)
     class CheatPacket(BasePacket):
@@ -44,36 +44,34 @@ Related Files:
     - app/api/domains/cho.py: Packet handler implementations
 """
 
-from pathlib import Path
+from collections.abc import Callable
+
 import app.packets
 import app.settings
 import app.state
 import app.usecases.performance
 import app.utils
-from collections.abc import Callable
-import re
+from app.packets import BasePacket, ClientPackets
 
-from app.packets import ClientPackets
-from app.packets import BasePacket
 
 def register(
     packet: ClientPackets,
     restricted: bool = False,
 ) -> Callable[[type[BasePacket]], type[BasePacket]]:
     """Register a handler in `app.state.packets`.
-    
+
     This decorator function registers a packet handler class with the global
     packet registry. It supports both regular and restricted packet handlers,
     allowing for flexible packet handling based on player privileges.
-    
+
     Args:
         packet: The ClientPackets enum value representing the packet type
         restricted: Whether this packet handler should be restricted to
                    privileged players only
-    
+
     Returns:
         A decorator function that registers the packet handler class
-    
+
     Example:
         @register(ClientPackets.SEND_PUBLIC_MESSAGE)
         class SendMessage(BasePacket):

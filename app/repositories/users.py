@@ -79,12 +79,12 @@ Usage Pattern:
         pw_bcrypt=hashed_password,
         country="US"
     )
-    
+
     # Fetch user by ID, name, or email
     user = await fetch_one(id=12345)
     user = await fetch_one(name="PlayerName")
     user = await fetch_one(email="player@example.com")
-    
+
     # Fetch users with filtering
     users = await fetch_many(
         priv=Privileges.UNRESTRICTED,
@@ -92,7 +92,7 @@ Usage Pattern:
         page=1,
         page_size=10
     )
-    
+
     # Update user
     updated = await partial_update(
         id=12345,
@@ -110,22 +110,13 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import Column, Index, Integer, String, func, insert, select, update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 from app.utils import make_safe_name
 

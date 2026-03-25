@@ -41,25 +41,25 @@ Session Components:
 Usage Pattern:
     # Access global session state
     from app.state import sessions
-    
+
     # Get online players
     online_players = sessions.players
-    
+
     # Get active channels
     active_channels = sessions.channels
-    
+
     # Get ongoing matches
     ongoing_matches = sessions.matches
-    
+
     # Get player groups
     player_groups = sessions.groups
-    
+
     # Access bot account
     bot_player = sessions.bot
-    
+
     # Manage housekeeping tasks
     sessions.housekeeping_tasks.add(task)
-    
+
     # Cancel all housekeeping tasks
     await sessions.cancel_housekeeping_tasks()
 
@@ -74,15 +74,10 @@ Related Files:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.logging import Ansi
-from app.logging import log
-from app.objects.collections import Channels
-from app.objects.collections import Matches
-from app.objects.collections import Players
-from app.objects.collections import Groups
+from app.logging import Ansi, log
+from app.objects.collections import Channels, Groups, Matches, Players
 
 if TYPE_CHECKING:
     from app.objects.player import Player

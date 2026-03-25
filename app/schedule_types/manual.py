@@ -27,10 +27,10 @@ Integration Points:
 Usage Pattern:
     # Get the manual provider
     provider = ManualScheduleProvider()
-    
+
     # Validate configuration
     is_valid = provider.validate_config("manual", {})
-    
+
     # Get season name
     name = provider.get_season_name("manual", datetime.now(), {})
 
@@ -49,7 +49,7 @@ from app.schedule_types.base import ScheduleTypeProvider
 
 class ManualScheduleProvider(ScheduleTypeProvider):
     """Provider for manual season management.
-    
+
     This provider implements manual season scheduling where administrators
     have full control over when seasons start and end. No automatic
     scheduling is performed.
@@ -67,10 +67,10 @@ class ManualScheduleProvider(ScheduleTypeProvider):
 
     def get_config_schema(self, schedule_type: str) -> dict[str, Any]:
         """Get the JSON schema for manual schedule type.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "manual")
-            
+
         Returns:
             JSON schema dict for the manual schedule type configuration
         """
@@ -93,23 +93,23 @@ class ManualScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> tuple[datetime, datetime]:
         """Calculate the start and end dates for the next season.
-        
+
         For manual scheduling, this method is not used as seasons are
         created manually by administrators. This method raises an error
         to indicate that manual scheduling doesn't support automatic
         season calculation.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "manual")
             current_time: The current datetime
             config: The schedule configuration from the database
-            
+
         Raises:
             NotImplementedError: Manual scheduling doesn't support automatic calculation
         """
         raise NotImplementedError(
             "Manual scheduling does not support automatic season calculation. "
-            "Seasons must be created manually by administrators."
+            "Seasons must be created manually by administrators.",
         )
 
     def get_season_name(
@@ -119,14 +119,14 @@ class ManualScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> str:
         """Generate a name for the season based on its start date.
-        
+
         For manual scheduling, generates a simple name based on the start date.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "manual")
             start_date: The start date of the season
             config: The schedule configuration from the database
-            
+
         Returns:
             A human-readable name for the season (e.g., "Season 2024-03-15")
         """
@@ -138,14 +138,14 @@ class ManualScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> bool:
         """Validate the schedule configuration.
-        
+
         For manual scheduling, the configuration is minimal and always valid
         as long as the schedule_type is "manual".
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "manual")
             config: The schedule configuration to validate
-            
+
         Returns:
             True if the configuration is valid, False otherwise
         """
@@ -159,17 +159,17 @@ class ManualScheduleProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> list[tuple[datetime, datetime]]:
         """Calculate all seasons within a date range for manual schedule.
-        
+
         For manual scheduling, this method returns an empty list as seasons
         are created manually by administrators and cannot be automatically
         calculated for a date range.
-        
+
         Args:
             schedule_type: The schedule type identifier (should be "manual")
             start_date: The start of the date range (oldest score time)
             end_date: The end of the date range (current time)
             config: The schedule configuration from the database
-            
+
         Returns:
             An empty list as manual scheduling doesn't support automatic calculation
         """

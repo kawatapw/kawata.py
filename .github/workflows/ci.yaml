@@ -106,13 +106,13 @@ jobs:
           echo "**SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "**PR Number:** ${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
             echo "**PR Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Workflow Configuration" >> $GITHUB_STEP_SUMMARY
           echo "- **Build:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
           echo "- **Lint:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
@@ -129,27 +129,27 @@ jobs:
         name: Prepare version + tags
         run: |
           set -euo pipefail
-          
+
           # Get version from pyproject.toml using a single-line Python command
           VERSION=$(python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
           SHORT_SHA=${GITHUB_SHA::7}
           BRANCH=${GITHUB_REF#refs/heads/}
-          
+
           # Convert branch name to lowercase and replace slashes with hyphens
           BRANCH_TAG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/\//-/g')
-          
+
           # Define base tags
           TAGS="$SHORT_SHA $BRANCH_TAG"
-          
+
           # Add specific tags based on branch
           if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest be-prod"; fi
           if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS be-staging"; fi
           if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS be-dev"; fi
           if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
-          
+
           # Always add ci short sha
           TAGS="$TAGS ci-${SHORT_SHA}"
-          
+
           # Set outputs
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_STEP_SUMMARY
@@ -172,7 +172,7 @@ jobs:
             SHOULD_RELEASE="true"
           fi
           echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
-          
+
           # Determine if we should publish
           SHOULD_PUBLISH="false"
           if [ "${{ github.event_name }}" = "push" ] && \
@@ -233,17 +233,17 @@ jobs:
           # Use the first tag from prep-build (which is the short SHA)
           FIRST_TAG=$(echo "${{ needs.initialization.outputs.tag_list }}" | awk '{print $1}')
           IMAGE="${GITHUB_OWNER}/${GITHUB_REPO}:${FIRST_TAG}"
-          
+
           # Build with all tags from prep-build
           TAGS="${{ needs.initialization.outputs.tag_list }}"
           TAG_ARGS=""
           for TAG in $TAGS; do
             TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
           done
-          
+
           # Add --load to ensure the image is loaded into the local daemon for 'docker save'
           docker build $TAG_ARGS . --load
-          
+
           # Save the main image (short SHA) as artifact
           mkdir -p /tmp/artifacts
           docker save "${IMAGE}" -o /tmp/artifacts/docker-image-${GITHUB_SHA}.tar
@@ -253,7 +253,7 @@ jobs:
         with:
           name: docker-image
           path: /tmp/artifacts/docker-image-${{ github.sha }}.tar
-      
+
       - name: Parse Results
         if: always()
         run: |
@@ -552,7 +552,7 @@ jobs:
       - name: Load docker image
         run: |
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
-          if [ -n "$IMG_TAR" ]; then 
+          if [ -n "$IMG_TAR" ]; then
             docker load -i "$IMG_TAR"
             # Tag with the first tag from prep-build (usually short SHA) for consistency
             FIRST_TAG=$(echo "${{ needs.initialization.outputs.tag_list }}" | awk '{print $1}')
@@ -584,27 +584,27 @@ jobs:
         run: |
           echo "=== Capturing container logs for debugging ==="
           mkdir -p /tmp/container-logs
-          
+
           echo "Container status:"
           docker compose -f docker-compose.test.yml ps > /tmp/container-logs/container-status.txt 2>&1
           cat /tmp/container-logs/container-status.txt
           echo ""
-          
+
           echo "=== bancho-test logs ==="
           docker compose -f docker-compose.test.yml logs bancho-test > /tmp/container-logs/bancho-test.log 2>&1 || true
           cat /tmp/container-logs/bancho-test.log
           echo ""
-          
+
           echo "=== mysql-test logs ==="
           docker compose -f docker-compose.test.yml logs mysql-test > /tmp/container-logs/mysql-test.log 2>&1 || true
           cat /tmp/container-logs/mysql-test.log
           echo ""
-          
+
           echo "=== redis-test logs ==="
           docker compose -f docker-compose.test.yml logs redis-test > /tmp/container-logs/redis-test.log 2>&1 || true
           cat /tmp/container-logs/redis-test.log
           echo ""
-          
+
           echo "=== All container logs ==="
           docker compose -f docker-compose.test.yml logs > /tmp/container-logs/all-containers.log 2>&1 || true
           cat /tmp/container-logs/all-containers.log
@@ -633,14 +633,14 @@ jobs:
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py artifacts collect
-      
+
       - name: Generate Summary
         if: always()
         run: |
           uv run --only-group ci python tools/ci/ci.py summary generate \
             --workflow ci \
             --artifact-dir ./all-artifacts
-      
+
       - name: Finish test job
         if: always()
         run: |

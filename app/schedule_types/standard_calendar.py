@@ -24,21 +24,21 @@ Configuration Schemas:
         "auto_start": true,
         "auto_end": true
     }
-    
+
     Half Year:
     {
         "schedule_type": "half_year",
         "start_month": 1,
         "timezone": "UTC"
     }
-    
+
     Third Year:
     {
         "schedule_type": "third_year",
         "start_month": 1,
         "timezone": "UTC"
     }
-    
+
     Quarter Year:
     {
         "schedule_type": "quarter_year",
@@ -61,10 +61,10 @@ Integration Points:
 Usage Pattern:
     # Get the standard calendar provider
     provider = StandardCalendarProvider()
-    
+
     # Calculate next custom season
     start, end = provider.calculate_next_season("custom", datetime.now(), config)
-    
+
     # Get season name
     name = provider.get_season_name("half_year", datetime.now(), config)
 
@@ -75,8 +75,7 @@ Related Files:
 
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -85,7 +84,7 @@ from app.schedule_types.base import ScheduleTypeProvider
 
 class StandardCalendarProvider(ScheduleTypeProvider):
     """Provider for standard Gregorian calendar-based scheduling.
-    
+
     This provider implements multiple scheduling methods based on the
     standard Gregorian calendar, including custom intervals and fixed
     period divisions (half-year, third-year, quarter-year).
@@ -103,10 +102,10 @@ class StandardCalendarProvider(ScheduleTypeProvider):
 
     def get_config_schema(self, schedule_type: str) -> dict[str, Any]:
         """Get the JSON schema for a specific schedule type.
-        
+
         Args:
             schedule_type: The schedule type identifier
-            
+
         Returns:
             JSON schema dict for the schedule type configuration
         """
@@ -194,12 +193,12 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> tuple[datetime, datetime]:
         """Calculate the start and end dates for the next season.
-        
+
         Args:
             schedule_type: The schedule type identifier
             current_time: The current datetime
             config: The schedule configuration from the database
-            
+
         Returns:
             A tuple of (start_date, end_date) for the next season
         """
@@ -223,7 +222,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         interval = config.get("interval", {"value": 30, "unit": "days"})
         value = interval.get("value", 30)
         unit = interval.get("unit", "days")
-        
+
         if unit == "days":
             delta = timedelta(days=value)
         elif unit == "weeks":
@@ -233,10 +232,10 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             delta = timedelta(days=value * 30)
         else:
             delta = timedelta(days=30)
-        
+
         start_date = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = start_date + delta
-        
+
         return start_date, end_date
 
     def _calculate_half_year_season(
@@ -248,15 +247,15 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         start_month = config.get("start_month", 1)
         tz_name = config.get("timezone", "UTC")
         tz = ZoneInfo(tz_name)
-        
+
         current_time = current_time.astimezone(tz)
         year = current_time.year
         month = current_time.month
-        
+
         # Initialize variables before conditional blocks
         start_date: datetime
         end_date: datetime
-        
+
         # Determine which half of the year we're in
         if month < 7:
             # First half: start_month to June
@@ -266,7 +265,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             # Second half: July to December
             start_date = datetime(year, 7, 1, tzinfo=tz)
             end_date = datetime(year + 1, start_month, 1, tzinfo=tz)
-        
+
         # If current time is past the end date, calculate next season
         if current_time >= end_date:
             if month >= 7:
@@ -275,7 +274,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             else:
                 start_date = datetime(year, 7, 1, tzinfo=tz)
                 end_date = datetime(year + 1, start_month, 1, tzinfo=tz)
-        
+
         return start_date, end_date
 
     def _calculate_third_year_season(
@@ -287,26 +286,34 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         start_month = config.get("start_month", 1)
         tz_name = config.get("timezone", "UTC")
         tz = ZoneInfo(tz_name)
-        
+
         current_time = current_time.astimezone(tz)
         year = current_time.year
         month = current_time.month
-        
+
         # Define season boundaries (4 months each)
         season_starts = [
             (start_month, f"{year}-{start_month:02d}-01"),
-            ((start_month + 4 - 1) % 12 + 1, f"{year}-{(start_month + 4 - 1) % 12 + 1:02d}-01"),
-            ((start_month + 8 - 1) % 12 + 1, f"{year}-{(start_month + 8 - 1) % 12 + 1:02d}-01"),
+            (
+                (start_month + 4 - 1) % 12 + 1,
+                f"{year}-{(start_month + 4 - 1) % 12 + 1:02d}-01",
+            ),
+            (
+                (start_month + 8 - 1) % 12 + 1,
+                f"{year}-{(start_month + 8 - 1) % 12 + 1:02d}-01",
+            ),
         ]
-        
+
         # Initialize variables before loop to satisfy mypy
         start_date = datetime(year, start_month, 1, tzinfo=tz)
         end_date = datetime(year, start_month + 4, 1, tzinfo=tz)
-        
+
         # Find current season
-        for i, (start_m, _) in enumerate(season_starts):
-            end_m = season_starts[(i + 1) % 3][0]
-            if start_m <= month < end_m or (start_m > end_m and (month >= start_m or month < end_m)):
+        for idx, (start_m, _) in enumerate(season_starts):
+            end_m = season_starts[(idx + 1) % 3][0]
+            if start_m <= month < end_m or (
+                start_m > end_m and (month >= start_m or month < end_m)
+            ):
                 start_date = datetime(year, start_m, 1, tzinfo=tz)
                 if end_m > start_m:
                     end_date = datetime(year, end_m, 1, tzinfo=tz)
@@ -317,7 +324,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             # Default to first season
             start_date = datetime(year, start_month, 1, tzinfo=tz)
             end_date = datetime(year, start_month + 4, 1, tzinfo=tz)
-        
+
         # If current time is past the end date, calculate next season
         if current_time >= end_date:
             start_date = end_date
@@ -326,7 +333,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
                 end_date = datetime(year, end_month, 1, tzinfo=tz)
             else:
                 end_date = datetime(year + 1, end_month, 1, tzinfo=tz)
-        
+
         return start_date, end_date
 
     def _calculate_quarter_year_season(
@@ -338,15 +345,15 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         start_month = config.get("start_month", 1)
         tz_name = config.get("timezone", "UTC")
         tz = ZoneInfo(tz_name)
-        
+
         current_time = current_time.astimezone(tz)
         year = current_time.year
         month = current_time.month
-        
+
         # Initialize variables before conditional blocks
         start_date: datetime
         end_date: datetime
-        
+
         # Define quarter boundaries
         quarters = [
             (start_month, (start_month + 3 - 1) % 12 + 1),
@@ -354,10 +361,12 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             ((start_month + 6 - 1) % 12 + 1, (start_month + 9 - 1) % 12 + 1),
             ((start_month + 9 - 1) % 12 + 1, start_month),
         ]
-        
+
         # Find current quarter
-        for i, (start_m, end_m) in enumerate(quarters):
-            if start_m <= month < end_m or (start_m > end_m and (month >= start_m or month < end_m)):
+        for _, (start_m, end_m) in enumerate(quarters):
+            if start_m <= month < end_m or (
+                start_m > end_m and (month >= start_m or month < end_m)
+            ):
                 start_date = datetime(year, start_m, 1, tzinfo=tz)
                 if end_m > start_m:
                     end_date = datetime(year, end_m, 1, tzinfo=tz)
@@ -368,7 +377,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             # Default to first quarter
             start_date = datetime(year, start_month, 1, tzinfo=tz)
             end_date = datetime(year, start_month + 3, 1, tzinfo=tz)
-        
+
         # If current time is past the end date, calculate next quarter
         if current_time >= end_date:
             start_date = end_date
@@ -377,7 +386,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
                 end_date = datetime(year, end_month, 1, tzinfo=tz)
             else:
                 end_date = datetime(year + 1, end_month, 1, tzinfo=tz)
-        
+
         return start_date, end_date
 
     def get_season_name(
@@ -387,17 +396,17 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> str:
         """Generate a name for the season based on its start date.
-        
+
         Args:
             schedule_type: The schedule type identifier
             start_date: The start date of the season
             config: The schedule configuration from the database
-            
+
         Returns:
             A human-readable name for the season in format SC-{YEAR}-{TYPE}{SEASON}
         """
         year = start_date.year
-        
+
         if schedule_type == "custom":
             # For custom, use day of year to determine season number
             day_of_year = start_date.timetuple().tm_yday
@@ -421,17 +430,17 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> bool:
         """Validate the schedule configuration.
-        
+
         Args:
             schedule_type: The schedule type identifier
             config: The schedule configuration to validate
-            
+
         Returns:
             True if the configuration is valid, False otherwise
         """
         if schedule_type not in self.schedule_types:
             return False
-        
+
         if schedule_type == "custom":
             interval = config.get("interval")
             if not interval:
@@ -442,7 +451,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
                 return False
             if not isinstance(interval["value"], int) or interval["value"] < 1:
                 return False
-        
+
         return True
 
     def calculate_seasons_for_range(
@@ -453,28 +462,44 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         config: dict[str, Any],
     ) -> list[tuple[datetime, datetime]]:
         """Calculate all seasons within a date range for standard calendar.
-        
+
         This method generates all seasons that would have occurred between start_date
         and end_date based on the schedule type's rules.
-        
+
         Args:
             schedule_type: The schedule type identifier
             start_date: The start of the date range (oldest score time)
             end_date: The end of the date range (current time)
             config: The schedule configuration from the database
-            
+
         Returns:
             A list of (start_date, end_date) tuples for each season in the range,
             ordered from oldest to newest.
         """
         if schedule_type == "custom":
-            return self._calculate_custom_seasons_for_range(start_date, end_date, config)
+            return self._calculate_custom_seasons_for_range(
+                start_date,
+                end_date,
+                config,
+            )
         elif schedule_type == "half_year":
-            return self._calculate_half_year_seasons_for_range(start_date, end_date, config)
+            return self._calculate_half_year_seasons_for_range(
+                start_date,
+                end_date,
+                config,
+            )
         elif schedule_type == "third_year":
-            return self._calculate_third_year_seasons_for_range(start_date, end_date, config)
+            return self._calculate_third_year_seasons_for_range(
+                start_date,
+                end_date,
+                config,
+            )
         elif schedule_type == "quarter_year":
-            return self._calculate_quarter_year_seasons_for_range(start_date, end_date, config)
+            return self._calculate_quarter_year_seasons_for_range(
+                start_date,
+                end_date,
+                config,
+            )
         else:
             return []
 
@@ -488,7 +513,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         interval = config.get("interval", {"value": 30, "unit": "days"})
         value = interval.get("value", 30)
         unit = interval.get("unit", "days")
-        
+
         if unit == "days":
             delta = timedelta(days=value)
         elif unit == "weeks":
@@ -498,16 +523,16 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             delta = timedelta(days=value * 30)
         else:
             delta = timedelta(days=30)
-        
+
         seasons = []
         current = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        
+
         while current < end_date:
             season_end = current + delta
             if season_end > start_date and current < end_date:
                 seasons.append((current, season_end))
             current = season_end
-        
+
         return seasons
 
     def _calculate_half_year_seasons_for_range(
@@ -520,34 +545,34 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         start_month = config.get("start_month", 1)
         tz_name = config.get("timezone", "UTC")
         tz = ZoneInfo(tz_name)
-        
+
         start_date = start_date.astimezone(tz)
         end_date = end_date.astimezone(tz)
-        
+
         seasons = []
         current_year = start_date.year
-        
+
         while True:
             # First half: start_month to June
             season1_start = datetime(current_year, start_month, 1, tzinfo=tz)
             season1_end = datetime(current_year, 7, 1, tzinfo=tz)
-            
+
             # Second half: July to December
             season2_start = datetime(current_year, 7, 1, tzinfo=tz)
             season2_end = datetime(current_year + 1, start_month, 1, tzinfo=tz)
-            
+
             # Add seasons that overlap with our range
             if season1_start < end_date and season1_end > start_date:
                 seasons.append((season1_start, season1_end))
             if season2_start < end_date and season2_end > start_date:
                 seasons.append((season2_start, season2_end))
-            
+
             current_year += 1
-            
+
             # Stop if we've passed the end date
             if datetime(current_year, 1, 1, tzinfo=tz) >= end_date:
                 break
-        
+
         return seasons
 
     def _calculate_third_year_seasons_for_range(
@@ -560,38 +585,44 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         start_month = config.get("start_month", 1)
         tz_name = config.get("timezone", "UTC")
         tz = ZoneInfo(tz_name)
-        
+
         start_date = start_date.astimezone(tz)
         end_date = end_date.astimezone(tz)
-        
+
         seasons = []
         current_year = start_date.year
-        
+
         while True:
             # Define season boundaries (4 months each)
             season_starts = [
                 (start_month, f"{current_year}-{start_month:02d}-01"),
-                ((start_month + 4 - 1) % 12 + 1, f"{current_year}-{(start_month + 4 - 1) % 12 + 1:02d}-01"),
-                ((start_month + 8 - 1) % 12 + 1, f"{current_year}-{(start_month + 8 - 1) % 12 + 1:02d}-01"),
+                (
+                    (start_month + 4 - 1) % 12 + 1,
+                    f"{current_year}-{(start_month + 4 - 1) % 12 + 1:02d}-01",
+                ),
+                (
+                    (start_month + 8 - 1) % 12 + 1,
+                    f"{current_year}-{(start_month + 8 - 1) % 12 + 1:02d}-01",
+                ),
             ]
-            
-            for i, (start_m, _) in enumerate(season_starts):
+
+            for i, (start_m, _) in enumerate(season_starts):  # noqa: B007
                 end_m = season_starts[(i + 1) % 3][0]
                 season_start = datetime(current_year, start_m, 1, tzinfo=tz)
                 if end_m > start_m:
                     season_end = datetime(current_year, end_m, 1, tzinfo=tz)
                 else:
                     season_end = datetime(current_year + 1, end_m, 1, tzinfo=tz)
-                
+
                 if season_start < end_date and season_end > start_date:
                     seasons.append((season_start, season_end))
-            
+
             current_year += 1
-            
+
             # Stop if we've passed the end date
             if datetime(current_year, 1, 1, tzinfo=tz) >= end_date:
                 break
-        
+
         return seasons
 
     def _calculate_quarter_year_seasons_for_range(
@@ -604,13 +635,13 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         start_month = config.get("start_month", 1)
         tz_name = config.get("timezone", "UTC")
         tz = ZoneInfo(tz_name)
-        
+
         start_date = start_date.astimezone(tz)
         end_date = end_date.astimezone(tz)
-        
+
         seasons = []
         current_year = start_date.year
-        
+
         while True:
             # Define quarter boundaries
             quarters = [
@@ -619,21 +650,21 @@ class StandardCalendarProvider(ScheduleTypeProvider):
                 ((start_month + 6 - 1) % 12 + 1, (start_month + 9 - 1) % 12 + 1),
                 ((start_month + 9 - 1) % 12 + 1, start_month),
             ]
-            
-            for i, (start_m, end_m) in enumerate(quarters):
+
+            for start_m, end_m in quarters:
                 season_start = datetime(current_year, start_m, 1, tzinfo=tz)
                 if end_m > start_m:
                     season_end = datetime(current_year, end_m, 1, tzinfo=tz)
                 else:
                     season_end = datetime(current_year + 1, end_m, 1, tzinfo=tz)
-                
+
                 if season_start < end_date and season_end > start_date:
                     seasons.append((season_start, season_end))
-            
+
             current_year += 1
-            
+
             # Stop if we've passed the end date
             if datetime(current_year, 1, 1, tzinfo=tz) >= end_date:
                 break
-        
+
         return seasons

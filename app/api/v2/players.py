@@ -49,19 +49,19 @@ Filtering Options:
 Usage Pattern:
     # List players with pagination
     GET /api/v2/players?page=1&page_size=50
-    
+
     # Filter by country and privileges
     GET /api/v2/players?country=US&priv=3
-    
+
     # Get specific player
     GET /api/v2/players/12345
-    
+
     # Get player status
     GET /api/v2/players/12345/status
-    
+
     # Get player stats for specific mode
     GET /api/v2/players/12345/stats/0
-    
+
     # Get all player stats
     GET /api/v2/players/12345/stats?page=1&page_size=10
 
@@ -75,17 +75,13 @@ Related Files:
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status
 from fastapi.param_functions import Query
 
 import app.state.sessions
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure
-from app.api.v2.common.responses import Success
-from app.api.v2.models.players import Player
-from app.api.v2.models.players import PlayerStats
-from app.api.v2.models.players import PlayerStatus
+from app.api.v2.common.responses import Failure, Success
+from app.api.v2.models.players import Player, PlayerStats, PlayerStatus
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 

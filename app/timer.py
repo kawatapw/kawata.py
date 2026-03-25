@@ -30,10 +30,10 @@ Usage Pattern:
     with Timer() as timer:
         # Perform some operation
         result = await some_async_operation()
-    
+
     elapsed_time = timer.elapsed()
     print(f"Operation took {elapsed_time:.2f} seconds")
-    
+
     # Manual timing
     timer = Timer()
     timer.start_time = time.time()
@@ -55,16 +55,16 @@ from types import TracebackType
 
 class Timer:
     """Context manager for measuring execution time of code blocks.
-    
+
     This class provides a simple way to measure how long operations take
     to execute. It can be used as a context manager with the `with` statement
     or manually controlled with start/stop methods.
-    
+
     Attributes:
         start_time: Timestamp when timing started (seconds since epoch)
         end_time: Timestamp when timing ended (seconds since epoch)
     """
-    
+
     def __init__(self) -> None:
         self.start_time: float | None = None
         self.end_time: float | None = None
@@ -85,10 +85,10 @@ class Timer:
 
     def elapsed(self) -> float:
         """Calculate and return the elapsed time in seconds.
-        
+
         Returns:
             Elapsed time in seconds as a float
-            
+
         Raises:
             ValueError: If timer has not been started or stopped
         """

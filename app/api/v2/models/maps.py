@@ -68,7 +68,7 @@ Usage Pattern:
         hp=6.0,
         diff=5.5
     )
-    
+
     # Use in API endpoint
     @router.get("/maps/{map_id}")
     async def get_map(map_id: int) -> Map:
@@ -95,7 +95,7 @@ from . import BaseModel
 
 class Map(BaseModel):
     """Pydantic model for beatmap data in API responses.
-    
+
     Attributes:
         id: Unique identifier for the beatmap
         server: Server type (osu!, private)
@@ -121,6 +121,7 @@ class Map(BaseModel):
         hp: HP drain rate
         diff: Star difficulty rating
     """
+
     id: int
     server: str
     set_id: int

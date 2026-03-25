@@ -47,12 +47,12 @@ Usage Pattern:
         osu_file_path="path/to/beatmap.osu",
         scores=[score_params]
     )
-    
+
     # Access performance data
     for result in results:
         pp = result["performance"]["pp"]
         stars = result["difficulty"]["stars"]
-        
+
     # Batch calculate for multiple scores
     results = calculate_performances(
         osu_file_path="path/to/beatmap.osu",
@@ -74,8 +74,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TypedDict
 
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from akatsuki_pp_py import Beatmap, Calculator
 
 from app.constants.mods import Mods
 

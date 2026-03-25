@@ -33,14 +33,14 @@ Type Definitions:
 Usage Pattern:
     # Use IPAddress for network operations
     from app._typing import IPAddress
-    
+
     def process_ip(ip: IPAddress) -> None:
         # Handle both IPv4 and IPv6 addresses
         pass
-    
+
     # Use UNSET for optional parameters
     from app._typing import UNSET
-    
+
     def update_setting(value: str | None = UNSET) -> None:
         if value is UNSET:
             # Parameter was not provided
@@ -61,10 +61,8 @@ Related Files:
 
 from __future__ import annotations
 
-from ipaddress import IPv4Address
-from ipaddress import IPv6Address
-from typing import Any
-from typing import TypeVar
+from ipaddress import IPv4Address, IPv6Address
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -73,11 +71,12 @@ IPAddress = IPv4Address | IPv6Address
 
 class _UnsetSentinel:
     """Sentinel class for distinguishing unset parameters from None.
-    
+
     This class provides a unique sentinel value that can be used to
     distinguish between a parameter that was not provided (UNSET) and
     a parameter that was explicitly set to None.
     """
+
     def __repr__(self) -> str:
         return "Unset"
 

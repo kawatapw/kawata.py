@@ -48,20 +48,20 @@ Usage Pattern:
         desc="Pass your first map",
         cond="score.passed"
     )
-    
+
     # Fetch achievement by ID or name
     achievement = await fetch_one(id=1)
     achievement = await fetch_one(name="First Pass")
-    
+
     # Fetch all achievements with pagination
     achievements = await fetch_many(page=1, page_size=10)
-    
+
     # Update achievement
     updated = await partial_update(
         id=1,
         desc="Updated description"
     )
-    
+
     # Delete achievement
     deleted = await delete_one(id=1)
 
@@ -75,27 +75,26 @@ Related Files:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
-from typing import TypedDict
-from typing import cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 if TYPE_CHECKING:
     from app.objects.score import Score
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import (
+    Column,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
 
 
 class AchievementsTable(Base):
@@ -195,7 +194,9 @@ async def fetch_many(
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
-    achievements: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(select_stmt)
+    achievements: (
+        list[dict[str, Any]] | None
+    ) = await app.state.services.database.fetch_all(select_stmt)
     if achievements is not None:
         for achievement in achievements:
             achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')

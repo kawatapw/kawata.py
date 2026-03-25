@@ -75,16 +75,16 @@ Usage Pattern:
         seed=0,
         chat_channel=channel
     )
-    
+
     # Add player to match
     slot_id = match.get_free()
     if slot_id is not None:
         match.slots[slot_id].player = player
         match.slots[slot_id].status = SlotStatus.not_ready
-    
+
     # Start match
     match.start()
-    
+
     # Handle score submissions
     await match.update_matchpoints(playing_slots)
 
@@ -103,11 +103,8 @@ from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime as datetime
 from datetime import timedelta as timedelta
-from enum import IntEnum
-from enum import unique
-from typing import TYPE_CHECKING
-from typing import TypedDict
-from typing import cast
+from enum import IntEnum, unique
+from typing import TYPE_CHECKING, TypedDict
 
 import app.packets
 import app.settings
@@ -117,8 +114,7 @@ from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.repositories.tourney_pools import TourneyPool
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 if TYPE_CHECKING:
     from asyncio import TimerHandle

@@ -6,14 +6,13 @@ environment context construction, and dynamic dispatch into the
 individual CI modules. It is intentionally thin so that most logic
 remains testable in the underlying packages.
 """
+
 import sys
-import argparse
-from pathlib import Path
 from typing import Any
 
 from core.cli import parse_args
-from core.context import build_context
 from core.config import load_config
+from core.context import build_context
 from core.errors import handle_error
 from modules import load_module
 
@@ -25,6 +24,7 @@ def print_json(result: Any) -> None:
         result: Any JSON-serializable object to be emitted.
     """
     import json
+
     print(json.dumps(result, indent=2))
 
 

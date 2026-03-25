@@ -59,14 +59,14 @@ Usage Pattern:
         comment="Great play!",
         colour="FF0000"
     )
-    
+
     # Fetch comments for a replay
     comments = await fetch_all_relevant_to_replay(
         score_id=12345,
         map_set_id=None,
         map_id=None
     )
-    
+
     # Fetch comments for a beatmap
     comments = await fetch_all_relevant_to_replay(
         score_id=None,
@@ -85,18 +85,9 @@ Related Files:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import CHAR
-from sqlalchemy import Column
-from sqlalchemy import Enum
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import and_
-from sqlalchemy import insert
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import CHAR, Column, Enum, Integer, String, and_, insert, or_, select
 from sqlalchemy.dialects.mysql import FLOAT
 
 import app.state.services

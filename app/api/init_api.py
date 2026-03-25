@@ -43,7 +43,7 @@ Route Structure:
 Usage Pattern:
     # The application is automatically initialized when imported
     from app.api.init_api import asgi_app
-    
+
     # The app can be run with uvicorn or similar ASGI server
     # uvicorn app.api.init_api:asgi_app --host 0.0.0.0 --port 8000
 
@@ -67,14 +67,12 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import starlette.routing
-from fastapi import FastAPI
-from fastapi import status
+from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.requests import Request
-from fastapi.responses import ORJSONResponse
-from fastapi.responses import Response
+from fastapi.responses import ORJSONResponse, Response
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import ClientDisconnect
 
@@ -82,11 +80,8 @@ import app.bg_loops
 import app.settings
 import app.state
 import app.utils
-from app.api import api_router
-from app.api import domains
-from app.api import middlewares
-from app.logging import Ansi
-from app.logging import log
+from app.api import api_router, domains, middlewares
+from app.logging import Ansi, log
 from app.objects import collections
 
 

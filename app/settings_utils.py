@@ -28,10 +28,10 @@ Integration Points:
 Usage Pattern:
     # Parse boolean from environment
     debug_mode = read_bool(os.getenv("DEBUG_MODE", "false"))
-    
+
     # Parse list from environment
     allowed_hosts = read_list(os.getenv("ALLOWED_HOSTS", ""))
-    
+
     # Support deprecated variables with migration
     db_host = support_deprecated_vars(
         new_name="DATABASE_HOST",
@@ -50,17 +50,17 @@ from __future__ import annotations
 import os
 from datetime import date
 
-#Following are commented out due to circular import after importing logging in api.py
-#from app.logging import Ansi
-#from app.logging import log
+# Following are commented out due to circular import after importing logging in api.py
+# from app.logging import Ansi
+# from app.logging import log
 
 
 def read_bool(value: str) -> bool:
     """Parse a boolean value from a string environment variable.
-    
+
     Args:
         value: String value to parse as boolean
-        
+
     Returns:
         True if value is 'true', '1', or 'yes' (case-insensitive)
     """
@@ -69,10 +69,10 @@ def read_bool(value: str) -> bool:
 
 def read_list(value: str) -> list[str]:
     """Parse a comma-separated list from a string environment variable.
-    
+
     Args:
         value: Comma-separated string to parse
-        
+
     Returns:
         List of trimmed strings from the comma-separated input
     """
@@ -87,21 +87,21 @@ def support_deprecated_vars(
     allow_empty_string: bool = False,
 ) -> str:
     """Support deprecated environment variables with migration warnings.
-    
+
     This function provides backward compatibility for deprecated configuration
     options while encouraging migration to new variable names. It checks for
     the new variable first, then falls back to the deprecated one with a
     warning message.
-    
+
     Args:
         new_name: Name of the new environment variable
         deprecated_name: Name of the deprecated environment variable
         until: Date when the deprecated variable will be removed
         allow_empty_string: Whether to allow empty string values
-        
+
     Returns:
         Value from either the new or deprecated variable
-        
+
     Raises:
         ValueError: If deprecated variable is used after its removal date
         KeyError: If neither variable is set and empty strings are not allowed
@@ -117,10 +117,10 @@ def support_deprecated_vars(
                 f'The "{deprecated_name}" config option has been deprecated as of {until.isoformat()} and is no longer supported. Use {new_name} instead.',
             )
 
-        #log(
+        # log(
         #    f'The "{deprecated_name}" config option has been deprecated and will be supported until {until.isoformat()}. Use {new_name} instead.',
         #    Ansi.LYELLOW,
-        #)
+        # )
         return val2
 
     if allow_empty_string:

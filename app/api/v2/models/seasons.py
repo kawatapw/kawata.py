@@ -72,7 +72,7 @@ Usage Pattern:
         description="Spring season 2024",
         created_at=datetime.now()
     )
-    
+
     # Use in API endpoint
     @router.get("/seasons/{season_id}")
     async def get_season(season_id: int) -> Season:
@@ -95,7 +95,7 @@ from . import BaseModel
 
 class Season(BaseModel):
     """Pydantic model for season data in API responses.
-    
+
     Attributes:
         id: Unique identifier for the season
         name: Display name of the season
@@ -108,6 +108,7 @@ class Season(BaseModel):
         description: Optional description of the season
         created_at: When the season was created
     """
+
     id: int
     name: str
     schedule_id: int | None
@@ -122,7 +123,7 @@ class Season(BaseModel):
 
 class SeasonStats(BaseModel):
     """Pydantic model for season statistics data in API responses.
-    
+
     Attributes:
         id: Player ID
         mode: Game mode
@@ -142,6 +143,7 @@ class SeasonStats(BaseModel):
         s_count: Number of S grades
         a_count: Number of A grades
     """
+
     id: int
     mode: int
     season_id: int | None
@@ -163,7 +165,7 @@ class SeasonStats(BaseModel):
 
 class SeasonInfo(BaseModel):
     """Pydantic model for minimal season information (for embedding in other responses).
-    
+
     Attributes:
         id: Unique identifier for the season
         name: Display name of the season
@@ -171,6 +173,7 @@ class SeasonInfo(BaseModel):
         start_date: When the season starts
         end_date: When the season ends
     """
+
     id: int
     name: str
     type: str

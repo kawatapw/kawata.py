@@ -50,22 +50,22 @@ Usage Pattern:
         name="OWC 2023 Finals",
         created_by=admin_id
     )
-    
+
     # Get pool by ID
     pool = await fetch_by_id(id=1)
-    
+
     # Get pool by name
     pool = await fetch_by_name(name="OWC 2023 Finals")
-    
+
     # Get pools created by a user
     pools = await fetch_many(created_by=admin_id)
-    
+
     # Get pools with pagination
     pools = await fetch_many(
         page=1,
         page_size=10
     )
-    
+
     # Delete a pool
     deleted = await delete_by_id(id=1)
 
@@ -80,18 +80,19 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+)
 
 import app.state.services
 from app.repositories import Base

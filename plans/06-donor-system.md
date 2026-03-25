@@ -101,17 +101,17 @@ class PaymentProvider(ABC):
     async def create_checkout_session(self, user_id: int, tier_id: int, billing_cycle: str) -> str:
         """Create a checkout session and return URL."""
         pass
-    
+
     @abstractmethod
     async def handle_webhook(self, payload: dict) -> dict:
         """Handle webhook from payment provider."""
         pass
-    
+
     @abstractmethod
     async def cancel_subscription(self, subscription_id: str) -> bool:
         """Cancel a subscription."""
         pass
-    
+
     @abstractmethod
     async def get_subscription_status(self, subscription_id: str) -> dict:
         """Get subscription status."""
@@ -124,12 +124,12 @@ class StripeProvider(PaymentProvider):
     def __init__(self, api_key: str, webhook_secret: str):
         self.api_key = api_key
         self.webhook_secret = webhook_secret
-    
+
     async def create_checkout_session(self, user_id: int, tier_id: int, billing_cycle: str) -> str:
         # Create Stripe checkout session
         # Return URL for redirect
         pass
-    
+
     async def handle_webhook(self, payload: dict) -> dict:
         # Verify webhook signature
         # Process event (checkout.session.completed, invoice.paid, etc.)

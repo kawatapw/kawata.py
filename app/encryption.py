@@ -53,7 +53,7 @@ Usage Pattern:
         iv_b64=b"base64_encoded_iv",
         osu_version="20231215"
     )
-    
+
     # Decrypt score data from client submission
     score_data, client_hash = decrypt_score_aes_data(
         score_data_b64=b"base64_encoded_score",
@@ -71,11 +71,9 @@ Related Files:
 
 from __future__ import annotations
 
-from base64 import b64decode
-from base64 import b64encode
+from base64 import b64decode, b64encode
 
-from py3rijndael import Pkcs7Padding
-from py3rijndael import RijndaelCbc
+from py3rijndael import Pkcs7Padding, RijndaelCbc
 
 
 def encrypt_score_aes_data(
@@ -87,17 +85,17 @@ def encrypt_score_aes_data(
     osu_version: str,
 ) -> tuple[bytes, bytes]:
     """Encrypt the score data to base64.
-    
+
     This function encrypts score submission data and client hash using
     AES encryption with Rijndael CBC mode. The encryption uses a version-
     specific key derived from the osu! version string.
-    
+
     Args:
         score_data: List of score data strings to encrypt
         client_hash: Client hash string to encrypt
         iv_b64: Base64 encoded initialization vector
         osu_version: osu! version string for key derivation
-        
+
     Returns:
         Tuple of (encrypted_score_data, encrypted_client_hash) as base64 bytes
     """
@@ -127,17 +125,17 @@ def decrypt_score_aes_data(
     osu_version: str,
 ) -> tuple[list[str], str]:
     """Decrypt the base64'ed score data.
-    
+
     This function decrypts score submission data and client hash from
     base64 encoded encrypted data. The decryption uses a version-specific
     key derived from the osu! version string.
-    
+
     Args:
         score_data_b64: Base64 encoded encrypted score data
         client_hash_b64: Base64 encoded encrypted client hash
         iv_b64: Base64 encoded initialization vector
         osu_version: osu! version string for key derivation
-        
+
     Returns:
         Tuple of (score_data_list, client_hash_string)
     """

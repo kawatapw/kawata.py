@@ -86,11 +86,11 @@ Usage Pattern:
         hp=6.0,
         diff=5.5
     )
-    
+
     # Fetch beatmap by ID or MD5
     beatmap = await fetch_one(id=12345)
     beatmap = await fetch_one(md5="abc123...")
-    
+
     # Fetch beatmaps with filtering
     beatmaps = await fetch_many(
         server="osu!",
@@ -99,14 +99,14 @@ Usage Pattern:
         page=1,
         page_size=10
     )
-    
+
     # Update beatmap
     updated = await partial_update(
         id=12345,
         status=3,
         plays=1500
     )
-    
+
     # Delete beatmap
     deleted = await delete_one(id=12345)
 
@@ -121,26 +121,25 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Enum
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
-from sqlalchemy.dialects.mysql import FLOAT
-from sqlalchemy.dialects.mysql import TINYINT
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
+from sqlalchemy.dialects.mysql import FLOAT, TINYINT
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 

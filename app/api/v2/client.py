@@ -31,13 +31,13 @@ Endpoints:
 Usage Pattern:
     # List changelog with pagination
     GET /api/v2/changelog?page=1&page_size=50
-    
+
     # Filter by change type
     GET /api/v2/changelog?change_type=1
-    
+
     # Filter by category
     GET /api/v2/changelog?category=feature
-    
+
     # Filter by time range
     GET /api/v2/changelog?unix_from=1640995200
 
@@ -48,19 +48,17 @@ Related Files:
 """
 
 from __future__ import annotations
+
 import textwrap
 from typing import Any
 
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status
 from fastapi.param_functions import Query
 
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure
-from app.api.v2.common.responses import success
-from app.api.v2.common.responses import Success
-from app.state.services import database
+from app.api.v2.common.responses import Failure, Success
 from app.logging import log
+from app.state.services import database
 
 router: APIRouter = APIRouter()
 
@@ -69,6 +67,7 @@ READ_PARAMS = textwrap.dedent(
         type, category, poster, content, time, version
     """,
 )
+
 
 @router.get("/changelog")
 async def get_changelog(
@@ -84,14 +83,14 @@ async def get_changelog(
             SELECT {READ_PARAMS}
               FROM changelog
             """
-        accessor = "WHERE" # used to add ANDs to the query
+        accessor = "WHERE"  # used to add ANDs to the query
 
-        if (change_type is not None):
+        if change_type is not None:
             query += accessor + " type = :type "
             accessor = "AND"
             params["type"] = change_type
 
-        if (category is not None):
+        if category is not None:
             query += accessor + " category = :category "
             accessor = "AND"
             params["category"] = category
@@ -118,18 +117,20 @@ async def get_changelog(
             "page_size": page_size,
             "type": change_type,
             "category": category,
-            "unix_from": unix_from
+            "unix_from": unix_from,
         }
         res = []
         for row in data:
-            res.append({
-                "type": row["type"],
-                "category": row["category"], 
-                "poster": row["poster"],
-                "content": row["content"],
-                "time": row["time"].strftime("%Y-%m-%d %H:%M:%S"),
-                "version": row["version"]
-            })
+            res.append(
+                {
+                    "type": row["type"],
+                    "category": row["category"],
+                    "poster": row["poster"],
+                    "content": row["content"],
+                    "time": row["time"].strftime("%Y-%m-%d %H:%M:%S"),
+                    "version": row["version"],
+                },
+            )
         return responses.success(content=res, meta=meta)
     except Exception as e:
         log(f"Error in get_changelog: {e}")

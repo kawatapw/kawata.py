@@ -5,12 +5,13 @@ across all modules while keeping the public API minimal: a single
 `setup_logging` function and a convenience `get_logger` wrapper around
 `logging.getLogger`.
 """
+
 import logging
 import sys
-from typing import Dict, Any
+from typing import Any
 
 
-def setup_logging(config: Dict[str, Any]) -> None:
+def setup_logging(config: dict[str, Any]) -> None:
     """Configure the root logger based on tool configuration.
 
     The current implementation respects a single ``debug`` flag which,
@@ -23,15 +24,13 @@ def setup_logging(config: Dict[str, Any]) -> None:
             ``debug`` key is consulted, but additional logging-related
             options may be added in the future.
     """
-    level = logging.DEBUG if config.get('debug') else logging.INFO
+    level = logging.DEBUG if config.get("debug") else logging.INFO
 
     # Configure root logger
     logging.basicConfig(
         level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stderr)
-        ]
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stderr)],
     )
 
 

@@ -45,13 +45,13 @@ Example Usage:
     # Validate username
     if USERNAME.match(username):
         create_user(username)
-    
+
     # Parse osu! version
     match = OSU_VERSION.match(version_string)
     if match:
         date = match.group("date")
         stream = match.group("stream")
-    
+
     # Parse tournament match name
     match = TOURNEY_MATCHNAME.match(match_name)
     if match:
@@ -66,8 +66,10 @@ Related Files:
 """
 
 from __future__ import annotations
-import app.settings
+
 import re
+
+import app.settings
 
 if app.settings.CHEAT_SERVER:
     OSU_VERSION = re.compile(
@@ -76,9 +78,9 @@ if app.settings.CHEAT_SERVER:
     )
 else:
     OSU_VERSION = re.compile(
-    r"^b(?P<date>\d{8})(?:\.(?P<revision>\d+))?"
-    r"(?P<stream>beta|cuttingedge|dev|tourney)?$",
-)
+        r"^b(?P<date>\d{8})(?:\.(?P<revision>\d+))?"
+        r"(?P<stream>beta|cuttingedge|dev|tourney)?$",
+    )
 
 USERNAME = re.compile(r"^[\w \[\]-]{2,15}$")
 EMAIL = re.compile(r"^[^@\s]{1,200}@[^@\s\.]{1,30}(?:\.[^@\.\s]{2,24})+$")

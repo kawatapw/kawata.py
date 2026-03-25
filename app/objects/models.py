@@ -39,7 +39,7 @@ Example Usage:
         "Filenames": ["beatmap1.osu", "beatmap2.osu"],
         "Ids": [12345, 67890]
     }
-    
+
     form = OsuBeatmapRequestForm(**request_data)
     filenames = form.Filenames  # ["beatmap1.osu", "beatmap2.osu"]
     ids = form.Ids  # [12345, 67890]

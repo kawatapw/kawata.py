@@ -50,20 +50,20 @@ String Formats:
 Example Usage:
     # Parse mods from mod string
     mods = Mods.from_modstr("HDDTRX")  # Hidden + DoubleTime + Relax
-    
+
     # Parse mods from /np output
     mods = Mods.from_np("+Hidden +DoubleTime", mode_vn=0)
-    
+
     # Check if specific mod is enabled
     if score.mods & Mods.HIDDEN:
         apply_hidden_mod_effects()
-    
+
     # Combine multiple mods
     mods = Mods.HIDDEN | Mods.DOUBLETIME | Mods.HARDROCK
-    
+
     # Filter invalid combinations
     mods = mods.filter_invalid_combos(mode_vn=0)
-    
+
     # Get string representation
     mod_str = repr(mods)  # Returns "HDHRDT"
 
@@ -77,11 +77,9 @@ Related Files:
 from __future__ import annotations
 
 import functools
-from enum import IntFlag
-from enum import unique
+from enum import IntFlag, unique
 
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 
 @unique
@@ -120,7 +118,6 @@ class Mods(IntFlag):
     SCOREV2 = 1 << 29
     MIRROR = 1 << 30
 
-    @functools.cache
     def __repr__(self) -> str:
         if self.value == Mods.NOMOD:
             return "NM"
@@ -370,6 +367,7 @@ SPEED_CHANGING_MODS = Mods.DOUBLETIME | Mods.NIGHTCORE | Mods.HALFTIME
 OSU_SPECIFIC_MODS = Mods.AUTOPILOT | Mods.SPUNOUT | Mods.TARGET
 # taiko & catch have no specific mods
 MANIA_SPECIFIC_MODS = Mods.MIRROR | Mods.RANDOM | Mods.FADEIN | KEY_MODS
+
 
 def get_mods_string(mods: Mods) -> str:
     mod_list = []
