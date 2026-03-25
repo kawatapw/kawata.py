@@ -1247,7 +1247,7 @@ class Player:
                         Grade.A: 0,
                     },
                 )
-        
+
         # Then load from database
         for row in await stats_repo.fetch_many(player_id=self.id):
             game_mode = GameMode(row["mode"])

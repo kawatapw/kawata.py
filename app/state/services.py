@@ -406,12 +406,10 @@ class Version:
         return None
 
 
-async def _get_latest_dependency_versions() -> (
-    AsyncGenerator[
-        tuple[str, Version, Version],
-        None,
-    ]
-):
+async def _get_latest_dependency_versions() -> AsyncGenerator[
+    tuple[str, Version, Version],
+    None,
+]:
     """Return the current installed & latest version for each dependency."""
     with open("requirements.txt") as f:
         dependencies = f.read().splitlines(keepends=False)

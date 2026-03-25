@@ -70,6 +70,7 @@ services:
     init: true
     volumes:
       - .:/srv/root
+      - venv:/srv/root/.venv
       - data:/srv/root/.data
     environment:
       - APP_HOST=${APP_HOST}
@@ -125,6 +126,7 @@ services:
       - USINGROOTDOMAIN=${USINGROOTDOMAIN}
 
 volumes:
+  venv:
   data:
   db-data:
   redis-data:
