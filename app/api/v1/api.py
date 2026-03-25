@@ -8,7 +8,7 @@ import struct
 import orjson
 import json
 from pathlib import Path as SystemPath
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -168,7 +168,7 @@ async def api_calculate_pp_batch(
     Returns results keyed by beatmap ID.
     """
 
-    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+    if app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -197,9 +197,10 @@ async def api_calculate_pp_batch(
     )
 
     # Build lookup: beatmap_id -> {md5, mode}
-    db_maps: dict[int, dict] = {}
-    for row in rows:
-        db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
+    db_maps: dict[int, dict[str, Any]] = {}
+    if rows:
+        for row in rows:
+            db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
 
     # Ensure .osu files are available in parallel
     maps_to_check = [
@@ -218,7 +219,7 @@ async def api_calculate_pp_batch(
     else:
         file_ok_map = {}
 
-    results: dict[str, dict] = {}
+    results: dict[str, dict[str, Any]] = {}
 
     for bid in beatmap_ids:
         if bid not in db_maps:
@@ -257,9 +258,10 @@ async def api_calculate_pp_batch(
                 "pp_acc": perf["performance"].get("pp_acc", 0),
             })
 
+        difficulty_result = perf_results[0]["difficulty"] if perf_results else None
         results[str(bid)] = {
             "pp_values": pp_values,
-            "difficulty": perf_results[0]["difficulty"] if perf_results else {},
+            "difficulty": difficulty_result,
         }
 
     return ORJSONResponse(
@@ -286,8 +288,8 @@ async def api_search_players(
     return ORJSONResponse(
         {
             "status": "success",
-            "results": len(rows),
-            "result": [dict(row) for row in rows],
+            "results": len(rows) if rows else 0,
+            "result": [dict(row) for row in rows] if rows else [],
         },
     )
 
@@ -347,7 +349,7 @@ async def api_get_player_info(
     if scope in ("info", "all"):
         api_data["info"] = dict(user_info)
         info = api_data["info"]
-        if resolved_clan_id != 0:
+        if resolved_clan_id is not None and resolved_clan_id != 0:
             # Fetch Clan Info
             clan_response = await api_get_clan(clan_id=resolved_clan_id)
             clan_data = orjson.loads(clan_response.body)
@@ -438,17 +440,17 @@ async def api_get_player_status(
     identifiers: list[str] = []
     is_id_mode = False
     
-    if has_multiple_ids:
+    if has_multiple_ids and user_ids is not None:
         identifiers = [id.strip() for id in user_ids.split(",") if id.strip()]
         is_id_mode = True
     elif has_single_id:
         identifiers = [str(user_id)]
         is_id_mode = True
-    elif has_multiple_names:
+    elif has_multiple_names and usernames is not None:
         identifiers = [name.strip() for name in usernames.split(",") if name.strip()]
         is_id_mode = False
     elif has_single_name:
-        identifiers = [username]
+        identifiers = [username] if username is not None else []
         is_id_mode = False
     else:
         return ORJSONResponse(
@@ -467,7 +469,7 @@ async def api_get_player_status(
     is_single_player = len(identifiers) == 1 and (has_single_id or has_single_name)
     
     # Process each identifier
-    results = {}
+    results: dict[str, dict[str, Any]] = {}
     for identifier in identifiers:
         try:
             # Try to get player from cache first
@@ -691,9 +693,10 @@ async def api_get_player_scores(
     query.append(f"ORDER BY {sort} DESC LIMIT :limit")
     params["limit"] = limit
 
+    db_rows = await app.state.services.database.fetch_all(" ".join(query), params)
     rows = [
         dict(row)
-        for row in await app.state.services.database.fetch_all(" ".join(query), params)
+        for row in (db_rows if db_rows is not None else [])
     ]
 
     # fetch & return info from sql
@@ -824,7 +827,7 @@ async def api_get_player_most_played(
     return ORJSONResponse(
         {
             "status": "success",
-            "maps": [dict(row) for row in rows],
+            "maps": [dict(row) for row in rows] if rows else [],
         },
     )
 
@@ -955,7 +958,8 @@ async def api_get_map_scores(
     params["limit"] = limit
 
     rows = await app.state.services.database.fetch_all(" ".join(query), params)
-    
+    if rows is None:
+        rows = []
     
     # Add mods_readable to each score
     for row in rows:
@@ -978,6 +982,7 @@ async def api_get_score_info(
     b: int = Query(0, alias="b", ge=0, le=1),
 ) -> Response:
     """Return information about a given score."""
+    score = None
     try:
         score = await scores_repo.fetch_one(score_id)
     except Exception as e:
@@ -1001,7 +1006,7 @@ async def api_get_score_info(
     score["mods_readable"] = mods_readable
     if b == 1:
         beatmap_info = await Beatmap.from_md5(score["map_md5"])  # Access md5 as a key in the score dictionary
-        return ORJSONResponse({"status": "success", "score": score, "beatmap_info": beatmap_info.as_dict})
+        return ORJSONResponse({"status": "success", "score": score, "beatmap_info": beatmap_info.as_dict if beatmap_info else None})
     else:
         return ORJSONResponse({"status": "success", "score": score})
 
@@ -1213,6 +1218,8 @@ async def api_get_global_leaderboard(
         f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",
         query_parameters | {"offset": offset, "limit": limit},
     )
+    if rows is None:
+        rows = []
     for i, row in enumerate(rows): # Grab Badges for every player TODO: Optimize
         player = dict(row)
         badges_response = await api_get_badges(user_id=player["player_id"])
@@ -1255,6 +1262,8 @@ async def api_get_top_players() -> Response:
             f"ORDER BY s.pp DESC LIMIT 3",
             query_parameters,
         )
+        if rows is None:
+            rows = []
         for i, row in enumerate(rows):  # Grab Badges for every player TODO: Optimize
             player = dict(row)
             badges_response = await api_get_badges(user_id=player["player_id"])
@@ -1405,7 +1414,7 @@ async def api_get_friends(
     scope: Literal["friends", "mutuals", "all"],
     user_id: int | None = Query(None, alias="id", ge=2, le=2_147_483_647),
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
-):
+) -> Response:
     """Returns Relaionships of a given user."""
     if not (username or user_id) or (username and user_id):
         return ORJSONResponse(
@@ -1415,16 +1424,16 @@ async def api_get_friends(
 
     # get user info from username or id
     if username: 
-        user_info = await app.state.sessions.players.get(name=username)
+        user_info = app.state.sessions.players.get(name=username)
     else: # if userid
-        user_info = await app.state.sessions.players.get(id=user_id)
+        user_info = app.state.sessions.players.get(id=user_id)
     if user_info is None:
         return ORJSONResponse(
             {"status": "Player not found."},
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    resolved_user_id: int = user_info["id"]
+    resolved_user_id: int = user_info.id
 
     if scope == "friends":
         # Query for all friends of the resolved user_id
@@ -1432,6 +1441,8 @@ async def api_get_friends(
             "SELECT user2 FROM relationships WHERE user1 = :user_id AND type = 'friend'",
             {"user_id": resolved_user_id}
         )
+        if friends is None:
+            friends = []
 
         friends = [row["user2"] for row in friends]
         return ORJSONResponse({"status": "success", "friends": friends})
@@ -1445,6 +1456,8 @@ async def api_get_friends(
             WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
             """,
             {"user_id": resolved_user_id})
+        if mutuals is None:
+            mutuals = []
 
         mutuals = [row["user2"] for row in mutuals]
         return ORJSONResponse({"status": "success", "mutuals": mutuals})
@@ -1456,6 +1469,8 @@ async def api_get_friends(
             """,
             {"user_id": resolved_user_id}
         )
+        if friends is None:
+            friends = []
         friends = [row["user2"] for row in friends]
 
         mutuals = await app.state.services.database.fetch_all("""
@@ -1465,6 +1480,8 @@ async def api_get_friends(
             WHERE r1.user1 = :user_id AND r1.type = 'friend' AND r2.type = 'friend'
             """,
             {"user_id": resolved_user_id})
+        if mutuals is None:
+            mutuals = []
 
         mutuals = [row["user2"] for row in mutuals]
         return ORJSONResponse({"status": "success", "friends": friends, "mutuals": mutuals})
@@ -1482,6 +1499,8 @@ async def api_get_badges(
         "SELECT badge_id FROM user_badges WHERE userid = :user_id",
         {"user_id": user_id}
     )
+    if user_badges is None:
+        user_badges = []
     
     for user_badge in user_badges:
         badge_id = user_badge["badge_id"]
@@ -1491,13 +1510,16 @@ async def api_get_badges(
             {"badge_id": badge_id}
         )
         
+        if badge is None:
+            continue
+        
         badge_styles = await app.state.services.database.fetch_all(
             "SELECT * FROM badge_styles WHERE badge_id = :badge_id",
             {"badge_id": badge_id}
         )
         
         badge = dict(badge)
-        badge["styles"] = {style["type"]: style["value"] for style in badge_styles}
+        badge["styles"] = {style["type"]: style["value"] for style in badge_styles} if badge_styles else {}
         
         badges.append(badge)
         
@@ -1509,9 +1531,9 @@ async def api_get_badges(
 @router.post("/update_map_status")
 @error_catcher
 async def api_update_map_status(
-    token: HTTPCredentials = Depends(http_bearer_scheme),
-    map_id: int = Query(None, alias="id", ge=0, le=2_147_483_647),
-    set_id: int = Query(None, alias="sid", ge=0, le=2_147_483_647),
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
+    map_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
+    set_id: int | None = Query(None, alias="sid", ge=0, le=2_147_483_647),
     status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
 ) -> Response:
     """Update the status of a given beatmap."""
@@ -1552,9 +1574,9 @@ async def api_update_map_status(
                 await maps_repo.partial_update(_bmap["id"], status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change
             if set_id in app.state.cache.beatmapset:
-                for _bmap in app.state.cache.beatmapset[set_id].maps:
-                    _bmap.status = new_status
-                    _bmap.frozen = True
+                for beatmap in app.state.cache.beatmapset[set_id].maps:
+                    beatmap.status = new_status
+                    beatmap.frozen = True
             # select all map ids for clearing map requests.
             map_ids = [row["id"] for row in beatmap_set]
         except Exception as e:
@@ -1564,6 +1586,12 @@ async def api_update_map_status(
     else:
         try:
             # update only map
+            # map_id is guaranteed to be not None here because we checked above
+            # that at least one of map_id or set_id must be provided
+            if map_id is None:
+                return ORJSONResponse(
+                    {"status": "map_id is required when set_id is not provided"},
+                )
             await maps_repo.partial_update(map_id, status=new_status, frozen=True)
             # make sure cache and db are synced about the newest change
             bmap_md5 = bmap["md5"] if bmap else None

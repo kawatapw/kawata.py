@@ -105,7 +105,7 @@ def authenticate_player_session(
         username: str = param_function(..., alias=username_alias),
         pw_md5: str = param_function(..., alias=pw_md5_alias),
     ) -> Player:
-        player = await app.state.sessions.players.from_login(
+        player: Player | None = await app.state.sessions.players.from_login(
             name=unquote(username),
             pw_md5=pw_md5,
         )
@@ -602,6 +602,10 @@ async def osuSubmitModularSelector(
     score_data_b64, replay_file = score_parameters
 
     # decrypt the score data (aes)
+    # Handle None values for required parameters
+    if client_hash_b64 is None or iv_b64 is None or osu_version is None:
+        return Response(b"error: invalid score data")
+    
     score_data, client_hash_decoded = encryption.decrypt_score_aes_data(
         score_data_b64,
         client_hash_b64,
@@ -623,6 +627,9 @@ async def osuSubmitModularSelector(
     if username[-1] == " ":
         username = username[:-1]
 
+    if pw_md5 is None:
+        return Response(b"error: invalid score data")
+    
     player = await app.state.sessions.players.from_login(username, pw_md5)
     if not player:
         # Player is not online, return nothing so that their
@@ -638,6 +645,9 @@ async def osuSubmitModularSelector(
 
     ## perform checksum validation
 
+    if unique_ids is None:
+        return Response(b"error: invalid score data")
+    
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
     unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
     unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
@@ -708,6 +718,7 @@ async def osuSubmitModularSelector(
 
     # we should update their activity no matter
     # what the result of the score submission is.
+    assert score.player is not None
     score.player.update_latest_activity_soon()
 
     # make sure the player's client displays the correct mode's stats
@@ -748,18 +759,18 @@ async def osuSubmitModularSelector(
             else:
                 score.status = SubmissionStatus.FAILED
 
-            score.time_elapsed = int(score_time) if score.passed else int(fail_time)
+            score.time_elapsed = int(score_time) if score.passed and score_time is not None else int(fail_time) if fail_time is not None else 0
 
         # TODO: re-implement pp caps for non-whitelisted players?
 
         """ Score submission checks completed; submit the score. """
 
         if app.state.services.datadog:
-            app.state.services.datadog.increment("bancho.submitted_scores")
+            app.state.services.datadog.increment("bancho.submitted_scores")  # type: ignore[no-untyped-call]
 
         if score.status == SubmissionStatus.BEST:
             if app.state.services.datadog:
-                app.state.services.datadog.increment("bancho.submitted_scores_best")
+                app.state.services.datadog.increment("bancho.submitted_scores_best")  # type: ignore[no-untyped-call]
 
             if score.bmap.has_leaderboard:
                 if score.bmap.status == RankedStatus.Loved and score.mode in (
@@ -962,15 +973,15 @@ async def osuSubmitModularSelector(
 
             # calculate new total weighted accuracy
             weighted_acc = sum(
-                row["acc"] * 0.95**i for i, row in enumerate(best_scores)
+                row["acc"] * 0.95**i for i, row in enumerate(best_scores or [])
             )
-            bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
+            bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores or [])))
             stats.acc = (weighted_acc * bonus_acc) / 100
             stats_updates["acc"] = stats.acc
 
             # calculate new total weighted pp
-            weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores))
-            bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
+            weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores or []))
+            bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores or []))
             stats.pp = round(weighted_pp + bonus_pp)
             stats_updates["pp"] = stats.pp
 
@@ -1209,7 +1220,7 @@ async def osuSubmitModularSelector(
             open(file_path, 'a').close()
     
         # Execute Write Log
-        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))
+        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[unused-awaitable]
 
     return Response(response)
 
@@ -1985,11 +1996,11 @@ async def difficultyRatingHandler(request: Request) -> Response:
 @error_catcher
 async def checkAerisUpdates(
     request: Request,
-    action: Literal["check", "path", "error", "get-manifest"] = None, # "request-put", "put"
-    stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] = None,
-    fileinfo:  str   = None,
-    buildname: str   = None,
-    ufile: UploadFile = None
+    action: Literal["check", "path", "error", "get-manifest"] | None = None, # "request-put", "put"
+    stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] | None = None,
+    fileinfo: str | None = None,
+    buildname: str | None = None,
+    ufile: UploadFile | None = None
 ) -> Response:
     neededFiles = [
 		"avcodec-51.dll", 
@@ -2130,8 +2141,10 @@ async def checkAerisUpdates(
             updaterCache = ".data/storage/updater/{}/{}".format(args["stream"], "updater.json")
             if not os.path.exists(updaterCache):
                 needUpdate = True
-            result = []
+            result: list[dict[str, Any]] = []
             log("[Aeris updater]: requested Update for : {}".format(args["stream"]))
+            data = []
+            needUpdate = True
             try:
                 data = json.loads(open(updaterCache, "r").read())
                 needUpdate = len(data) < len(neededFiles)
@@ -2183,8 +2196,8 @@ async def checkAerisUpdates(
                     result[index]["filesize"] = os.stat(file).st_size
                     result[index]["file_hash"] = fileMd5(file)
                     result[index]["url_full"] = "https://storage.kawata.pw/get/updater/{}/zip/{}".format(args["stream"], result[index]["file_hash"])
-                    timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
-                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(timestamp))
+                    file_timestamp = os.path.getmtime(".data/storage/updater/{}/{}".format(args["stream"], x))
+                    result[index]["timestamp"] = time.strftime('%m-%d-%Y %H:%M:%S', time.gmtime(file_timestamp))
                     result[index]["filename"] = x
                     if "patch_id" not in result[index]:
                         result[index]["patch_id"] = None
@@ -2197,7 +2210,7 @@ async def checkAerisUpdates(
                 log("[Aeris updater] Downloadable files updated")
 
             else:
-                result = data
+                result = data if 'data' in locals() else []
 
             return Response(json.dumps(result))
         except Exception as e:
@@ -2208,7 +2221,7 @@ async def checkAerisUpdates(
     return Response(b"")
 
 @router.get("/web/get-internal-version.php")
-async def getInternalVersion(v: int):
+async def getInternalVersion(v: int) -> Response:
     # Generate an incremental build number
     # Could store this in a database to persist across restarts
     current = get_current_internal_version(v)
@@ -2218,13 +2231,13 @@ async def getInternalVersion(v: int):
     return Response(str(new_version))
 
 
-def get_current_file_version(stream: str, filename: str) -> dict:
+def get_current_file_version(stream: str, filename: str) -> dict[str, Any] | None:
     """Get the current version info for a file in a stream"""
     try:
         updater_cache = f".data/storage/updater/{stream}/updater.json"
         if os.path.exists(updater_cache):
             with open(updater_cache, 'r') as f:
-                data = json.loads(f.read())
+                data: list[dict[str, Any]] = json.loads(f.read())
                 for file_info in data:
                     if file_info["filename"] == filename:
                         return file_info
@@ -2238,7 +2251,7 @@ def get_base_filename(filename: str) -> str:
         return filename.split('_')[0]
     return filename
 
-def update_file_version(stream: str, file_data: dict, build_name: str, request: Request):
+def update_file_version(stream: str, file_data: dict[str, Any], build_name: str, request: Request) -> None:
     """Update version info after successful upload"""
     try:
         updater_cache = f".data/storage/updater/{stream}/updater.json"
@@ -2291,7 +2304,7 @@ def get_current_internal_version(version: int) -> int:
         log(f"Error getting internal version: {e}", Ansi.LRED)
     return 0
 
-def save_internal_version(version: int, internal: int):
+def save_internal_version(version: int, internal: int) -> None:
     """Save new internal version number"""
     try:
         os.makedirs(".data/storage/internal_versions", exist_ok=True)
@@ -2303,7 +2316,7 @@ def save_internal_version(version: int, internal: int):
 
 @router.post("/aeris/osu-error.php")
 @error_catcher
-async def aerisErrorHandler(request: Request, data: str = Form(..., alias="error")):
+async def aerisErrorHandler(request: Request, data: str = Form(..., alias="error")) -> Response:
     error_data = json.loads(data)
     
     # Process based on error type

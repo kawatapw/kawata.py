@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -13,13 +13,14 @@ from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 from app.logging import error_catcher
+import app.settings
 import app.state
 
 router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
 
 
-def _enrich_with_status(user_row: dict) -> dict:
+def _enrich_with_status(user_row: dict[str, Any]) -> dict[str, Any]:
     """Add is_online + player_status to a user dict by checking in-memory sessions."""
     player = app.state.sessions.players.get(id=user_row["id"])
     if player and player.is_online:
@@ -43,7 +44,7 @@ def _enrich_with_status(user_row: dict) -> dict:
 async def api_get_friends_detailed(
     scope: Literal["mutuals", "followers", "blocked", "all"],
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
-):
+) -> ORJSONResponse:
     """Returns detailed friend/follower/block info for a given user."""
     # Verify user exists
     user = await app.state.services.database.fetch_one(
@@ -56,7 +57,7 @@ async def api_get_friends_detailed(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    result = {}
+    result: dict[str, Any] = {}
 
     if scope in ("mutuals", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -70,7 +71,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["mutuals"] = [_enrich_with_status(dict(row)) for row in rows]
+        result["mutuals"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
 
     if scope in ("followers", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -86,7 +87,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["followers"] = [_enrich_with_status(dict(row)) for row in rows]
+        result["followers"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
 
     if scope in ("blocked", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -99,7 +100,7 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["blocked"] = [_enrich_with_status(dict(row)) for row in rows]
+        result["blocked"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
 
     result["status"] = "success"
     return ORJSONResponse(result)
@@ -109,7 +110,7 @@ async def api_get_friends_detailed(
 @error_catcher
 async def api_get_friends_status(
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
-):
+) -> ORJSONResponse:
     """Lightweight polling endpoint: returns only online status for a user's friends."""
     friend_rows = await app.state.services.database.fetch_all(
         "SELECT user2 FROM relationships WHERE user1 = :uid AND type = 'friend'",
@@ -117,18 +118,19 @@ async def api_get_friends_status(
     )
 
     online = {}
-    for row in friend_rows:
-        fid = row["user2"]
-        player = app.state.sessions.players.get(id=fid)
-        if player and player.is_online:
-            online[str(fid)] = {
-                "action": player.status.action.value,
-                "action_name": player.status.action.name,
-                "info_text": player.status.info_text,
-                "mode": player.status.mode.value,
-                "mods": int(player.status.mods),
-                "map_id": player.status.map_id,
-            }
+    if friend_rows:
+        for row in friend_rows:
+            fid = row["user2"]
+            player = app.state.sessions.players.get(id=fid)
+            if player and player.is_online:
+                online[str(fid)] = {
+                    "action": player.status.action.value,
+                    "action_name": player.status.action.name,
+                    "info_text": player.status.info_text,
+                    "mode": player.status.mode.value,
+                    "mods": int(player.status.mods),
+                    "map_id": player.status.map_id,
+                }
 
     return ORJSONResponse({"status": "success", "online": online})
 
@@ -136,11 +138,11 @@ async def api_get_friends_status(
 @router.post("/set_relationship")
 @error_catcher
 async def api_set_relationship(
-    token: HTTPCredentials = Depends(oauth2_scheme),
+    token: HTTPCredentials | None = Depends(oauth2_scheme),
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
     target_id: int = Query(..., alias="target", ge=2, le=2_147_483_647),
     action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(...),
-):
+) -> ORJSONResponse:
     """Add/remove friends or block/unblock users. Requires BOT_API_KEY."""
     if token is None or token.credentials != app.settings.BOT_API_KEY:
         return ORJSONResponse(
@@ -208,7 +210,7 @@ async def api_set_relationship(
 async def api_get_friends_leaderboard(
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
     mode: int = Query(0, ge=0, le=3),
-):
+) -> ORJSONResponse:
     """Returns mutual friends + self ranked by PP for a given game mode."""
     # Get mutual friend IDs (bidirectional)
     mutual_rows = await app.state.services.database.fetch_all(
@@ -220,7 +222,7 @@ async def api_get_friends_leaderboard(
     )
 
     # Build ID list: mutual friends + requesting user
-    ids = [row["id"] for row in mutual_rows]
+    ids = [row["id"] for row in mutual_rows] if mutual_rows else []
     ids.append(user_id)
     ids = list(set(ids))
 
@@ -247,27 +249,29 @@ async def api_get_friends_leaderboard(
     )
 
     leaderboard = []
-    for i, row in enumerate(rows):
-        entry = dict(row)
-        entry["rank"] = i + 1
+    if rows:
+        for i, row in enumerate(rows):
+            entry = dict(row)
+            entry["rank"] = i + 1
 
-        # Get global rank from Redis
-        global_rank = await app.state.services.redis.zrevrank(
-            f"bancho:leaderboard:{mode}",
-            str(entry["id"]),
-        )
-        entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
+            # Get global rank from Redis
+            global_rank = await app.state.services.redis.zrevrank(
+                f"bancho:leaderboard:{mode}",
+                str(entry["id"]),
+            )
+            entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
 
-        entry["is_online"] = False
-        player = app.state.sessions.players.get(id=entry["id"])
-        if player and player.is_online:
-            entry["is_online"] = True
+            entry["is_online"] = False
+            player = app.state.sessions.players.get(id=entry["id"])
+            if player and player.is_online:
+                entry["is_online"] = True
 
-        # Cast Decimal/unsigned→native Python types for JSON serialization
-        for k in ("pp", "acc", "plays"):
-            entry[k] = float(entry[k])
+            # Cast Decimal→native Python types for JSON serialization
+            entry["pp"] = float(entry["pp"])
+            entry["acc"] = round(float(entry["acc"]), 2)
+            entry["plays"] = int(entry["plays"])
 
-        leaderboard.append(entry)
+            leaderboard.append(entry)
 
     # Add PP delta between consecutive ranks
     for i, entry in enumerate(leaderboard):
@@ -294,7 +298,7 @@ async def api_get_friends_leaderboard(
 async def api_get_player_quick_stats(
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
     mode: int = Query(0, ge=0, le=3),
-):
+) -> ORJSONResponse:
     """Lightweight endpoint returning extra stats + top play for one player."""
     # Fetch stats
     stats_row = await app.state.services.database.fetch_one(
@@ -352,7 +356,7 @@ async def api_get_player_quick_stats(
     })
 
 
-async def _get_player_stats(uid: int, mode: int) -> dict | None:
+async def _get_player_stats(uid: int, mode: int) -> dict[str, Any] | None:
     """Fetch a single player's stats for a given mode."""
     row = await app.state.services.database.fetch_one(
         "SELECT s.id, u.name, u.country, "
@@ -412,7 +416,7 @@ async def _get_player_stats(uid: int, mode: int) -> dict | None:
 async def api_compare_stats(
     users: str = Query(...),
     mode: int = Query(0, ge=0, le=3),
-):
+) -> ORJSONResponse:
     """Returns stats comparison for 2-4 players."""
     try:
         user_ids = [int(x.strip()) for x in users.split(",")]

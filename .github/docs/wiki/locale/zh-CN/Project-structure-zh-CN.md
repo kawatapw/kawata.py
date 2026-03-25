@@ -4,18 +4,18 @@
     ├── app                   # 服务 - 处理逻辑, 类 和 对象
     |   ├── api                 # 处理外部请求的部分
     |   |   ├── domains           # 外部访问可到达的endpoints (终点,指向web服务的api,此处为url,下译为"终点")
-    |   |   |   ├── cho.py        # 处理在这个终点的请求: https://c.cmyui.xyz
-    |   |   |   ├── map.py        # 处理在这个终点的请求: https://b.cmyui.xyz
-    |   |   |   └── osu.py        # 处理在这个终点的请求: https://osu.cmyui.xyz
+    |   |   |   ├── cho.py        # 处理在这个终点的请求: https://c.kawata.pw
+    |   |   |   ├── map.py        # 处理在这个终点的请求: https://b.kawata.pw
+    |   |   |   └── osu.py        # 处理在这个终点的请求: https://osu.kawata.pw
     |   |   |
     |   |   ├── v1
-    |   |   |   └── api.py          # 处理在这个终点的请求: https://api.cmyui.xyz/v1
+    |   |   |   └── api.py          # 处理在这个终点的请求: https://api.kawata.pw/v1
     |   |   |
     |   |   ├── v2
-    |   |   |   ├── clans.py        # 处理在这个终点的请求: https://api.cmyui.xyz/v2/clans
-    |   |   |   ├── maps.py         # 处理在这个终点的请求: https://api.cmyui.xyz/v2/maps
-    |   |   |   ├── players.py      # 处理在这个终点的请求: https://api.cmyui.xyz/v2/players
-    |   |   |   └── scores.py       # 处理在这个终点的请求: https://api.cmyui.xyz/v2/scores
+    |   |   |   ├── clans.py        # 处理在这个终点的请求: https://api.kawata.pw/v2/clans
+    |   |   |   ├── maps.py         # 处理在这个终点的请求: https://api.kawata.pw/v2/maps
+    |   |   |   ├── players.py      # 处理在这个终点的请求: https://api.kawata.pw/v2/players
+    |   |   |   └── scores.py       # 处理在这个终点的请求: https://api.kawata.pw/v2/scores
     |   |   |
     |   |   ├── init_api.py       # 初始化api服务
     |   |   └── middlewares.py    # 围绕终点的逻辑部分(中间件)
@@ -50,5 +50,5 @@
     |
     ├── ext                   # 运行服务时使用的外部依赖(内容: nginx的配置文件)
     ├── migrations            # 迁移数据库 - updates to schema
-    ├── tools                 # 在bancho.py开发过程中曾经制作出来的工具
+    ├── tools                 # 在kawata.py开发过程中曾经制作出来的工具
     └── main.py               # 运行服务的入口

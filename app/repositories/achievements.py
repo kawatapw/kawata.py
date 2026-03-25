@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from typing import TypedDict
 from typing import cast
 
@@ -121,9 +121,12 @@ async def fetch_many(
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
-    achievements = await app.state.services.database.fetch_all(select_stmt)
-    for achievement in achievements:
-        achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievements: list[dict[str, Any]] | None = await app.state.services.database.fetch_all(select_stmt)
+    if achievements is not None:
+        for achievement in achievements:
+            achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    else:
+        achievements = []
 
     return cast(list[Achievement], achievements)
 

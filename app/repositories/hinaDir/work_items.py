@@ -74,7 +74,7 @@ class BeatmapWorkItem(TypedDict):
     updated_at: datetime
     resolved_at: datetime | None
     resolution: str | None
-    checklist: dict | None
+    checklist: dict[str, Any] | None
     priority: int
 
 

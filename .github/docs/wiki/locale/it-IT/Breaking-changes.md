@@ -10,7 +10,7 @@ La versione minima di Python richiesta è stata aggiornata alla 3.11.
 
 ## 2023-07-19
 
-Il comportamento del pp complessivo e della precisione è stato modificato per includere tutti i punteggi di un utente anziché i primi 100, al fine di corrispondere al comportamento di Bancho. Questo implica la necessità di ricalcolare le statistiche degli utenti. bancho.py dispone di uno strumento di ricalcolo che può essere trovato in `tools/recalc.py` per facilitare questa operazione.
+Il comportamento del pp complessivo e della precisione è stato modificato per includere tutti i punteggi di un utente anziché i primi 100, al fine di corrispondere al comportamento di Bancho. Questo implica la necessità di ricalcolare le statistiche degli utenti. kawata.py dispone di uno strumento di ricalcolo che può essere trovato in `tools/recalc.py` per facilitare questa operazione.
 
 ## 2023-04-09
 

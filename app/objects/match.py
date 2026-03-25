@@ -9,6 +9,7 @@ from enum import IntEnum
 from enum import unique
 from typing import TYPE_CHECKING
 from typing import TypedDict
+from typing import cast
 
 import app.packets
 import app.settings

@@ -1599,7 +1599,7 @@ async def mp_host(ctx: Context, match: Match) -> str | None:
     if len(ctx.args) != 1:
         return "Invalid syntax: !mp host <name>"
 
-    target = app.state.sessions.players.get(name=ctx.args[0])
+    target: Player | None = app.state.sessions.players.get(name=ctx.args[0])
     if not target:
         return "Could not find a user by that name."
 
@@ -1652,7 +1652,7 @@ async def mp_addref(ctx: Context, match: Match) -> str | None:
     if len(ctx.args) != 1:
         return "Invalid syntax: !mp addref <name>"
 
-    target = app.state.sessions.players.get(name=ctx.args[0])
+    target: Player | None = app.state.sessions.players.get(name=ctx.args[0])
     if not target:
         return "Could not find a user by that name."
 
