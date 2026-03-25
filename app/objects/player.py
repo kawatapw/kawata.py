@@ -612,6 +612,9 @@ class Player:
 
     def logout(self) -> None:
         """Log `self` out of the server."""
+        # Store the token before clearing it (needed for removal from _by_token)
+        original_token = self.token
+
         # invalidate the user's token.
         self.token = ""
 
@@ -637,7 +640,7 @@ class Player:
 
         # remove from playerlist and
         # enqueue logout to all users.
-        app.state.sessions.players.remove(self)
+        app.state.sessions.players.remove(self, original_token=original_token)
 
         if not self.restricted:
             if app.state.services.datadog:

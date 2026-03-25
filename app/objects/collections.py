@@ -420,7 +420,7 @@ class Players(list[Player]):
         self._by_name[player.safe_name] = player
 
     @error_catcher
-    def remove(self, player: Player) -> None:
+    def remove(self, player: Player, original_token: str | None = None) -> None:
         """Remove `player` from the list."""
         if player not in self:
             if app.settings.DEBUG_LEVEL >= 1:
@@ -428,7 +428,9 @@ class Players(list[Player]):
             return
 
         super().remove(player)
-        del self._by_token[player.token]
+        # Use original_token if provided (for logout case), otherwise use player.token
+        token_to_remove = original_token if original_token is not None else player.token
+        del self._by_token[token_to_remove]
         del self._by_id[player.id]
         del self._by_name[player.safe_name]
 

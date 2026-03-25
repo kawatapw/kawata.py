@@ -303,8 +303,7 @@ class BytesJsonFormatter(jsonlogger.JsonFormatter):
         record.__dict__ = {
             str(k)
             if not isinstance(k, str | int | float | bool | type(None))  # type: ignore[redundant-expr]
-            else k:
-            str(v)
+            else k: str(v)
             if not isinstance(v, str | int | float | bool | type(None))
             and k != "exc_info"
             else v

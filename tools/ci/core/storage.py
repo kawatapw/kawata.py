@@ -148,6 +148,8 @@ def get_backend(name: str, config: dict[str, Any]) -> StorageBackend:
 # Register artifact backend (lazy import to avoid circular dependency)
 def _register_artifact_backend() -> None:
     from storage.artifact_backend import ArtifactBackend
+
     register_backend("artifact", ArtifactBackend)
+
 
 _register_artifact_backend()
