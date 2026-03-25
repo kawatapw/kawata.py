@@ -9,8 +9,6 @@ name from configuration.
 from abc import ABC, abstractmethod
 from typing import Any
 
-from storage.artifact_backend import ArtifactBackend
-
 
 class StorageBackend(ABC):
     """Abstract storage backend interface.
@@ -147,5 +145,9 @@ def get_backend(name: str, config: dict[str, Any]) -> StorageBackend:
     return _BACKENDS[name](config)
 
 
-# Register artifact backend
-register_backend("artifact", ArtifactBackend)
+# Register artifact backend (lazy import to avoid circular dependency)
+def _register_artifact_backend() -> None:
+    from storage.artifact_backend import ArtifactBackend
+    register_backend("artifact", ArtifactBackend)
+
+_register_artifact_backend()

@@ -302,8 +302,8 @@ class BytesJsonFormatter(jsonlogger.JsonFormatter):
         # Exclude exc_info as it needs to remain a tuple for proper exception formatting
         record.__dict__ = {
             str(k)
-            if not isinstance(k, str | int | float | bool | type(None))
-            else k:  # type: ignore[redundant-expr]
+            if not isinstance(k, str | int | float | bool | type(None))  # type: ignore[redundant-expr]
+            else k:
             str(v)
             if not isinstance(v, str | int | float | bool | type(None))
             and k != "exc_info"

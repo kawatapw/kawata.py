@@ -442,6 +442,9 @@ def register(
 
 @register(ClientPackets.PING, restricted=True)
 class Ping(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         pass  # ping be like
 
@@ -665,6 +668,9 @@ class Logout(BasePacket):
 
 @register(ClientPackets.REQUEST_STATUS_UPDATE, restricted=True)
 class StatsUpdateRequest(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         player.enqueue(app.packets.user_stats(player))
 

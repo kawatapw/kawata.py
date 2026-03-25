@@ -21,9 +21,12 @@ def load_module(module_name: str) -> Any:
                     f"modules.{module_name}.{module_name}",
                 )
                 return main_module
-            except ImportError:
-                pass
+            except ImportError as inner_e:
+                # Re-raise with more context
+                raise ImportError(
+                    f"Failed to import modules.{module_name}.{module_name}: {inner_e}",
+                ) from inner_e
 
         return module
     except ImportError as e:
-        raise ValueError(f"Unknown module: {module_name}") from e
+        raise ValueError(f"Unknown module: {module_name}: {e}") from e
