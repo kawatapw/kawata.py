@@ -1226,6 +1226,29 @@ class Player:
 
     async def stats_from_sql_full(self) -> None:
         """Retrieve `self`'s stats (all modes) from sql."""
+        # Initialize empty stats for all game modes to prevent KeyError
+        for mode in GameMode:
+            if mode not in self.stats:
+                self.stats[mode] = ModeData(
+                    tscore=0,
+                    rscore=0,
+                    pp=0,
+                    acc=0.0,
+                    plays=0,
+                    playtime=0,
+                    max_combo=0,
+                    total_hits=0,
+                    rank=0,
+                    grades={
+                        Grade.XH: 0,
+                        Grade.X: 0,
+                        Grade.SH: 0,
+                        Grade.S: 0,
+                        Grade.A: 0,
+                    },
+                )
+        
+        # Then load from database
         for row in await stats_repo.fetch_many(player_id=self.id):
             game_mode = GameMode(row["mode"])
             self.stats[game_mode] = ModeData(
