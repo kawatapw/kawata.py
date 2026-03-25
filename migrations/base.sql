@@ -338,6 +338,12 @@ create index scores_idx_mode_status
 	on scores (mode, status);
 create index scores_idx_map_md5_score
 	on scores (map_md5, score);
+create index idx_scores_season_filter
+	on scores (play_time, status, mode);
+create index idx_scores_user_season
+	on scores (userid, play_time, mode);
+create index scores_pinned_index
+	on scores (pinned);
 
 create table server_data
 (
@@ -346,6 +352,47 @@ create table server_data
 	unique key type (type),
 	key value (value(768))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores Data for the server, example would be notice.';
+
+create table season_schedules
+(
+	id int auto_increment primary key,
+	name varchar(64) not null,
+	description varchar(256) default null,
+	schedule_type enum('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', 'ifc_sched') not null,
+	config json not null comment 'Schedule-specific configuration',
+	is_default boolean not null default false,
+	created_at datetime not null default current_timestamp,
+	unique key idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table seasons
+(
+	id int auto_increment primary key,
+	name varchar(64) not null,
+	schedule_id int default null comment 'FK to season_schedules, NULL for manual seasons',
+	start_date datetime not null,
+	end_date datetime not null,
+	is_active boolean not null default false,
+	end_calculated boolean not null default false comment 'Whether final stats have been calculated for ended season',
+	awards_badges boolean not null default false comment 'Whether this season awards badges (reserved for future use)',
+	description varchar(256) default null,
+	created_at datetime not null default current_timestamp,
+	index idx_schedule_id (schedule_id),
+	index idx_start_date (start_date),
+	index idx_end_date (end_date),
+	index idx_is_active (is_active),
+	foreign key (schedule_id) references season_schedules(id) on delete set null
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table season_config
+(
+	id int auto_increment primary key,
+	season_id int not null,
+	config_key varchar(64) not null,
+	config_value text default null,
+	unique key idx_season_key (season_id, config_key),
+	foreign key (season_id) references seasons(id) on delete cascade
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 create table startups
 (
@@ -359,8 +406,9 @@ create table startups
 
 create table stats
 (
-	id int auto_increment,
+	id int not null,
 	mode tinyint(1) not null,
+	season_id int unsigned not null default 0,
 	tscore bigint unsigned default 0 not null,
 	rscore bigint unsigned default 0 not null,
 	pp int unsigned default 0 not null,
@@ -375,7 +423,8 @@ create table stats
 	sh_count int unsigned default 0 not null,
 	s_count int unsigned default 0 not null,
 	a_count int unsigned default 0 not null,
-	primary key (id, mode)
+	primary key (id, mode, season_id),
+	index idx_season_id (season_id)
 );
 create index stats_mode_index
 	on stats (mode);
@@ -461,6 +510,8 @@ create table users
 	custom_badge_icon varchar(64) null,
 	userpage_content mediumtext null,
 	api_key char(36) null,
+	preferred_lb_view enum('all_time', 'seasonal') not null default 'all_time',
+	preferred_schedule_id int unsigned null default null,
 	constraint users_api_key_uindex
 		unique (api_key),
 	constraint users_email_uindex
@@ -581,6 +632,10 @@ values ('#osu', 'General discussion.', 1, 2, true),
 	   ('#staff', 'General discussion for staff members.', 28672, 28672, true),
 	   ('#admin', 'General discussion for administrators.', 24576, 24576, true),
 	   ('#dev', 'General discussion for developers.', 16384, 16384, true);
+
+insert into server_data (type, value) VALUES ('seasons_enabled', '0');
+insert into server_data (type, value) VALUES ('seasons_default_mode', 'all_time');
+insert into server_data (type, value) VALUES ('seasons_active_type_id', '1');
 
 insert into achievements (id, file, name, `desc`, cond) values (1, 'osu-skill-pass-1', 'Rising Star', 'Can''t go forward without the first steps.', '(score.mods & 1 == 0) and 1 <= score.sr < 2 and mode_vn == 0');
 insert into achievements (id, file, name, `desc`, cond) values (2, 'osu-skill-pass-2', 'Constellation Prize', 'Definitely not a consolation prize. Now things start getting hard!', '(score.mods & 1 == 0) and 2 <= score.sr < 3 and mode_vn == 0');
