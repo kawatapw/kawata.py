@@ -907,7 +907,7 @@ BOT_STATUSES = (
 @cache
 def bot_stats(player: Player) -> bytes:
     # pick at random from list of potential statuses.
-    status_id, status_txt = random.choice(BOT_STATUSES)
+    status_id, status_txt = random.choice(BOT_STATUSES)  # nosec B311
 
     return write(
         ServerPackets.USER_STATS,

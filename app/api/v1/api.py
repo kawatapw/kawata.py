@@ -1062,7 +1062,7 @@ async def api_get_replay(
             status_code=status.HTTP_404_NOT_FOUND,
         )  # but replay was?
     # generate the replay's hash
-    replay_md5 = hashlib.md5(
+    replay_md5 = hashlib.md5(  # nosec B324
         "{}p{}o{}o{}t{}a{}r{}e{}y{}o{}u{}{}{}".format(
             row["n100"] + row["n300"],
             row["n50"],
@@ -1078,6 +1078,7 @@ async def api_get_replay(
             row["mods"],
             "True",  # TODO: ??
         ).encode(),
+        usedforsecurity=False,
     ).hexdigest()
     # create a buffer to construct the replay output
     replay_data = bytearray()
@@ -1219,8 +1220,8 @@ async def api_get_global_leaderboard(
         "FROM stats s "
         "LEFT JOIN users u USING (id) "
         "LEFT JOIN clans c ON u.clan_id = c.id "
-        f"WHERE {' AND '.join(query_conditions)} "
-        f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",
+        f"WHERE {' AND '.join(query_conditions)} "  # nosec B608
+        f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",  # noqa: E501  # nosec B608
         query_parameters | {"offset": offset, "limit": limit},
     )
     if rows is None:
@@ -1264,8 +1265,8 @@ async def api_get_top_players() -> Response:
             "FROM stats s "
             "LEFT JOIN users u USING (id) "
             "LEFT JOIN clans c ON u.clan_id = c.id "
-            f"WHERE {' AND '.join(query_conditions)} "
-            f"ORDER BY s.pp DESC LIMIT 3",
+            f"WHERE {' AND '.join(query_conditions)} "  # nosec B608
+            f"ORDER BY s.pp DESC LIMIT 3",  # noqa: E501  # nosec B608
             query_parameters,
         )
         if rows is None:

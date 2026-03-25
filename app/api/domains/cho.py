@@ -231,7 +231,7 @@ async def bancho_view_infos() -> Response:
     """Get server information"""
     data = {
         "version": aeris.AERIS_SERVER_FEATURES,
-        "motd": "osu!Kawata Welcome! | " + random.choice(motds),
+        "motd": "osu!Kawata Welcome! | " + random.choice(motds),  # nosec B311
         "onlineUsers": len(
             [
                 player
@@ -1217,7 +1217,9 @@ async def handle_osu_login_request(
     # Some disk manufacturers set constant/shared ids for their products.
     # In these cases, there's not a whole lot we can do -- we'll allow them thru.
     INACTIONABLE_DISK_SIGNATURE_MD5S: list[str] = [
-        hashlib.md5(b"0").hexdigest(),  # "0" is likely the most common variant
+        hashlib.md5(
+            b"0", usedforsecurity=False,
+        ).hexdigest(),  # "0" is likely the most common variant
     ]
 
     if login_data["disk_signature_md5"] not in INACTIONABLE_DISK_SIGNATURE_MD5S:

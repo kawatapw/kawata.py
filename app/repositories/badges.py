@@ -129,11 +129,11 @@ async def create(
     }
     rec_id = await app.state.services.database.execute(query, params)
 
-    query = f"""\
+    query = rf"""\
         SELECT {READ_PARAMS}
           FROM badges
          WHERE id = :id
-    """
+    """  # nosec B608
     params = {
         "id": rec_id,
     }
@@ -156,14 +156,14 @@ async def fetch_one(
     if id is None and name is None and description is None and priority is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
+    query = rf"""\
         SELECT {READ_PARAMS}
           FROM badges
          WHERE id = COALESCE(:id, id)
            AND name = COALESCE(:name, name)
            AND description = COALESCE(:description, description)
            AND priority = COALESCE(:priority, priority)
-    """
+    """  # nosec B608
     params: dict[str, Any] = {
         "id": id,
         "name": name,
@@ -211,10 +211,10 @@ async def fetch_many(
     page_size: int | None = None,
 ) -> list[Badge]:
     """Fetch many badges from the database."""
-    query = f"""\
+    query = rf"""\
         SELECT {READ_PARAMS}
           FROM badges
-    """
+    """  # nosec B608
     params: dict[str, Any] = {}
 
     if page is not None and page_size is not None:
@@ -247,19 +247,19 @@ async def update(
     if not isinstance(priority, _UnsetSentinel):
         update_fields["priority"] = priority
 
-    query = f"""\
+    query = rf"""\
         UPDATE badges
            SET {",".join(f"{k} = :{k}" for k in update_fields)}
          WHERE id = :id
-    """
+    """  # nosec B608
     values = {"id": id} | update_fields
     await app.state.services.database.execute(query, values)
 
-    query = f"""\
+    query = rf"""\
         SELECT {READ_PARAMS}
           FROM badges
          WHERE id = :id
-    """
+    """  # nosec B608
     params: dict[str, Any] = {
         "id": id,
     }
@@ -272,11 +272,11 @@ async def update(
 
 async def delete(id: int) -> Badge | None:
     """Delete a badge from the database."""
-    query = f"""\
+    query = rf"""\
         SELECT {READ_PARAMS}
           FROM badges
          WHERE id = :id
-    """
+    """  # nosec B608
     params: dict[str, Any] = {
         "id": id,
     }

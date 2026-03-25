@@ -230,7 +230,8 @@ def serialize_value(value: Any, seen: set[int] | None = None) -> Any:
             # This is likely a Request object, format it properly
             try:
                 return format_request(value)
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
+                # Request object doesn't have expected attributes or format failed
                 pass
 
         # Handle complex objects
@@ -273,12 +274,12 @@ def serialize_value(value: Any, seen: set[int] | None = None) -> Any:
                 return f"<{type(value).__name__}>"
             return str_repr
 
-    except Exception:
+    except Exception as exc:
         # If anything fails, return a safe string representation
         try:
             return str(value)
         except Exception:
-            return f"<Unserializable: {type(value).__name__}>"
+            return f"<Unserializable: {type(value).__name__} ({exc})>"
 
 
 def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any]:

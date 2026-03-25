@@ -159,7 +159,9 @@ def disk_has_expected_osu_file(
     osu_file_path = BEATMAPS_PATH / f"{beatmap_id}.osu"
     file_exists = osu_file_path.exists()
     if file_exists and expected_md5 is not None:
-        osu_file_md5 = hashlib.md5(osu_file_path.read_bytes()).hexdigest()
+        osu_file_md5 = hashlib.md5(
+            osu_file_path.read_bytes(), usedforsecurity=False,
+        ).hexdigest()  # nosec B324
         return osu_file_md5 == expected_md5
     return file_exists
 

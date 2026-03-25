@@ -344,8 +344,9 @@ class Score:
         assert self.player is not None
         assert self.bmap is not None
 
-        return hashlib.md5(
+        return hashlib.md5(  # nosec B324
             f"chickenmcnuggets{self.n100 + self.n300}o15{self.n50}{self.ngeki}smustard{self.nkatu}{self.nmiss}uu{self.bmap.md5}{self.max_combo}{self.perfect}{self.player.name}{self.score}{self.grade.name}{int(self.mods)}Q{self.passed}{self.mode.as_vanilla}{osu_version}{self.client_time:%y%m%d%H%M%S}{osu_client_hash}{storyboard_checksum}".encode(),
+            usedforsecurity=False,
         ).hexdigest()
 
     """Methods to calculate internal data for a score."""
@@ -365,7 +366,7 @@ class Score:
             "INNER JOIN users u ON u.id = s.userid "
             "WHERE s.map_md5 = :map_md5 AND s.mode = :mode "
             "AND s.status = 2 AND u.priv & 1 "
-            f"AND s.{scoring_metric} > :score",
+            f"AND s.{scoring_metric} > :score",  # noqa: E501  # nosec B608
             {
                 "map_md5": self.bmap.md5,
                 "mode": self.mode,

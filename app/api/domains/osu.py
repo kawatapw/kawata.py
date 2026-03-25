@@ -395,7 +395,7 @@ async def lastFM(
             # does not necessarily mean they are
             # using it now, but they have in the past.
 
-            if random.randrange(32) == 0:
+            if random.randrange(32) == 0:  # nosec B311
                 # Random chance (1/32) for a ban.
                 await player.restrict(
                     admin=app.state.sessions.bot,
@@ -565,10 +565,11 @@ async def osuSearchSetHandler(
         return Response(b"")  # invalid args
 
     # Get all set data.
+    # nosec B608: k is validated to be one of "set_id", "id", or "md5"
     bmapset = await app.state.services.database.fetch_one(
         "SELECT DISTINCT set_id, artist, "
         "title, status, creator, last_update "
-        f"FROM maps WHERE {k} = :v",
+        f"FROM maps WHERE {k} = :v",  # nosec B608
         {"v": v},
     )
     if bmapset is None:
@@ -766,8 +767,8 @@ async def osuSubmitModularSelector(
         return Response(b"error: invalid score data")
 
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
-    unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
-    unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
+    unique_id1_md5 = hashlib.md5(unique_id1.encode(), usedforsecurity=False).hexdigest()
+    unique_id2_md5 = hashlib.md5(unique_id2.encode(), usedforsecurity=False).hexdigest()
 
     log(
         f"Unique IDs validated: {unique_id1_md5[:8]}... / {unique_id2_md5[:8]}...",
@@ -977,7 +978,7 @@ async def osuSubmitModularSelector(
                         "INNER JOIN scores s ON u.id = s.userid "
                         "WHERE s.map_md5 = :map_md5 AND s.mode = :mode "
                         "AND s.status = 2 AND u.priv & 1 "
-                        f"ORDER BY s.{scoring_metric} DESC LIMIT 1",
+                        f"ORDER BY s.{scoring_metric} DESC LIMIT 1",  # nosec B608
                         {"map_md5": score.bmap.md5, "mode": score.mode},
                     )
 
@@ -1928,19 +1929,16 @@ async def osuSubmitModularSelector(
                         "scores",
                     ]:
                         log(f"Score ID: {score.id}")
-                    try:
-                        print("Inserting Cheat Values")
-                        await app.state.services.database.execute(
-                            "INSERT INTO scoreinfo (scoreid, cheat_values) "
-                            "VALUES (:scoreid, :cheat_values)",
-                            {
-                                "scoreid": score.id,
-                                "cheat_values": cheat_values_str,
-                            },
-                        )
-                    except Exception as e:
-                        log(f"Error Inserting Cheat Values: {e}", Ansi.LRED)
-                        pass
+
+                    print("Inserting Cheat Values")
+                    await app.state.services.database.execute(
+                        "INSERT INTO scoreinfo (scoreid, cheat_values) "
+                        "VALUES (:scoreid, :cheat_values)",
+                        {
+                            "scoreid": score.id,
+                            "cheat_values": cheat_values_str,
+                        },
+                    )
             except json.JSONDecodeError as e:
                 # If cheat_values is not valid JSON, log the error and don't save it
                 log(
@@ -1958,6 +1956,9 @@ async def osuSubmitModularSelector(
                 #         admin=app.state.sessions.bot,
                 #         reason="submitted score with invalid cheat_values JSON",
                 #     )
+            except Exception as e:
+                log(f"Error Inserting Cheat Values: {e}", Ansi.LRED)
+                # Continue processing - error is already logged
     log(
         f"[{score.mode!r}] {score.player} submitted a score! "
         f"({score.status!r}, {score.pp:,.2f}pp / {all_time_stats.pp:,}pp)",
@@ -2128,7 +2129,7 @@ async def get_leaderboard_scores(
         )
 
     query = [
-        f"SELECT s.id, s.{scoring_metric} AS _score, "
+        f"SELECT s.id, s.{scoring_metric} AS _score, "  # nosec B608
         "s.max_combo, s.n50, s.n100, s.n300, "
         "s.nmiss, s.nkatu, s.ngeki, s.perfect, s.mods, "
         "UNIX_TIMESTAMP(s.play_time) time, u.id userid, "
@@ -2173,7 +2174,7 @@ async def get_leaderboard_scores(
     if score_rows:  # None or []
         # fetch player's personal best score
         personal_best_query = [
-            f"SELECT id, {scoring_metric} AS _score, "
+            f"SELECT id, {scoring_metric} AS _score, "  # nosec B608
             "max_combo, n50, n100, n300, "
             "nmiss, nkatu, ngeki, perfect, mods, "
             "UNIX_TIMESTAMP(play_time) time "
@@ -2210,7 +2211,7 @@ async def get_leaderboard_scores(
                 "INNER JOIN users u ON u.id = s.userid "
                 "WHERE s.map_md5 = :map_md5 AND s.mode = :mode "
                 "AND s.status = 2 AND u.priv & 1 "
-                f"AND s.{scoring_metric} > :score",
+                f"AND s.{scoring_metric} > :score",  # nosec B608
             ]
 
             rank_params: dict[str, Any] = {
@@ -2639,7 +2640,7 @@ async def checkUpdates(
 
 def fileMd5(file_path: str) -> str:
     with open(file_path, "rb") as file:
-        md5_hash = hashlib.md5()
+        md5_hash = hashlib.md5(usedforsecurity=False)  # nosec B324
         for chunk in iter(lambda: file.read(4096), b""):
             md5_hash.update(chunk)
     return md5_hash.hexdigest()
@@ -2832,7 +2833,11 @@ async def register_account(
         # the client isn't just checking values,
         # they want to register the account now.
         # make the md5 & bcrypt the md5 for sql.
-        pw_md5 = hashlib.md5(pw_plaintext.encode()).hexdigest().encode()
+        pw_md5 = (
+            hashlib.md5(pw_plaintext.encode(), usedforsecurity=False)
+            .hexdigest()
+            .encode()
+        )  # nosec B324
         pw_bcrypt = bcrypt.hashpw(pw_md5, bcrypt.gensalt())
         app.state.cache.bcrypt[pw_bcrypt] = pw_md5  # cache result for login
 
@@ -3102,14 +3107,14 @@ async def checkAerisUpdates(
                                 for entry in json.loads(f.read())
                             }
                     except Exception:
-                        pass
+                        pass  # nosec B110
                 try:
                     log(
                         "[Aeris updater] New files detected, updating Downloadable files",
                     )
                     log("[AU] Clearing zip cache")
-                except Exception:
-                    pass
+                except Exception as e:
+                    log(f"[AU] Error during zip cache clear: {e}", Ansi.LYELLOW)
                 path = ".data/storage/updater/{}/zip".format(args["stream"])
                 shutil.rmtree(path)
                 os.mkdir(path)

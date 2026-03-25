@@ -546,19 +546,14 @@ jobs:
         with:
           name: docker-image
           path: ./artifacts
-          retry-exit-code: 1
-          retry-on: error
 
       - name: Load docker image
         run: |
           IMG_TAR=$(ls ./artifacts/*.tar | head -n1 || true)
           if [ -n "$IMG_TAR" ]; then
             docker load -i "$IMG_TAR"
-            # Tag with the first tag from prep-build (usually short SHA) for consistency
-            FIRST_TAG=$(echo "${{ needs.initialization.outputs.tag_list }}" | awk '{print $1}')
-            docker tag kawata.py:${GITHUB_SHA} kawata.py:$FIRST_TAG
-            # Also tag as latest for the test
-            docker tag kawata.py:${GITHUB_SHA} kawata.py:latest
+            # The image is loaded with its original tag (kawatapw/kawata.py:SHORT_SHA)
+            # No need to re-tag as docker compose will use the TEST_IMAGE env var
           fi
 
       - name: Prepare test image tag

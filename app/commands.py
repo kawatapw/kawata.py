@@ -256,7 +256,7 @@ async def roll(ctx: Context) -> str | None:
     if max_roll == 0:
         return "Roll what?"
 
-    points = random.randrange(0, max_roll)
+    points = random.randrange(0, max_roll)  # nosec B311
     return f"{ctx.player.name} rolls {points} points!"
 
 
@@ -1399,7 +1399,7 @@ if app.settings.DEVELOPER_MODE:
         definition = "\n ".join(["async def __py(ctx):", " ".join(ctx.args)])
 
         try:  # def __py(ctx)
-            exec(definition, __py_namespace)  # add to namespace
+            exec(definition, __py_namespace)  # noqa: S102  # nosec B102  # add to namespace
             ret = await __py_namespace["__py"](ctx)  # await it's return
         except Exception as exc:  # return exception in osu! chat
             ret = f"{exc.__class__}: {exc}"

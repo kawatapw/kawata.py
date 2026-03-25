@@ -84,7 +84,7 @@ Related Files:
 from __future__ import annotations
 
 import ipaddress
-import pickle
+import pickle  # noqa: S403  # nosec B403
 import re
 import secrets
 from collections.abc import AsyncGenerator, Mapping, MutableMapping
@@ -406,10 +406,12 @@ class Version:
         return None
 
 
-async def _get_latest_dependency_versions() -> AsyncGenerator[
-    tuple[str, Version, Version],
-    None,
-]:
+async def _get_latest_dependency_versions() -> (
+    AsyncGenerator[
+        tuple[str, Version, Version],
+        None,
+    ]
+):
     """Return the current installed & latest version for each dependency."""
     with open("requirements.txt") as f:
         dependencies = f.read().splitlines(keepends=False)

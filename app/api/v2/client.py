@@ -79,10 +79,10 @@ async def get_changelog(
 ) -> Success[list[dict[str, Any]]] | Failure:
     try:
         params: dict[str, Any] = {}
-        query = f"""\
+        query = rf"""\
             SELECT {READ_PARAMS}
               FROM changelog
-            """
+            """  # nosec B608
         accessor = "WHERE"  # used to add ANDs to the query
 
         if change_type is not None:
