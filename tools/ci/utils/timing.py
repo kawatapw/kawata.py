@@ -3,9 +3,10 @@
 These helpers are used to capture wall-clock timings for CI stages and
 render them in a consistent, human-readable form in logs and reports.
 """
+
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
 
 class Timer:
@@ -24,14 +25,19 @@ class Timer:
                 `get_result` for identification.
         """
         self.name = name
-        self.start_time = None
-        self.end_time = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> "Timer":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         self.end_time = time.time()
 
     @property
@@ -46,7 +52,7 @@ class Timer:
         end = self.end_time or time.time()
         return end - self.start_time
 
-    def get_result(self) -> Dict[str, Any]:
+    def get_result(self) -> dict[str, Any]:
         """Return a structured representation of the timing result.
 
         Returns:
@@ -54,10 +60,14 @@ class Timer:
             timestamps (when available), and the duration in seconds.
         """
         return {
-            'name': self.name,
-            'start': datetime.fromtimestamp(self.start_time).isoformat() if self.start_time else None,
-            'end': datetime.fromtimestamp(self.end_time).isoformat() if self.end_time else None,
-            'duration': self.duration
+            "name": self.name,
+            "start": datetime.fromtimestamp(self.start_time).isoformat()
+            if self.start_time
+            else None,
+            "end": datetime.fromtimestamp(self.end_time).isoformat()
+            if self.end_time
+            else None,
+            "duration": self.duration,
         }
 
 

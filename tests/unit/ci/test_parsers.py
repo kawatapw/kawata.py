@@ -1,23 +1,22 @@
 """Unit tests for CI tool parsers."""
+
 import sys
 from pathlib import Path
 
 # Add tools/ci to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'tools' / 'ci'))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "tools" / "ci"))
 
+from modules.parsers.bandit_parser import BanditParser
+from modules.parsers.mypy_parser import MypyParser
+from modules.parsers.pytest_parser import PytestParser
 from modules.parsers.registry import (
+    detect_parser,
     get_parser,
     list_parsers,
-    detect_parser,
-    parse_file,
 )
-from modules.parsers.mypy_parser import MypyParser
 from modules.parsers.ruff_parser import RuffParser
-from modules.parsers.trivy_parser import TrivyParser
 from modules.parsers.safety_parser import SafetyParser
-from modules.parsers.bandit_parser import BanditParser
-from modules.parsers.pytest_parser import PytestParser
-from modules.parsers.generic_parser import GenericParser
+from modules.parsers.trivy_parser import TrivyParser
 
 
 class TestParserRegistry:
@@ -26,29 +25,29 @@ class TestParserRegistry:
     def test_list_parsers(self):
         """Test that all parsers are registered."""
         parsers = list_parsers()
-        assert 'mypy' in parsers
-        assert 'ruff' in parsers
-        assert 'trivy' in parsers
-        assert 'safety' in parsers
-        assert 'bandit' in parsers
-        assert 'pytest' in parsers
-        assert 'generic' in parsers
+        assert "mypy" in parsers
+        assert "ruff" in parsers
+        assert "trivy" in parsers
+        assert "safety" in parsers
+        assert "bandit" in parsers
+        assert "pytest" in parsers
+        assert "generic" in parsers
 
     def test_get_parser(self):
         """Test getting parser instances."""
-        mypy_parser = get_parser('mypy')
+        mypy_parser = get_parser("mypy")
         assert isinstance(mypy_parser, MypyParser)
 
-        ruff_parser = get_parser('ruff')
+        ruff_parser = get_parser("ruff")
         assert isinstance(ruff_parser, RuffParser)
 
     def test_get_unknown_parser(self):
         """Test getting unknown parser raises error."""
         try:
-            get_parser('unknown')
-            assert False, "Should have raised ValueError"
+            get_parser("unknown")
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
-            assert 'Unknown parser' in str(e)
+            assert "Unknown parser" in str(e)
 
 
 class TestMypyParser:
@@ -64,27 +63,29 @@ app/utils.py:5: note: Revealed type is "builtins.int"
         parser = MypyParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'mypy'
-        assert result['summary']['total_errors'] == 2
-        assert result['summary']['total_notes'] == 1
-        assert result['summary']['files_with_errors'] == 1  # Only app/main.py has errors
-        assert len(result['issues']) == 3
+        assert result["type"] == "mypy"
+        assert result["summary"]["total_errors"] == 2
+        assert result["summary"]["total_notes"] == 1
+        assert (
+            result["summary"]["files_with_errors"] == 1
+        )  # Only app/main.py has errors
+        assert len(result["issues"]) == 3
 
         # Check first issue
-        issue = result['issues'][0]
-        assert issue['file'] == 'app/main.py'
-        assert issue['line'] == 10
-        assert issue['severity'] == 'error'
-        assert issue['error_code'] == 'name-defined'
+        issue = result["issues"][0]
+        assert issue["file"] == "app/main.py"
+        assert issue["line"] == 10
+        assert issue["severity"] == "error"
+        assert issue["error_code"] == "name-defined"
 
     def test_parse_empty(self):
         """Test parsing empty content."""
         parser = MypyParser()
         result = parser.parse("")
 
-        assert result['type'] == 'mypy'
-        assert result['summary']['total_errors'] == 0
-        assert len(result['issues']) == 0
+        assert result["type"] == "mypy"
+        assert result["summary"]["total_errors"] == 0
+        assert len(result["issues"]) == 0
 
 
 class TestRuffParser:
@@ -99,11 +100,11 @@ app/main.py:15:1: E501 line too long (120 > 88 characters)
         parser = RuffParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'ruff'
-        assert result['summary']['total_violations'] == 2
-        assert 'F401' in result['summary']['rules']
-        assert 'E501' in result['summary']['rules']
-        assert len(result['violations']) == 2
+        assert result["type"] == "ruff"
+        assert result["summary"]["total_violations"] == 2
+        assert "F401" in result["summary"]["rules"]
+        assert "E501" in result["summary"]["rules"]
+        assert len(result["violations"]) == 2
 
     def test_parse_json_format(self):
         """Test parsing ruff JSON output."""
@@ -120,10 +121,10 @@ app/main.py:15:1: E501 line too long (120 > 88 characters)
         parser = RuffParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'ruff'
-        assert result['summary']['total_violations'] == 1
-        assert result['violations'][0]['rule_code'] == 'F401'
-        assert result['violations'][0]['fixable'] is False
+        assert result["type"] == "ruff"
+        assert result["summary"]["total_violations"] == 1
+        assert result["violations"][0]["rule_code"] == "F401"
+        assert result["violations"][0]["fixable"] is False
 
 
 class TestTrivyParser:
@@ -150,9 +151,9 @@ class TestTrivyParser:
         parser = TrivyParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'trivy'
-        assert result['summary']['total_vulnerabilities'] == 1
-        assert result['summary']['critical'] == 1
+        assert result["type"] == "trivy"
+        assert result["summary"]["total_vulnerabilities"] == 1
+        assert result["summary"]["critical"] == 1
 
     def test_parse_json_format(self):
         """Test parsing trivy JSON output."""
@@ -176,10 +177,10 @@ class TestTrivyParser:
         parser = TrivyParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'trivy'
-        assert result['summary']['total_vulnerabilities'] == 1
-        assert result['summary']['high'] == 1
-        assert result['vulnerabilities'][0]['package'] == 'requests'
+        assert result["type"] == "trivy"
+        assert result["summary"]["total_vulnerabilities"] == 1
+        assert result["summary"]["high"] == 1
+        assert result["vulnerabilities"][0]["package"] == "requests"
 
 
 class TestSafetyParser:
@@ -206,10 +207,10 @@ class TestSafetyParser:
         parser = SafetyParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'safety'
-        assert result['summary']['total_vulnerabilities'] == 1
-        assert result['summary']['packages_scanned'] == 2
-        assert result['vulnerabilities'][0]['package'] == 'requests'
+        assert result["type"] == "safety"
+        assert result["summary"]["total_vulnerabilities"] == 1
+        assert result["summary"]["packages_scanned"] == 2
+        assert result["vulnerabilities"][0]["package"] == "requests"
 
 
 class TestDetectParser:
@@ -217,41 +218,41 @@ class TestDetectParser:
 
     def test_detect_by_filename(self):
         """Test detection by filename patterns."""
-        assert detect_parser('mypy-output.txt') == 'mypy'
-        assert detect_parser('ruff-results.json') == 'ruff'
-        assert detect_parser('trivy-results.sarif') == 'trivy'
-        assert detect_parser('safety-report.json') == 'safety'
-        assert detect_parser('bandit-output.json') == 'bandit'
-        assert detect_parser('junit.xml') == 'pytest'
+        assert detect_parser("mypy-output.txt") == "mypy"
+        assert detect_parser("ruff-results.json") == "ruff"
+        assert detect_parser("trivy-results.sarif") == "trivy"
+        assert detect_parser("safety-report.json") == "safety"
+        assert detect_parser("bandit-output.json") == "bandit"
+        assert detect_parser("junit.xml") == "pytest"
 
     def test_detect_by_extension(self):
         """Test detection by file extension."""
-        assert detect_parser('report.xml') == 'pytest'
-        assert detect_parser('report.sarif') == 'trivy'
+        assert detect_parser("report.xml") == "pytest"
+        assert detect_parser("report.sarif") == "trivy"
 
     def test_detect_json_by_content(self):
         """Test JSON detection by content."""
         # SARIF content
         sarif_content = '{"$schema": "https://sarif-schema"}'
-        assert detect_parser('report.json', sarif_content) == 'trivy'
+        assert detect_parser("report.json", sarif_content) == "trivy"
 
         # Safety content
         safety_content = '{"vulnerabilities": [], "scanned_packages": {}}'
-        assert detect_parser('report.json', safety_content) == 'safety'
+        assert detect_parser("report.json", safety_content) == "safety"
 
         # Bandit content
         bandit_content = '{"results": [], "metrics": {}}'
-        assert detect_parser('report.json', bandit_content) == 'bandit'
+        assert detect_parser("report.json", bandit_content) == "bandit"
 
     def test_detect_text_by_content(self):
         """Test text detection by content."""
         # Mypy content
         mypy_content = 'app/main.py:10: error: Name "x" is not defined'
-        assert detect_parser('output.txt', mypy_content) == 'mypy'
+        assert detect_parser("output.txt", mypy_content) == "mypy"
 
         # Ruff content
-        ruff_content = 'app/main.py:10:1: F401 `os` imported but unused'
-        assert detect_parser('output.txt', ruff_content) == 'ruff'
+        ruff_content = "app/main.py:10:1: F401 `os` imported but unused"
+        assert detect_parser("output.txt", ruff_content) == "ruff"
 
 
 class TestBanditParser:
@@ -281,10 +282,10 @@ class TestBanditParser:
         parser = BanditParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'bandit'
-        assert result['summary']['total_issues'] == 1
-        assert result['summary']['high_severity'] == 1
-        assert len(result['issues']) == 1
+        assert result["type"] == "bandit"
+        assert result["summary"]["total_issues"] == 1
+        assert result["summary"]["high_severity"] == 1
+        assert len(result["issues"]) == 1
 
 
 class TestPytestParser:
@@ -307,8 +308,8 @@ class TestPytestParser:
         parser = PytestParser()
         result = parser.parse(content)
 
-        assert result['type'] == 'pytest'
-        assert result['summary']['total'] == 10
-        assert result['summary']['failed'] == 1
-        assert result['summary']['skipped'] == 2
-        assert len(result['test_cases']) == 3
+        assert result["type"] == "pytest"
+        assert result["summary"]["total"] == 10
+        assert result["summary"]["failed"] == 1
+        assert result["summary"]["skipped"] == 2
+        assert len(result["test_cases"]) == 3

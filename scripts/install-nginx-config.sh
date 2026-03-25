@@ -39,7 +39,7 @@ if [[ -f "$NGINX_CONFIG_EXAMPLE" ]]; then
   else
     echo "Found log paths in nginx config:"
     echo "$LOG_PATHS"
-    
+
     # Create each log file if it doesn't exist
     while IFS= read -r log_path; do
       if [[ -n "$log_path" ]]; then

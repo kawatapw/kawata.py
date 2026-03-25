@@ -267,20 +267,18 @@ Example:
 ```python
 from modules.parsers.registry import Parser, register_parser
 
+
 class MyCustomParser(Parser):
     def parse(self, content: str) -> Dict[str, Any]:
         # Parse content and return structured data
-        return {
-            'type': 'custom',
-            'summary': {...},
-            'data': [...]
-        }
-    
+        return {"type": "custom", "summary": {...}, "data": [...]}
+
     def get_type(self) -> str:
-        return 'custom'
+        return "custom"
+
 
 # Register the parser
-register_parser('custom', MyCustomParser)
+register_parser("custom", MyCustomParser)
 ```
 
 ### 6. Finish workflow (always)
@@ -377,4 +375,3 @@ This is useful for debugging configuration, storage, and report generation outsi
 - **Extensible parser system**: The parser registry supports auto-detection and custom parsers for any log format.
 - **Template-based output**: Summary generation uses Jinja2 templates for flexible, customizable markdown output.
 - **Comprehensive tool support**: Built-in parsers for mypy, ruff, bandit, trivy, safety, and pytest with automatic format detection.
-

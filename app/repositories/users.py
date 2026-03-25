@@ -1,21 +1,122 @@
+"""
+Users Repository - Database Operations for User Account Management
+
+This module provides database operations for managing user accounts in the
+osu! server application. It implements the repository pattern for user data
+access, providing a clean abstraction layer between the application logic
+and database operations for user storage, retrieval, and management.
+
+The repository handles all CRUD operations for user accounts, including
+creation, retrieval, updating, and management of user records. It supports
+comprehensive user data including authentication, profile information,
+privileges, clan membership, and customization options.
+
+Key Features:
+    - Complete CRUD operations for user accounts
+    - Secure password storage with bcrypt hashing
+    - Privilege-based access control management
+    - Clan membership and role tracking
+    - Profile customization (badges, userpage content)
+    - API key management for external integrations
+    - Country and timezone tracking
+    - Silence and donor status management
+    - Type-safe data access with TypedDict definitions
+
+Integration Points:
+    - Authentication in app/api/domains/cho.py
+    - Player management in app/objects/player.py
+    - Privilege system in app/constants/privileges.py
+    - Clan management in app/repositories/clans.py
+    - Database connection in app/state/services.py
+
+Database Schema:
+    - id: Primary key with auto-increment
+    - name: Display name (unique, max 32 characters)
+    - safe_name: URL-safe version of name (unique, max 32 characters)
+    - email: Email address (unique, max 254 characters)
+    - priv: Bitwise privilege flags
+    - pw_bcrypt: Bcrypt hashed password (60 characters)
+    - country: Two-letter country code
+    - silence_end: Unix timestamp when silence ends
+    - donor_end: Unix timestamp when donor status ends
+    - creation_time: Unix timestamp when account was created
+    - latest_activity: Unix timestamp of last activity
+    - clan_id: Clan ID (0 if not in clan)
+    - clan_priv: Clan privilege level
+    - preferred_mode: Preferred game mode
+    - play_style: Play style preferences
+    - custom_badge_name: Custom badge name (max 16 characters)
+    - custom_badge_icon: Custom badge icon URL (max 64 characters)
+    - userpage_content: User profile content (max 2048 characters)
+    - api_key: API key for external access (36 characters, unique)
+
+User Structure:
+    - id: Unique identifier
+    - name: Display name
+    - safe_name: URL-safe name
+    - email: Email address
+    - priv: Privilege flags
+    - pw_bcrypt: Hashed password
+    - country: Country code
+    - silence_end: Silence end timestamp
+    - donor_end: Donor end timestamp
+    - creation_time: Account creation timestamp
+    - latest_activity: Last activity timestamp
+    - clan_id: Clan membership
+    - clan_priv: Clan privileges
+    - preferred_mode: Preferred game mode
+    - play_style: Play style preferences
+    - custom_badge_name: Custom badge name
+    - custom_badge_icon: Custom badge icon
+    - userpage_content: Profile content
+    - api_key: API access key
+
+Usage Pattern:
+    # Create a new user
+    user = await create(
+        name="PlayerName",
+        email="player@example.com",
+        pw_bcrypt=hashed_password,
+        country="US"
+    )
+
+    # Fetch user by ID, name, or email
+    user = await fetch_one(id=12345)
+    user = await fetch_one(name="PlayerName")
+    user = await fetch_one(email="player@example.com")
+
+    # Fetch users with filtering
+    users = await fetch_many(
+        priv=Privileges.UNRESTRICTED,
+        country="US",
+        page=1,
+        page_size=10
+    )
+
+    # Update user
+    updated = await partial_update(
+        id=12345,
+        priv=Privileges.SUPPORTER,
+        donor_end=int(time.time()) + 86400
+    )
+
+Related Files:
+    - app/objects/player.py: Player class with user data
+    - app/api/domains/cho.py: Client authentication
+    - app/constants/privileges.py: Privilege system
+    - app/repositories/clans.py: Clan management
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import Column, Index, Integer, String, func, insert, select, update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 from app.utils import make_safe_name
 
@@ -42,6 +143,8 @@ class UsersTable(Base):
     custom_badge_icon = Column(String(64))
     userpage_content = Column(String(2048, collation="utf8"))
     api_key = Column(String(36))
+    preferred_lb_view = Column(String(16), nullable=False, server_default="all_time")
+    preferred_schedule_id = Column(Integer, nullable=True)
 
     __table_args__ = (
         Index("users_priv_index", priv),
@@ -72,6 +175,8 @@ READ_PARAMS = (
     UsersTable.custom_badge_name,
     UsersTable.custom_badge_icon,
     UsersTable.userpage_content,
+    UsersTable.preferred_lb_view,
+    UsersTable.preferred_schedule_id,
 )
 
 
@@ -94,6 +199,8 @@ class User(TypedDict):
     custom_badge_icon: str | None
     userpage_content: str | None
     api_key: str | None
+    preferred_lb_view: str
+    preferred_schedule_id: int | None
 
 
 async def create(
@@ -224,6 +331,8 @@ async def partial_update(
     custom_badge_icon: str | None | _UnsetSentinel = UNSET,
     userpage_content: str | None | _UnsetSentinel = UNSET,
     api_key: str | None | _UnsetSentinel = UNSET,
+    preferred_lb_view: str | _UnsetSentinel = UNSET,
+    preferred_schedule_id: int | None | _UnsetSentinel = UNSET,
 ) -> User | None:
     """Update a user in the database."""
     update_stmt = update(UsersTable).where(UsersTable.id == id)
@@ -259,6 +368,10 @@ async def partial_update(
         update_stmt = update_stmt.values(userpage_content=userpage_content)
     if not isinstance(api_key, _UnsetSentinel):
         update_stmt = update_stmt.values(api_key=api_key)
+    if not isinstance(preferred_lb_view, _UnsetSentinel):
+        update_stmt = update_stmt.values(preferred_lb_view=preferred_lb_view)
+    if not isinstance(preferred_schedule_id, _UnsetSentinel):
+        update_stmt = update_stmt.values(preferred_schedule_id=preferred_schedule_id)
 
     await app.state.services.database.execute(update_stmt)
 
