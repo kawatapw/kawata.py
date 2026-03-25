@@ -149,7 +149,7 @@ async def create(
     achievement = await app.state.services.database.fetch_one(select_stmt)
     assert achievement is not None
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")
     return cast(Achievement, achievement)
 
 
@@ -172,7 +172,7 @@ async def fetch_one(
     if achievement is None:
         return None
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")
     return cast(Achievement, achievement)
 
 
@@ -199,7 +199,7 @@ async def fetch_many(
     ) = await app.state.services.database.fetch_all(select_stmt)
     if achievements is not None:
         for achievement in achievements:
-            achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+            achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")
     else:
         achievements = []
 
@@ -231,7 +231,7 @@ async def partial_update(
     if achievement is None:
         return None
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")
     return cast(Achievement, achievement)
 
 
@@ -247,5 +247,5 @@ async def delete_one(
     delete_stmt = delete(AchievementsTable).where(AchievementsTable.id == id)
     await app.state.services.database.execute(delete_stmt)
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")
     return cast(Achievement, achievement)

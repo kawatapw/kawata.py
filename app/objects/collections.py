@@ -108,7 +108,7 @@ class Channels(list[Channel]):
         # XXX: we use the "real" name, aka
         # #multi_1 instead of #multiplayer
         # #spect_1 instead of #spectator.
-        return f'[{", ".join(c.real_name for c in self)}]'
+        return f"[{', '.join(c.real_name for c in self)}]"
 
     @error_catcher
     def get_by_name(self, name: str) -> Channel | None:
@@ -170,7 +170,7 @@ class Matches(list[Match | None]):
         return super().__iter__()
 
     def __repr__(self) -> str:
-        return f'[{", ".join(match.name for match in self if match)}]'
+        return f"[{', '.join(match.name for match in self if match)}]"
 
     @error_catcher
     def get_free(self) -> int | None:
@@ -211,7 +211,7 @@ class Groups(list[Group]):
             return super().__contains__(player)
 
     def __repr__(self) -> str:
-        return f'[{", ".join(map(repr, self))}]'
+        return f"[{', '.join(map(repr, self))}]"
 
     @error_catcher
     def has_group(self, player: Player) -> bool:
@@ -272,7 +272,7 @@ class Players(list[Player]):
             return super().__contains__(player)
 
     def __repr__(self) -> str:
-        return f'[{", ".join(map(repr, self))}]'
+        return f"[{', '.join(map(repr, self))}]"
 
     @property
     @error_catcher

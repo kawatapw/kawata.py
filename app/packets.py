@@ -525,7 +525,7 @@ class BanchoPacketReader:
         length = int.from_bytes(self.body_view[:2], "little")
         self.body_view = self.body_view[2:]
 
-        val = struct.unpack(f'<{"I" * length}', self.body_view[: length * 4])
+        val = struct.unpack(f"<{'I' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
         return val
 
@@ -533,7 +533,7 @@ class BanchoPacketReader:
         length = int.from_bytes(self.body_view[:4], "little")
         self.body_view = self.body_view[4:]
 
-        val = struct.unpack(f'<{"I" * length}', self.body_view[: length * 4])
+        val = struct.unpack(f"<{'I' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
         return val
 

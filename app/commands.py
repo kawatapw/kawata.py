@@ -422,7 +422,7 @@ async def top(ctx: Context) -> str | None:
         return "Invalid syntax: !top <mode> (player)"
 
     if ctx.args[0] not in GAMEMODE_REPR_LIST:
-        return f'Valid gamemodes: {", ".join(GAMEMODE_REPR_LIST)}.'
+        return f"Valid gamemodes: {', '.join(GAMEMODE_REPR_LIST)}."
 
     if ctx.args[0] in (
         "rx!mania",
@@ -951,7 +951,7 @@ async def user(ctx: Context) -> str | None:
 
     return "\n".join(
         (
-            f'[{"Bot" if player.is_bot_client else "Player"}] {display_name} ({player.id})',
+            f"[{'Bot' if player.is_bot_client else 'Player'}] {display_name} ({player.id})",
             f"Privileges: {priv_list}",
             f"Donator: {donator_info}",
             f"Channels: {[c.real_name for c in player.channels]}",
@@ -1087,7 +1087,7 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
             # alert all online players of the reboot.
             alert_msg = (
                 f"The server will {ctx.trigger} in {ctx.args[0]}.\n\n"
-                f'Reason: {" ".join(ctx.args[1:])}'
+                f"Reason: {' '.join(ctx.args[1:])}"
             )
 
             app.state.sessions.players.enqueue(app.packets.notification(alert_msg))
@@ -1112,7 +1112,7 @@ async def stealth(ctx: Context) -> str | None:
     # half works; eventually it will be moved to the Admin level.
     ctx.player.stealth = not ctx.player.stealth
 
-    return f'Stealth {"enabled" if ctx.player.stealth else "disabled"}.'
+    return f"Stealth {'enabled' if ctx.player.stealth else 'disabled'}."
 
 
 @command(Privileges.DEVELOPER)
@@ -1317,7 +1317,7 @@ async def server(ctx: Context) -> str | None:
     # output ram usage as `{bancho_used}MB / {sys_used}MB / {sys_total}MB`
     bancho_ram = proc.memory_info()[0]
     ram_values = (bancho_ram, sys_ram.used, sys_ram.total)
-    ram_info = " / ".join([f"{v // 1024 ** 2}MB" for v in ram_values])
+    ram_info = " / ".join([f"{v // 1024**2}MB" for v in ram_values])
 
     # current state of settings
     mirror_search_url = urlparse(app.settings.MIRROR_SEARCH_ENDPOINT).netloc
@@ -2309,8 +2309,7 @@ async def pool_list(ctx: Context) -> str | None:
             continue
 
         pool_lines.append(
-            f"[{pool['created_at']:%Y-%m-%d}] "
-            f"{pool['name']}, by {created_by['name']}.",
+            f"[{pool['created_at']:%Y-%m-%d}] {pool['name']}, by {created_by['name']}.",
         )
 
     return "\n".join(pool_lines)

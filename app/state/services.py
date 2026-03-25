@@ -406,12 +406,10 @@ class Version:
         return None
 
 
-async def _get_latest_dependency_versions() -> (
-    AsyncGenerator[
-        tuple[str, Version, Version],
-        None,
-    ]
-):
+async def _get_latest_dependency_versions() -> AsyncGenerator[
+    tuple[str, Version, Version],
+    None,
+]:
     """Return the current installed & latest version for each dependency."""
     with open("requirements.txt") as f:
         dependencies = f.read().splitlines(keepends=False)
@@ -452,8 +450,7 @@ async def check_for_dependency_updates() -> None:
         if latest_ver > current_ver:
             updates_available = True
             log(
-                f"{module} has an update available "
-                f"[{current_ver!r} -> {latest_ver!r}]",
+                f"{module} has an update available [{current_ver!r} -> {latest_ver!r}]",
                 Ansi.LMAGENTA,
             )
 

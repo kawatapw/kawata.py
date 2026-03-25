@@ -329,14 +329,19 @@ async def bancho_view_matches() -> Response:
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
 matches:
-{new_line.join(
-    f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
+{
+            new_line.join(
+                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
 -- '''
-    + f"{new_line}-- ".join([
-        f'{BEATMAP:<{max_properties_length}}: {m.map_name}',
-        f'{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}'
-    ]) for m in matches
-)}
+                + f"{new_line}-- ".join(
+                    [
+                        f"{BEATMAP:<{max_properties_length}}: {m.map_name}",
+                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}",
+                    ]
+                )
+                for m in matches
+            )
+        }
 </body>
 </html>""",
     )
@@ -1609,7 +1614,7 @@ async def handle_osu_login_request(
                     msg_time = datetime.fromtimestamp(msg["time"])
                     data += app.packets.send_message(
                         sender=msg["from_name"],
-                        msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
+                        msg=f"[{msg_time:%a %b %d @ %H:%M%p}] {msg['msg']}",
                         recipient=msg["to_name"],
                         sender_id=msg["from_id"],
                     )

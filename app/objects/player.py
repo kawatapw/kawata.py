@@ -380,9 +380,7 @@ class Player:
         self.pres_filter = PresenceFilter.Nil
 
         # store most recent score for each gamemode.
-        self.recent_scores: dict[GameMode, Score | None] = {
-            mode: None for mode in GameMode
-        }
+        self.recent_scores: dict[GameMode, Score | None] = dict.fromkeys(GameMode)
 
         # store the last beatmap /np'ed by the user.
         self.last_np: LastNp | None = None
@@ -713,7 +711,7 @@ class Player:
                 self.id,
             )
             await app.state.services.redis.zrem(
-                f'bancho:leaderboard:{mode}:{self.geoloc["country"]["acronym"]}',
+                f"bancho:leaderboard:{mode}:{self.geoloc['country']['acronym']}",
                 self.id,
             )
 

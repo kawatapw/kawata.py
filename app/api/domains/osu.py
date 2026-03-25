@@ -1118,7 +1118,7 @@ async def osuSubmitModularSelector(
     )
 
     # Track grade changes for all-time stats
-    delta_grades: dict[Grade, int] = {grade: 0 for grade in Grade}
+    delta_grades: dict[Grade, int] = dict.fromkeys(Grade, 0)
     delta_rscore = 0
     delta_max_combo = 0
 
@@ -1719,7 +1719,7 @@ async def osuSubmitModularSelector(
                                 max_combo=0,
                                 total_hits=0,
                                 rank=0,
-                                grades={grade: 0 for grade in Grade},
+                                grades=dict.fromkeys(Grade, 0),
                             )
                             log("Created empty seasonal_prev stats", Ansi.LCYAN)
 
@@ -2522,7 +2522,7 @@ async def osuComment(
                 fmt = ""
 
             if cmt["colour"]:
-                fmt += f'|{cmt["colour"]}'
+                fmt += f"|{cmt['colour']}"
 
             ret.append(
                 "{time}\t{target_type}\t{fmt}\t{comment}".format(fmt=fmt, **cmt),
