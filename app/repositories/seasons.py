@@ -183,7 +183,7 @@ class SeasonSchedule(TypedDict):
     schedule_type: str
     config: dict[str, Any]
     is_default: bool
-    created_at: datetime
+    created_at: datetime | None
 
 
 class SeasonConfig(TypedDict):

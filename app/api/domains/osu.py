@@ -108,6 +108,7 @@ from functools import cache
 from pathlib import Path as SystemPath
 from typing import Any
 from typing import Literal
+from typing import cast
 from urllib.parse import unquote
 from urllib.parse import unquote_plus
 
@@ -748,7 +749,7 @@ async def osuSubmitModularSelector(
 
     # parse the score from the remaining data
     log("Parsing score from submission data", Ansi.LCYAN)
-    score = Score.from_submission(score_data[2:])
+    score: Score = Score.from_submission(score_data[2:])
 
     # attach bmap & player
     score.bmap = bmap
@@ -1291,7 +1292,7 @@ async def osuSubmitModularSelector(
                         for grade, delta in delta_grades.items():
                             if delta != 0:
                                 grade_col = format(grade, "stats_column")
-                                season_updates[grade_col] = existing.get(grade_col, 0) + delta
+                                season_updates[grade_col] = cast(int, existing.get(grade_col, 0)) + delta
                         
                         # For pp and acc, we need to recalculate for the season
                         # Fetch best scores for this season to calculate weighted pp/acc
@@ -1961,11 +1962,11 @@ async def get_leaderboard_scores(
                 rank_params["season_start"] = season_start_date
                 rank_params["season_end"] = season_end_date
             
-            p_best_rank = 1 + await app.state.services.database.fetch_val(
+            p_best_rank = 1 + int(await app.state.services.database.fetch_val(
                 " ".join(rank_query),
                 rank_params,
                 column=0,  # COUNT(*)
-            )
+            ))
 
             # attach rank to personal best row
             personal_best_score_row["rank"] = p_best_rank

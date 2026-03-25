@@ -2639,7 +2639,7 @@ async def _is_seasons_enabled() -> bool:
         enabled = await app.state.services.database.fetch_val(
             "SELECT value FROM server_data WHERE type = 'seasons_enabled'"
         )
-        return enabled == "1"
+        return bool(enabled == "1")
     except Exception:
         return False
 

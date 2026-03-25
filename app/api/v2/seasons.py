@@ -59,6 +59,8 @@ Related Files:
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter
 from fastapi import status
 from fastapi.param_functions import Query
@@ -155,7 +157,7 @@ async def get_season_stats(
 @router.get("/players/{player_id}/season-preference")
 async def get_season_preference(
     player_id: int,
-) -> Success[dict] | Failure:
+) -> Success[dict[str, Any]] | Failure:
     """Get a player's season view preference."""
     data = await users_repo.fetch_one(id=player_id)
     if data is None:
@@ -174,7 +176,7 @@ async def get_season_preference(
 async def update_season_preference(
     player_id: int,
     preferred_lb_view: str,
-) -> Success[dict] | Failure:
+) -> Success[dict[str, Any]] | Failure:
     """Update a player's season view preference."""
     if preferred_lb_view not in ("all_time", "seasonal"):
         return responses.failure(
@@ -201,11 +203,11 @@ async def update_season_preference(
 
 
 @router.get("/schedules")
-async def get_schedules() -> Success[list[dict]] | Failure:
+async def get_schedules() -> Success[list[dict[str, Any]]] | Failure:
     """List all season schedules."""
     schedules = await seasons_repo.fetch_many_schedules()
     
-    response = []
+    response: list[dict[str, Any]] = []
     for schedule in schedules:
         response.append({
             "id": schedule["id"],
@@ -213,14 +215,14 @@ async def get_schedules() -> Success[list[dict]] | Failure:
             "description": schedule["description"],
             "schedule_type": schedule["schedule_type"],
             "is_default": schedule["is_default"],
-            "created_at": schedule["created_at"].isoformat() if schedule["created_at"] else None,
+            "created_at": schedule["created_at"].isoformat() if schedule["created_at"] is not None else None,
         })
     
     return responses.success(response)
 
 
 @router.get("/schedules/{schedule_id}")
-async def get_schedule(schedule_id: int) -> Success[dict] | Failure:
+async def get_schedule(schedule_id: int) -> Success[dict[str, Any]] | Failure:
     """Get a specific schedule by ID."""
     schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
     if schedule is None:
@@ -236,12 +238,12 @@ async def get_schedule(schedule_id: int) -> Success[dict] | Failure:
         "schedule_type": schedule["schedule_type"],
         "config": schedule["config"],
         "is_default": schedule["is_default"],
-        "created_at": schedule["created_at"].isoformat() if schedule["created_at"] else None,
+        "created_at": schedule["created_at"].isoformat() if schedule["created_at"] is not None else None,
     })
 
 
 @router.get("/schedules/{schedule_id}/active-season")
-async def get_active_season_for_schedule(schedule_id: int) -> Success[dict] | Failure:
+async def get_active_season_for_schedule(schedule_id: int) -> Success[dict[str, Any]] | Failure:
     """Get the active season for a specific schedule."""
     schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
     if schedule is None:
@@ -270,8 +272,8 @@ async def get_active_season_for_schedule(schedule_id: int) -> Success[dict] | Fa
 @router.put("/players/{player_id}/preferred-schedule")
 async def set_preferred_schedule(
     player_id: int,
-    schedule_id: int | None,
-) -> Success[dict] | Failure:
+    schedule_id: int,
+) -> Success[dict[str, Any]] | Failure:
     """Set a player's preferred schedule type.
     
     Args:
@@ -286,13 +288,13 @@ async def set_preferred_schedule(
         )
     
     # Validate schedule exists if provided
-    if schedule_id is not None:
-        schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
-        if schedule is None:
-            return responses.failure(
-                message="Schedule not found.",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+    # Note: schedule_id is a path parameter, so it's always provided
+    schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
+    if schedule is None:
+        return responses.failure(
+            message="Schedule not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     
     await users_repo.partial_update(
         id=player_id,
@@ -308,7 +310,7 @@ async def set_preferred_schedule(
 @router.get("/players/{player_id}/preferred-schedule")
 async def get_preferred_schedule(
     player_id: int,
-) -> Success[dict] | Failure:
+) -> Success[dict[str, Any]] | Failure:
     """Get a player's preferred schedule type."""
     data = await users_repo.fetch_one(id=player_id)
     if data is None:
@@ -317,7 +319,7 @@ async def get_preferred_schedule(
             status_code=status.HTTP_404_NOT_FOUND,
         )
     
-    preferred_schedule_id = data.get("preferred_schedule_id")
+    preferred_schedule_id: int | None = data.get("preferred_schedule_id")
     schedule_info = None
     
     if preferred_schedule_id is not None:

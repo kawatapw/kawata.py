@@ -380,8 +380,8 @@ async def fetch_count(
         # JOIN with seasons table to filter by play_time within season date range
         from app.repositories.seasons import SeasonsTable
         select_stmt = select_stmt.select_from(
-            ScoresTable.__table__.join(  # type: ignore[attr-defined]
-                SeasonsTable.__table__,  # type: ignore[attr-defined]
+            ScoresTable.__table__.join(
+                SeasonsTable.__table__,
                 and_(
                     ScoresTable.play_time >= SeasonsTable.start_date,
                     ScoresTable.play_time < SeasonsTable.end_date,
@@ -420,8 +420,8 @@ async def fetch_many(
         # JOIN with seasons table to filter by play_time within season date range
         from app.repositories.seasons import SeasonsTable
         select_stmt = select_stmt.select_from(
-            ScoresTable.__table__.join(  # type: ignore[attr-defined]
-                SeasonsTable.__table__,  # type: ignore[attr-defined]
+            ScoresTable.__table__.join(
+                SeasonsTable.__table__,
                 and_(
                     ScoresTable.play_time >= SeasonsTable.start_date,
                     ScoresTable.play_time < SeasonsTable.end_date,
@@ -465,7 +465,7 @@ async def fetch_oldest_play_time() -> datetime | None:
     select_stmt = select(func.min(ScoresTable.play_time).label("oldest_play_time"))
     result = await app.state.services.database.fetch_one(select_stmt)
     if result and result["oldest_play_time"]:
-        return result["oldest_play_time"]
+        return cast(datetime, result["oldest_play_time"])
     return None
 
 

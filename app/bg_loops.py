@@ -489,9 +489,7 @@ async def _retroactively_create_seasons(
         )
         
         for season in created_seasons:
-            asyncio.create_task(
-                calculate_season_stats_for_all_users(season["id"])
-            )
+            await calculate_season_stats_for_all_users(season["id"])
         
         log(
             f"Retroactive season creation complete for schedule '{schedule['name']}'",

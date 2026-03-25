@@ -253,6 +253,10 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         year = current_time.year
         month = current_time.month
         
+        # Initialize variables before conditional blocks
+        start_date: datetime
+        end_date: datetime
+        
         # Determine which half of the year we're in
         if month < 7:
             # First half: start_month to June
@@ -295,6 +299,10 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             ((start_month + 8 - 1) % 12 + 1, f"{year}-{(start_month + 8 - 1) % 12 + 1:02d}-01"),
         ]
         
+        # Initialize variables before loop to satisfy mypy
+        start_date = datetime(year, start_month, 1, tzinfo=tz)
+        end_date = datetime(year, start_month + 4, 1, tzinfo=tz)
+        
         # Find current season
         for i, (start_m, _) in enumerate(season_starts):
             end_m = season_starts[(i + 1) % 3][0]
@@ -334,6 +342,10 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         current_time = current_time.astimezone(tz)
         year = current_time.year
         month = current_time.month
+        
+        # Initialize variables before conditional blocks
+        start_date: datetime
+        end_date: datetime
         
         # Define quarter boundaries
         quarters = [
