@@ -56,6 +56,7 @@ services:
     init: true
     volumes:
       - .:/srv/root
+      - test-venv:/srv/root/.venv
       - test-data:/srv/root/.data
     networks:
       - test-network
@@ -113,6 +114,7 @@ services:
       - USINGROOTDOMAIN=${USINGROOTDOMAIN}
 
 volumes:
+  test-venv:
   test-data:
   test-db-data:
   test-redis-data:

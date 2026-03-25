@@ -64,7 +64,7 @@ server {
 server {
 	listen 80;
 	listen 443 ssl;
-	server_name api.${DOMAIN}; 
+	server_name api.${DOMAIN};
 	client_max_body_size 128M;
 	access_log /srv/root/.data/logs/nginx/access/api.${DOMAIN}.log;
 	error_log /srv/root/.data/logs/nginx/error/api.${DOMAIN}.log;

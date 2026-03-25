@@ -1,10 +1,91 @@
+"""
+Score Module - osu! Score Data Model and Processing
+
+This module defines the Score class and related enumerations for representing
+and processing osu! gameplay scores. The Score class handles all aspects of
+score management including parsing from client submissions, calculating performance
+metrics, determining submission status, and managing score data persistence.
+
+The Score class provides comprehensive functionality for handling scores across
+all osu! game modes, including accuracy calculation, performance point (PP)
+computation, leaderboard placement determination, and score validation. It
+integrates with the beatmap system for map-specific calculations and the
+player system for user-specific score tracking.
+
+Key Features:
+    - Complete score data model for all osu! game modes
+    - Score parsing from osu! client submission format
+    - Performance point (PP) and star rating calculation
+    - Accuracy calculation with mode-specific formulas
+    - Leaderboard placement determination
+    - Score status management (failed, submitted, best)
+    - Online checksum validation for anti-cheat
+    - Integration with beatmap and player systems
+    - Database persistence and retrieval
+
+Integration Points:
+    - Score submission in app/api/domains/osu.py
+    - Performance calculation in app/usecases/performance.py
+    - Beatmap data in app/objects/beatmap.py
+    - Player statistics in app/objects/player.py
+    - Database operations in app/repositories/scores.py
+    - Anti-cheat validation in app/constants/clientflags.py
+
+Score Components:
+    - Basic metrics: score, max_combo, accuracy
+    - Hit counts: n300, n100, n50, nmiss, ngeki, nkatu
+    - Performance: pp (performance points), sr (star rating)
+    - Metadata: mods, mode, grade, status
+    - Timing: client_time, server_time, time_elapsed
+    - Validation: client_flags, client_checksum
+
+Grade System:
+    - N: No pass
+    - F: Failed
+    - D: Poor performance
+    - C: Below average
+    - B: Average
+    - A: Good
+    - S: Excellent
+    - SH: Excellent with Hidden mod
+    - X: Perfect (SS)
+    - XH: Perfect with Hidden mod
+
+Submission Status:
+    - FAILED: Score did not pass the map
+    - SUBMITTED: Score was submitted but not the best
+    - BEST: Score is the player's best on the map
+
+Usage Pattern:
+    # Parse score from client submission
+    score = Score.from_submission(submission_data)
+
+    # Calculate performance metrics
+    pp, sr = score.calculate_performance(beatmap_id)
+
+    # Determine submission status
+    await score.calculate_status()
+
+    # Calculate accuracy
+    accuracy = score.calculate_accuracy()
+
+    # Get leaderboard placement
+    placement = await score.calculate_placement()
+
+Related Files:
+    - app/api/domains/osu.py: Score submission handling
+    - app/usecases/performance.py: Performance calculation
+    - app/objects/beatmap.py: Beatmap data for score context
+    - app/objects/player.py: Player statistics tracking
+    - app/repositories/scores.py: Database operations for scores
+"""
+
 from __future__ import annotations
 
 import functools
 import hashlib
 from datetime import datetime
-from enum import IntEnum
-from enum import unique
+from enum import IntEnum, unique
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,8 +98,7 @@ from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.repositories import scores as scores_repo
 from app.usecases.performance import ScoreParams
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 if TYPE_CHECKING:
     from app.objects.player import Player
@@ -162,7 +242,7 @@ class Score:
                 f"<{self.acc:.2f}% {self.max_combo}x {self.nmiss}M "
                 f"#{self.rank} on {self.bmap.full_name} for {self.pp:,.2f}pp>"
             )
-        except:
+        except Exception:
             return super().__repr__()
 
     """Classmethods to fetch a score object from various data types."""
@@ -264,28 +344,9 @@ class Score:
         assert self.player is not None
         assert self.bmap is not None
 
-        return hashlib.md5(
-            "chickenmcnuggets{0}o15{1}{2}smustard{3}{4}uu{5}{6}{7}{8}{9}{10}{11}Q{12}{13}{15}{14:%y%m%d%H%M%S}{16}{17}".format(
-                self.n100 + self.n300,
-                self.n50,
-                self.ngeki,
-                self.nkatu,
-                self.nmiss,
-                self.bmap.md5,
-                self.max_combo,
-                self.perfect,
-                self.player.name,
-                self.score,
-                self.grade.name,
-                int(self.mods),
-                self.passed,
-                self.mode.as_vanilla,
-                self.client_time,
-                osu_version,  # 20210520
-                osu_client_hash,
-                storyboard_checksum,
-                # yyMMddHHmmss
-            ).encode(),
+        return hashlib.md5(  # nosec B324
+            f"chickenmcnuggets{self.n100 + self.n300}o15{self.n50}{self.ngeki}smustard{self.nkatu}{self.nmiss}uu{self.bmap.md5}{self.max_combo}{self.perfect}{self.player.name}{self.score}{self.grade.name}{int(self.mods)}Q{self.passed}{self.mode.as_vanilla}{osu_version}{self.client_time:%y%m%d%H%M%S}{osu_client_hash}{storyboard_checksum}".encode(),
+            usedforsecurity=False,
         ).hexdigest()
 
     """Methods to calculate internal data for a score."""
@@ -305,7 +366,7 @@ class Score:
             "INNER JOIN users u ON u.id = s.userid "
             "WHERE s.map_md5 = :map_md5 AND s.mode = :mode "
             "AND s.status = 2 AND u.priv & 1 "
-            f"AND s.{scoring_metric} > :score",
+            f"AND s.{scoring_metric} > :score",  # noqa: E501  # nosec B608
             {
                 "map_md5": self.bmap.md5,
                 "mode": self.mode,
@@ -446,7 +507,7 @@ class Score:
         # TODO: apparently cached stats don't store replay views?
         #       need to refactor that to be able to use stats_repo here
         await app.state.services.database.execute(
-            f"UPDATE stats "
+            "UPDATE stats "
             "SET replay_views = replay_views + 1 "
             "WHERE id = :user_id AND mode = :mode",
             {"user_id": self.player.id, "mode": self.mode},

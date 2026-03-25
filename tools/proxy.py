@@ -4,15 +4,14 @@
 #        and run this with `mitmdump -qs tools/proxy.py`
 from __future__ import annotations
 
-domain = "cmyui.xyz"  # XXX: put your domain here
-
 import re
 import struct
 import sys
-from enum import IntEnum
-from enum import unique
+from enum import IntEnum, unique
 
 from mitmproxy import http
+
+domain = "cmyui.xyz"  # XXX: put your domain here
 
 
 @unique
@@ -85,12 +84,11 @@ BYTE_ORDER_SUFFIXES = ["B", "KB", "MB", "GB"]
 
 
 def fmt_bytes(n: int | float) -> str:
-    suffix = None
     for suffix in BYTE_ORDER_SUFFIXES:
         if n < 1024:
-            break
+            return f"{n:,.2f}{suffix}"
         n /= 1024
-    return f"{n:,.2f}{suffix}"
+    return f"{n:,.2f}{BYTE_ORDER_SUFFIXES[-1]}"
 
 
 DOMAIN_RGX = re.compile(
@@ -139,18 +137,15 @@ def response(flow: http.HTTPFlow) -> None:
         if (  # todo check host
             (
                 # jfif, jpe, jpeg, jpg graphics file
-                body_view[:4] == b"\xff\xd8\xff\xe0"
-                and body_view[6:11] == b"JFIF\x00"
+                body_view[:4] == b"\xff\xd8\xff\xe0" and body_view[6:11] == b"JFIF\x00"
             )
             or (
                 # exif digital jpg
-                body_view[:4] == b"\xff\xd8\xff\xe1"
-                and body_view[6:11] == b"Exif\x00"
+                body_view[:4] == b"\xff\xd8\xff\xe1" and body_view[6:11] == b"Exif\x00"
             )
             or (
                 # spiff still picture jpg
-                body_view[:4] == b"\xff\xd8\xff\xe8"
-                and body_view[6:12] == b"SPIFF\x00"
+                body_view[:4] == b"\xff\xd8\xff\xe8" and body_view[6:12] == b"SPIFF\x00"
             )
         ):
             sys.stdout.write(f"[{fmt_bytes(body_len)} jpeg file]\n\n")

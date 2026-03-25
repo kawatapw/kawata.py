@@ -9,16 +9,16 @@ to avoid exceeding GitHub's 1MB step summary limit.
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
-def parse_bandit_output(json_file: Path) -> Dict[str, Any]:
+def parse_bandit_output(json_file: Path) -> dict[str, Any]:
     """Parse bandit JSON output and extract relevant information."""
     if not json_file.exists():
         return {"error": f"File not found: {json_file}"}
 
     try:
-        with open(json_file, "r") as f:
+        with open(json_file) as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
         return {"error": f"Invalid JSON: {e}"}
@@ -42,10 +42,14 @@ def parse_bandit_output(json_file: Path) -> Dict[str, Any]:
         return not any(pattern in filename_lower for pattern in excluded_patterns)
 
     # Filter results to only include project files
-    project_results = [issue for issue in data.get("results", []) if is_project_file(issue.get("filename", ""))]
+    project_results = [
+        issue
+        for issue in data.get("results", [])
+        if is_project_file(issue.get("filename", ""))
+    ]
 
     # Extract summary information
-    summary = {
+    summary: dict[str, Any] = {
         "total_issues": len(project_results),
         "high_severity": 0,
         "medium_severity": 0,
@@ -70,22 +74,30 @@ def parse_bandit_output(json_file: Path) -> Dict[str, Any]:
             if code_snippet:
                 # Take first line of code snippet and truncate to 50 chars
                 code_lines = code_snippet.split("\n")
-                code_snippet = code_lines[0][:50] + "..." if len(code_lines[0]) > 50 else code_lines[0]
-            
-            summary["issues"].append({
-                "test_id": issue.get("test_id", ""),
-                "severity": severity,
-                "confidence": issue.get("issue_confidence", "").upper(),
-                "file": issue.get("filename", ""),
-                "line": issue.get("line_number", 0),
-                "issue_text": issue.get("issue_text", "")[:80],  # Truncate long text
-                "code": code_snippet,
-            })
+                code_snippet = (
+                    code_lines[0][:50] + "..."
+                    if len(code_lines[0]) > 50
+                    else code_lines[0]
+                )
+
+            summary["issues"].append(
+                {
+                    "test_id": issue.get("test_id", ""),
+                    "severity": severity,
+                    "confidence": issue.get("issue_confidence", "").upper(),
+                    "file": issue.get("filename", ""),
+                    "line": issue.get("line_number", 0),
+                    "issue_text": issue.get("issue_text", "")[
+                        :80
+                    ],  # Truncate long text
+                    "code": code_snippet,
+                },
+            )
 
     return summary
 
 
-def format_summary(summary: Dict[str, Any]) -> str:
+def format_summary(summary: dict[str, Any]) -> str:
     """Format the summary for GitHub Actions step summary."""
     if "error" in summary:
         return f"## Bandit Results\n\n❌ Error: {summary['error']}\n"
@@ -111,10 +123,12 @@ def format_summary(summary: Dict[str, Any]) -> str:
             if issue.get("code"):
                 lines.append(f"- **Code**: `{issue['code']}`\n")
             lines.append("\n")
-        
+
         # Add note about total issues
         if summary["total_issues"] > 10:
-            lines.append(f"**Note**: Showing first 10 of {summary['total_issues']} total issues.\n")
+            lines.append(
+                f"**Note**: Showing first 10 of {summary['total_issues']} total issues.\n",
+            )
     else:
         lines.append("### Issues\n")
         lines.append("✅ No issues found!\n")
@@ -122,7 +136,7 @@ def format_summary(summary: Dict[str, Any]) -> str:
     return "".join(lines)
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     if len(sys.argv) != 2:
         print("Usage: parse_bandit.py <bandit_json_file>")

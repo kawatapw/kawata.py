@@ -1,13 +1,92 @@
+"""
+Ratings Repository - Database Operations for Beatmap Rating System
+
+This module provides database operations for managing beatmap ratings in the
+osu! server application. It implements the repository pattern for rating data
+access, providing a clean abstraction layer between the application logic and
+database operations for rating storage, retrieval, and management.
+
+The repository handles operations for storing and retrieving player ratings
+for beatmaps, allowing players to rate maps on a scale and providing feedback
+to map creators and the community. Ratings are stored as simple user-map
+associations with numerical rating values.
+
+Key Features:
+    - Rating creation and storage for user-map pairs
+    - Rating retrieval with filtering and pagination
+    - Individual rating lookup for specific user-map combinations
+    - Type-safe data access with TypedDict definitions
+    - Integration with beatmap and user management systems
+    - Support for rating aggregation and statistics
+
+Integration Points:
+    - Rating display in app/api/v2/maps.py
+    - Beatmap management in app/objects/beatmap.py
+    - User management in app/repositories/users.py
+    - Database connection in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - userid: User ID (foreign key to users table)
+    - map_md5: Beatmap MD5 hash (foreign key to maps table)
+    - rating: Numerical rating value (TINYINT, 2 digits)
+
+Rating Structure:
+    - userid: User who gave the rating
+    - map_md5: Beatmap that was rated
+    - rating: Numerical rating value
+
+Rating System:
+    - Players can rate beatmaps on a numerical scale
+    - Ratings are stored per user per map
+    - Support for rating aggregation and statistics
+    - Integration with beatmap quality metrics
+
+Usage Pattern:
+    # Create a new rating
+    rating = await create(
+        userid=12345,
+        map_md5="abc123...",
+        rating=8
+    )
+
+    # Get all ratings for a user
+    ratings = await fetch_many(
+        userid=12345,
+        page=1,
+        page_size=10
+    )
+
+    # Get all ratings for a map
+    ratings = await fetch_many(
+        map_md5="abc123...",
+        page=1,
+        page_size=10
+    )
+
+    # Get specific user's rating for a map
+    rating = await fetch_one(
+        userid=12345,
+        map_md5="abc123..."
+    )
+
+    # Calculate average rating for a map
+    ratings = await fetch_many(map_md5="abc123...")
+    if ratings:
+        avg_rating = sum(r["rating"] for r in ratings) / len(ratings)
+
+Related Files:
+    - app/api/v2/maps.py: Map API endpoints with ratings
+    - app/objects/beatmap.py: Beatmap data model
+    - app/repositories/users.py: User management integration
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, Integer, String, insert, select
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
