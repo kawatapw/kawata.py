@@ -1,11 +1,85 @@
+"""
+Mods Module - osu! Game Modification Flags and Utilities
+
+This module defines the Mods enumeration and related utilities for handling
+osu! game modifications (mods). Mods are gameplay modifiers that alter the
+difficulty, scoring, or visual aspects of osu! gameplay. The module provides
+comprehensive support for all official osu! mods, including parsing from
+various string formats and filtering invalid mod combinations.
+
+The Mods class uses bitwise flags for efficient storage and combination of
+multiple mods. This allows complex mod combinations to be represented as
+single integer values, which is essential for database storage, network
+transmission, and score calculation.
+
+Key Features:
+    - Complete enumeration of all official osu! mods (31 total)
+    - Bitwise flag operations for efficient mod combination
+    - Parsing from multiple string formats (mod strings, /np output)
+    - Filtering of invalid mod combinations per game mode
+    - String representation for display and logging
+    - Caching for performance optimization
+
+Integration Points:
+    - Score submission handling in app/api/domains/osu.py
+    - Game mode conversion in app/constants/gamemodes.py
+    - Score calculation in app/usecases/performance.py
+    - Database storage in app/repositories/scores.py
+    - Player session management in app/objects/player.py
+
+Mod Categories:
+    - Difficulty mods: NOFAIL, EASY, HARDROCK, SUDDENDEATH, PERFECT
+    - Speed mods: DOUBLETIME, NIGHTCORE, HALFTIME
+    - Visual mods: HIDDEN, FLASHLIGHT, FADEIN, TOUCHSCREEN
+    - Automation mods: RELAX, AUTOPILOT, AUTOPLAY, SPUNOUT
+    - Key mods: KEY1-KEY9, KEYCOOP (for mania mode)
+    - Special mods: CINEMA, TARGET, RANDOM, MIRROR, SCOREV2
+
+Usage Pattern:
+    - Mods are typically received from the osu! client during gameplay
+    - They are stored as bitwise integers in score and player data
+    - Multiple mods can be combined using bitwise OR operations
+    - Mod checking uses bitwise AND operations: (mods & Mods.HIDDEN)
+    - Invalid combinations are filtered using filter_invalid_combos()
+
+String Formats:
+    - Mod string format: "HDDTRX" (2-character codes concatenated)
+    - /np format: "+Hidden +DoubleTime ~Relax~" (space-separated with prefixes)
+    - Display format: "HD" "DT" "RX" (individual mod codes)
+
+Example Usage:
+    # Parse mods from mod string
+    mods = Mods.from_modstr("HDDTRX")  # Hidden + DoubleTime + Relax
+
+    # Parse mods from /np output
+    mods = Mods.from_np("+Hidden +DoubleTime", mode_vn=0)
+
+    # Check if specific mod is enabled
+    if score.mods & Mods.HIDDEN:
+        apply_hidden_mod_effects()
+
+    # Combine multiple mods
+    mods = Mods.HIDDEN | Mods.DOUBLETIME | Mods.HARDROCK
+
+    # Filter invalid combinations
+    mods = mods.filter_invalid_combos(mode_vn=0)
+
+    # Get string representation
+    mod_str = repr(mods)  # Returns "HDHRDT"
+
+Related Files:
+    - app/constants/gamemodes.py: Game mode enumeration using mods
+    - app/objects/score.py: Score class storing mod data
+    - app/api/domains/osu.py: Score submission with mod validation
+    - app/usecases/performance.py: Performance calculation with mod effects
+"""
+
 from __future__ import annotations
 
 import functools
-from enum import IntFlag
-from enum import unique
+from enum import IntFlag, unique
 
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 
 @unique
@@ -44,7 +118,6 @@ class Mods(IntFlag):
     SCOREV2 = 1 << 29
     MIRROR = 1 << 30
 
-    @functools.cache
     def __repr__(self) -> str:
         if self.value == Mods.NOMOD:
             return "NM"
@@ -294,3 +367,12 @@ SPEED_CHANGING_MODS = Mods.DOUBLETIME | Mods.NIGHTCORE | Mods.HALFTIME
 OSU_SPECIFIC_MODS = Mods.AUTOPILOT | Mods.SPUNOUT | Mods.TARGET
 # taiko & catch have no specific mods
 MANIA_SPECIFIC_MODS = Mods.MIRROR | Mods.RANDOM | Mods.FADEIN | KEY_MODS
+
+
+def get_mods_string(mods: Mods) -> str:
+    mod_list = []
+    for mod in Mods:
+        if mods & mod:
+            mod_list.append(mod2modstr_dict[mod])
+    mod_list.sort()
+    return "".join(mod_list)

@@ -1,27 +1,106 @@
-"""cho: handle cho packets from the osu! client"""
+"""
+CHO Domain Module - osu! Client Packet Handling and Authentication
+
+This module implements the core CHO (Chat/Osu) protocol handler for the osu! server
+application. It manages all client-server communication including authentication,
+chat messaging, multiplayer match management, spectator mode, and various gameplay
+features. The module serves as the primary interface between the osu! client and
+the server's internal systems.
+
+The CHO protocol is the main communication protocol used by the osu! client to
+interact with the server. This module handles packet parsing, authentication,
+session management, and routing of client requests to appropriate handlers.
+It implements the complete login flow, chat system, multiplayer functionality,
+and various other features required for a fully functional osu! private server.
+
+Key Features:
+    - Complete osu! client authentication and session management
+    - Real-time chat messaging with channel support
+    - Multiplayer match creation, joining, and management
+    - Spectator mode with frame streaming
+    - Beatmap information and performance calculation
+    - User presence and status broadcasting
+    - Anti-cheat integration and validation
+    - Rate limiting and security measures
+    - Comprehensive error handling and logging
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Channel management in app/objects/channel.py
+    - Packet handling in app/packets.py
+    - Database operations in app/repositories/
+    - Performance calculation in app/usecases/performance.py
+    - Anti-cheat validation in app/constants/clientflags.py
+
+Authentication Flow:
+    1. Client sends login request without osu-token header
+    2. Server parses login data (username, password, client info)
+    3. Validates client version and hardware information
+    4. Authenticates user credentials against database
+    5. Creates player session and generates token
+    6. Returns login response with session token
+
+Packet Handling:
+    - All client packets are processed through the bancho_handler endpoint
+    - Packets are parsed using BanchoPacketReader
+    - Each packet type has a dedicated handler class
+    - Handlers are registered using the @register decorator
+    - Restricted players have limited packet access
+
+Security Features:
+    - Password hashing with bcrypt
+    - Session token generation and validation
+    - Hardware fingerprinting for anti-cheat
+    - Rate limiting on login attempts
+    - Input validation and sanitization
+    - Restricted player limitations
+
+Usage Pattern:
+    # Login endpoint (POST /)
+    # Handles both login requests and packet processing
+
+    # Health check endpoint (GET /health)
+    # Returns server health status
+
+    # Server info endpoints (GET /infos, GET /)
+    # Returns server information and status
+
+    # Online users endpoint (GET /online)
+    # Returns list of online players
+
+    # Matches endpoint (GET /matches)
+    # Returns list of active multiplayer matches
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Multiplayer match handling
+    - app/objects/channel.py: Chat channel management
+    - app/packets.py: Packet definitions and utilities
+    - app/repositories/: Database access layer
+    - app/usecases/performance.py: Performance calculation
+"""
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
+import random
 import re
 import struct
 import time
-from collections.abc import Callable
-from collections.abc import Mapping
-from datetime import date
-from datetime import datetime
+from collections.abc import Callable, Mapping
+from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
-from typing import TypedDict
+from typing import Any, Literal, TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
-from fastapi import APIRouter
-from fastapi import Response
+from fastapi import APIRouter, Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 import app.packets
 import app.settings
@@ -32,41 +111,49 @@ from app import commands
 from app._typing import IPAddress
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
-from app.constants.mods import SPEED_CHANGING_MODS
-from app.constants.mods import Mods
-from app.constants.privileges import ClanPrivileges
-from app.constants.privileges import ClientPrivileges
-from app.constants.privileges import Privileges
-from app.logging import Ansi
-from app.logging import get_timestamp
-from app.logging import log
-from app.logging import magnitude_fmt_time
-from app.objects.beatmap import Beatmap
-from app.objects.beatmap import ensure_osu_file_is_available
+from app.constants.mods import SPEED_CHANGING_MODS, Mods
+from app.constants.privileges import ClanPrivileges, ClientPrivileges, Privileges
+from app.logging import (
+    Ansi,
+    error_catcher,
+    format_request,
+    get_timestamp,
+    log,
+    magnitude_fmt_time,
+)
+from app.objects.beatmap import Beatmap, ensure_osu_file_is_available
 from app.objects.channel import Channel
-from app.objects.match import MAX_MATCH_NAME_LENGTH
-from app.objects.match import Match
-from app.objects.match import MatchTeams
-from app.objects.match import MatchTeamTypes
-from app.objects.match import MatchWinConditions
-from app.objects.match import Slot
-from app.objects.match import SlotStatus
-from app.objects.player import Action
-from app.objects.player import ClientDetails
-from app.objects.player import OsuStream
-from app.objects.player import OsuVersion
-from app.objects.player import Player
-from app.objects.player import PresenceFilter
-from app.packets import BanchoPacketReader
-from app.packets import BasePacket
-from app.packets import ClientPackets
-from app.packets import LoginFailureReason
+from app.objects.match import (
+    MAX_MATCH_NAME_LENGTH,
+    Match,
+    MatchTeams,
+    MatchTeamTypes,
+    MatchWinConditions,
+    Slot,
+    SlotStatus,
+)
+from app.objects.player import (
+    Action,
+    ClientDetails,
+    OsuStream,
+    OsuVersion,
+    Player,
+    PresenceFilter,
+)
+from app.packets import (
+    BanchoPacketReader,
+    BasePacket,
+    ClientPackets,
+    LoginFailureReason,
+)
 from app.repositories import client_hashes as client_hashes_repo
 from app.repositories import ingame_logins as logins_repo
 from app.repositories import mail as mail_repo
 from app.repositories import users as users_repo
 from app.state import services
 from app.usecases.performance import ScoreParams
+
+from .packets import aeris
 
 OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 
@@ -78,17 +165,91 @@ BASE_DOMAIN = app.settings.DOMAIN
 # TODO: dear god
 NOW_PLAYING_RGX = re.compile(
     r"^\x01ACTION is (?:playing|editing|watching|listening to) "
-    rf"\[https://osu\.(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
+    rf"\[https://(?:osu\.|web\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/beatmapsets/(?P<sid>\d{{1,10}})#/?(?:osu|taiko|fruits|mania)?/(?P<bid>\d{{1,10}})/? .+\]"
+    r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
+    r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
+)
+OLD_NOW_PLAYING_RGX = re.compile(
+    r"^\x01ACTION is (?:playing|editing|watching|listening to) "
+    rf"\[(?:https?://)?(?:osu\.|web\.)?(?:{re.escape(BASE_DOMAIN)}|ppy\.sh)/b/(?P<bid>\d{{1,10}}) .+\]"
     r"(?: <(?P<mode_vn>Taiko|CatchTheBeat|osu!mania)>)?"
     r"(?P<mods>(?: (?:-|\+|~|\|)\w+(?:~|\|)?)+)?\x01$",
 )
 
 FIRST_USER_ID = 3
 
-router = APIRouter(tags=["Bancho API"])
+motds = [
+    "PANIGE Lazy Boi",
+    "This Server Is sponsored by Raid Sh- oh... it's sponsored by nothing",
+    "Winners don't do drugs, unless it's steroids... In which case, DO LOTS OF DRUGS",
+    "Inherited Flame Cancer",
+    "Hug ?",
+    "PP when?",
+    ":thinking:",
+]
+
+router: APIRouter = APIRouter(tags=["Bancho API"])
+
+
+@router.get("/health")
+async def health_check() -> Response:
+    checks: dict[str, Any] = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "bancho.py",
+        "checks": {},
+    }
+
+    # Check database
+    try:
+        await app.state.services.database.ping()
+        checks["checks"]["database"] = "connected"
+    except Exception as e:
+        checks["status"] = "unhealthy"
+        checks["checks"]["database"] = f"failed: {str(e)}"
+
+    # Check Redis
+    try:
+        await app.state.services.redis.ping()
+        checks["checks"]["redis"] = "connected"
+    except Exception as e:
+        checks["status"] = "unhealthy"
+        checks["checks"]["redis"] = f"failed: {str(e)}"
+
+    # Return appropriate HTTP status
+    status_code = 200 if checks["status"] == "healthy" else 503
+    return Response(
+        content=json.dumps(checks),
+        status_code=status_code,
+        media_type="application/json",
+    )
+
+
+@router.get("/infos")
+@error_catcher
+async def bancho_view_infos() -> Response:
+    """Get server information"""
+    data = {
+        "version": aeris.AERIS_SERVER_FEATURES,
+        "motd": "osu!Kawata Welcome! | " + random.choice(motds),  # nosec B311
+        "onlineUsers": len(
+            [
+                player
+                for player in app.state.sessions.players
+                if not player.is_bot_client
+            ],
+        ),
+        "icon": "https://kawata.pw/static/images/logo.png",
+    }
+
+    if app.settings.CLIENT_VERSION is not None:
+        data["latestClientVersion"] = app.settings.CLIENT_VERSION
+
+    return JSONResponse(data)
 
 
 @router.get("/")
+@error_catcher
 async def bancho_http_handler() -> Response:
     """Handle a request from a web browser."""
     new_line = "\n"
@@ -100,7 +261,7 @@ async def bancho_http_handler() -> Response:
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+<body style="font-family: monospace; white-space: pre-wrap;">Running kawata.py v{app.settings.VERSION}
 
 <a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
@@ -108,13 +269,14 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/kawatapw/kawata.py">Source code</a>
 </body>
 </html>""",
     )
 
 
 @router.get("/online")
+@error_catcher
 async def bancho_view_online_users() -> Response:
     """see who's online"""
     new_line = "\n"
@@ -143,6 +305,7 @@ bots:
 
 
 @router.get("/matches")
+@error_catcher
 async def bancho_view_matches() -> Response:
     """ongoing matches"""
     new_line = "\n"
@@ -166,20 +329,26 @@ async def bancho_view_matches() -> Response:
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
 matches:
-{new_line.join(
-    f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
+{
+            new_line.join(
+                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
 -- '''
-    + f"{new_line}-- ".join([
-        f'{BEATMAP:<{max_properties_length}}: {m.map_name}',
-        f'{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}'
-    ]) for m in matches
-)}
+                + f"{new_line}-- ".join(
+                    [
+                        f"{BEATMAP:<{max_properties_length}}: {m.map_name}",
+                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}",
+                    ]
+                )
+                for m in matches
+            )
+        }
 </body>
 </html>""",
     )
 
 
 @router.post("/")
+@error_catcher
 async def bancho_handler(
     request: Request,
     osu_token: str | None = Header(None),
@@ -189,9 +358,19 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
+        request._body = await request.body()  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
+        log(
+            f"Login request from {ip}.\nRequest Body: {request._body.decode()}",
+            Ansi.LCYAN,
+            extra={
+                "Client-IP": ip,
+                "Request-Headers": request.headers,
+                "Request": json.dumps(format_request(request)),
+            },
+        )
         login_data = await handle_osu_login_request(
             request.headers,
-            await request.body(),
+            request._body,
             ip,
         )
 
@@ -224,9 +403,21 @@ async def bancho_handler(
     # allowing logic to be implemented around the actual handler.
     # NOTE: any unhandled packets will be ignored internally.
 
-    with memoryview(await request.body()) as body_view:
-        for packet in BanchoPacketReader(body_view, packet_map):
-            await packet.handle(player)
+    try:
+        with memoryview(await request.body()) as body_view:
+            for packet in BanchoPacketReader(body_view, packet_map):
+                await packet.handle(player)
+    except Exception:
+        log(
+            f"Error handling packet from {player}.",
+            Ansi.LRED,
+            exc_info=True,
+            extra={
+                "Client-IP": ip,
+                "Request-Headers": request.headers,
+                "Request": json.dumps(format_request(request)),
+            },
+        )
 
     player.last_recv_time = time.time()
 
@@ -256,6 +447,9 @@ def register(
 
 @register(ClientPackets.PING, restricted=True)
 class Ping(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         pass  # ping be like
 
@@ -336,6 +530,11 @@ class SendMessage(BasePacket):
                 return
 
             t_chan = player.match.chat
+        elif recipient == "#group":
+            group = app.state.sessions.groups.get_group(player)
+            if group is None:
+                return
+            t_chan = group.channel
         else:
             t_chan = app.state.sessions.channels.get_by_name(recipient)
 
@@ -393,10 +592,29 @@ class SendMessage(BasePacket):
             # even though this is a public channel,
             # we'll update the player's last np stored.
             r_match = NOW_PLAYING_RGX.match(msg)
+            or_match = OLD_NOW_PLAYING_RGX.match(msg)
+            if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                "all",
+                "messages",
+            ]:
+                log(f"self.msg object: {self.msg}")
+            if or_match:
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "messages",
+                ]:
+                    log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
+                # TODO: convert link to new format, grab mode from new link.
+                r_match = or_match
             if r_match:
                 # the player is /np'ing a map.
                 # save it to their player instance
                 # so we can use this elsewhere owo..
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "messages",
+                ]:
+                    log(f"NP Regex Matched: {r_match}", Ansi.LMAGENTA)
                 bmap = await Beatmap.from_bid(int(r_match["bid"]))
 
                 if bmap:
@@ -455,6 +673,9 @@ class Logout(BasePacket):
 
 @register(ClientPackets.REQUEST_STATUS_UPDATE, restricted=True)
 class StatsUpdateRequest(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         player.enqueue(app.packets.user_stats(player))
 
@@ -502,46 +723,68 @@ class LoginData(TypedDict):
 
 def parse_login_data(data: bytes) -> LoginData:
     """Parse data from the body of a login request."""
-    (
-        username,
-        password_md5,
-        remainder,
-    ) = data.decode().split("\n", maxsplit=2)
+    debug_info = {"processing_stage": "initialization"}
 
-    (
-        osu_version,
-        utc_offset,
-        display_city,
-        client_hashes,
-        pm_private,
-    ) = remainder.split("|", maxsplit=4)
+    try:
+        # Split the login data
+        username, password_md5, remainder = data.decode().split("\n", maxsplit=2)
+        debug_info["processing_stage"] = "username/password parsing"
+        debug_info["username"] = username
 
-    (
-        osu_path_md5,
-        adapters_str,
-        adapters_md5,
-        uninstall_md5,
-        disk_signature_md5,
-    ) = client_hashes[:-1].split(":", maxsplit=4)
+        # Split remainder into components
+        osu_version, utc_offset, display_city, client_hashes, pm_private = (
+            remainder.split("|", maxsplit=4)
+        )
+        debug_info["processing_stage"] = "client info parsing"
+        debug_info["osu_version"] = osu_version
 
-    return {
-        "username": username,
-        "password_md5": password_md5.encode(),
-        "osu_version": osu_version,
-        "utc_offset": int(utc_offset),
-        "display_city": display_city == "1",
-        "pm_private": pm_private == "1",
-        "osu_path_md5": osu_path_md5,
-        "adapters_str": adapters_str,
-        "adapters_md5": adapters_md5,
-        "uninstall_md5": uninstall_md5,
-        "disk_signature_md5": disk_signature_md5,
-    }
+        # Split client hashes
+        osu_path_md5, adapters_str, adapters_md5, uninstall_md5, disk_signature_md5 = (
+            client_hashes[:-1].split(":", maxsplit=4)
+        )
+        debug_info["processing_stage"] = "hash parsing"
+
+        # Build the login data structure
+        login_data: LoginData = {
+            "username": username,
+            "password_md5": password_md5.encode(),
+            "osu_version": osu_version,
+            "utc_offset": int(utc_offset),
+            "display_city": display_city == "1",
+            "pm_private": pm_private == "1",
+            "osu_path_md5": osu_path_md5,
+            "adapters_str": adapters_str,
+            "adapters_md5": adapters_md5,
+            "uninstall_md5": uninstall_md5,
+            "disk_signature_md5": disk_signature_md5,
+        }
+
+        # Log successful processing
+        log(
+            f"Successfully parsed login data for {username}",
+            Ansi.LGREEN,
+            extra=debug_info,
+        )
+
+        return login_data
+
+    except Exception as e:
+        # Update debug info with error details
+        debug_info["error"] = str(e)
+        debug_info["error_type"] = type(e).__name__
+
+        # Log the failure with the same debug_info
+        log(f"Failed to parse login data: {e}", Ansi.LRED, extra=debug_info)
+        raise
 
 
 def parse_osu_version_string(osu_version_string: str) -> OsuVersion | None:
     match = regexes.OSU_VERSION.match(osu_version_string)
     if match is None:
+        log(
+            f"Regex mismatch for osu version string: {osu_version_string}",
+            Ansi.LYELLOW,
+        )
         return None
 
     osu_version = OsuVersion(
@@ -593,7 +836,10 @@ async def get_allowed_client_versions(osu_stream: OsuStream) -> set[date] | None
 
 def parse_adapters_string(adapters_string: str) -> tuple[list[str], bool]:
     running_under_wine = adapters_string == "runningunderwine"
-    adapters = adapters_string[:-1].split(".")
+    if running_under_wine:
+        adapters = ["runningunderwine"]
+    else:
+        adapters = adapters_string[:-1].split(".")
     return adapters, running_under_wine
 
 
@@ -648,45 +894,160 @@ async def handle_osu_login_request(
       other: valid id, logged in
     """
 
+    login_time = time.time()
+    login_data = None
+
     # parse login data
-    login_data = parse_login_data(body)
-
-    # perform some validation & further parsing on the data
-
-    osu_version = parse_osu_version_string(login_data["osu_version"])
-    if osu_version is None:
+    try:
+        login_data = parse_login_data(body)
+        log(
+            f"Login attempt from {login_data['username']} at {ip}",
+            Ansi.LCYAN,
+            extra={"ip": ip, "username": login_data["username"]},
+        )
+    except Exception as e:
+        log(
+            "Error parsing login data",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "error": str(e),
+                "body": body,
+                "exception_type": type(e).__name__,
+            },
+        )
         return {
             "osu_token": "invalid-request",
             "response_body": (
                 app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                + app.packets.notification("Please restart your osu! and try again.")
+                + app.packets.notification(
+                    "Login data malformed. Please restart your osu! and try again.",
+                )
             ),
         }
 
-    if app.settings.DISALLOW_OLD_CLIENTS:
-        allowed_client_versions = await get_allowed_client_versions(
-            osu_version.stream,
-        )
-        # in the case where the osu! api fails, we'll allow the client to connect
-        if (
-            allowed_client_versions is not None
-            and osu_version.date not in allowed_client_versions
-        ):
+    # perform some validation & further parsing on the data
+    try:
+        osu_version = parse_osu_version_string(login_data["osu_version"])
+        if osu_version is None:
+            log(
+                "Invalid osu version string",
+                Ansi.LYELLOW,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "version_string": login_data["osu_version"],
+                },
+            )
             return {
-                "osu_token": "client-too-old",
+                "osu_token": "invalid-request",
                 "response_body": (
-                    app.packets.version_update()
-                    + app.packets.login_reply(LoginFailureReason.OLD_CLIENT)
+                    app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+                    + app.packets.notification(
+                        "Invalid Version! Please restart your osu! and try again.",
+                    )
                 ),
             }
-
-    adapters, running_under_wine = parse_adapters_string(login_data["adapters_str"])
-    if not (running_under_wine or any(adapters)):
+    except Exception as e:
+        log(
+            "Error parsing osu version",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "osu_version": login_data["osu_version"],
+                "error": str(e),
+            },
+        )
         return {
-            "osu_token": "empty-adapters",
+            "osu_token": "invalid-request",
             "response_body": (
                 app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                + app.packets.notification("Please restart your osu! and try again.")
+                + app.packets.notification(
+                    "Error processing client version. Please restart osu!.",
+                )
+            ),
+        }
+
+    try:
+        if app.settings.DISALLOW_OLD_CLIENTS:
+            allowed_client_versions = await get_allowed_client_versions(
+                osu_version.stream,
+            )
+            # in the case where the osu! api fails, we'll allow the client to connect
+            if (
+                allowed_client_versions is not None
+                and osu_version.date not in allowed_client_versions
+            ):
+                log(
+                    "Client too old",
+                    Ansi.LYELLOW,
+                    extra={
+                        "ip": ip,
+                        "username": login_data["username"],
+                        "client_date": str(osu_version.date),
+                        "stream": osu_version.stream,
+                    },
+                )
+                return {
+                    "osu_token": "client-too-old",
+                    "response_body": (
+                        app.packets.version_update()
+                        + app.packets.login_reply(LoginFailureReason.OLD_CLIENT)
+                    ),
+                }
+    except Exception as e:
+        log(
+            "Error checking client version against allowed versions",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "client_version": str(osu_version.date),
+            },
+        )
+        # We'll let them through since this is our error
+
+    try:
+        adapters, running_under_wine = parse_adapters_string(login_data["adapters_str"])
+        if not (running_under_wine or any(adapters)):
+            log(
+                "Empty adapters",
+                Ansi.LYELLOW,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "adapters_str": login_data["adapters_str"],
+                },
+            )
+            return {
+                "osu_token": "empty-adapters",
+                "response_body": (
+                    app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+                    + app.packets.notification(
+                        "Please restart your osu! and try again.",
+                    )
+                ),
+            }
+    except Exception as e:
+        log(
+            "Error parsing adapters",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "adapters_str": login_data["adapters_str"],
+                "error": str(e),
+            },
+        )
+        return {
+            "osu_token": "invalid-request",
+            "response_body": (
+                app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+                + app.packets.notification(
+                    "Error processing hardware information. Please restart osu!.",
+                )
             ),
         }
 
@@ -696,67 +1057,170 @@ async def handle_osu_login_request(
 
     # disallow multiple sessions from a single user
     # with the exception of tourney spectator clients
-    player = app.state.sessions.players.get(name=login_data["username"])
-    if player and osu_version.stream != "tourney":
-        # check if the existing session is still active
-        if (login_time - player.last_recv_time) < 10:
+    try:
+        player = app.state.sessions.players.get(name=login_data["username"])
+        if player and osu_version.stream != "tourney":
+            # check if the existing session is still active
+            if (login_time - player.last_recv_time) < 10:
+                log(
+                    "User already logged in",
+                    Ansi.LYELLOW,
+                    extra={
+                        "ip": ip,
+                        "username": login_data["username"],
+                        "last_recv_time": player.last_recv_time,
+                    },
+                )
+                return {
+                    "osu_token": "user-already-logged-in",
+                    "response_body": (
+                        app.packets.login_reply(
+                            LoginFailureReason.AUTHENTICATION_FAILED,
+                        )
+                        + app.packets.notification("User already logged in.")
+                    ),
+                }
+            else:
+                # session is not active; replace it
+                log(
+                    "Replacing inactive session",
+                    Ansi.LGREEN,
+                    extra={
+                        "ip": ip,
+                        "username": login_data["username"],
+                        "inactive_for": login_time - player.last_recv_time,
+                    },
+                )
+                player.logout()
+                del player
+    except Exception as e:
+        log(
+            "Error checking for duplicate sessions",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
+        # Continue anyway, this error shouldn't block login
+
+    try:
+        user_info = await authenticate(
+            login_data["username"],
+            login_data["password_md5"],
+        )
+        if user_info is None:
+            log(
+                "Authentication failed",
+                Ansi.LYELLOW,
+                extra={"ip": ip, "username": login_data["username"]},
+            )
             return {
-                "osu_token": "user-already-logged-in",
+                "osu_token": "incorrect-credentials",
                 "response_body": (
-                    app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                    + app.packets.notification("User already logged in.")
+                    app.packets.notification(f"{BASE_DOMAIN}: Incorrect credentials")
+                    + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
                 ),
             }
-        else:
-            # session is not active; replace it
-            player.logout()
-            del player
-
-    user_info = await authenticate(login_data["username"], login_data["password_md5"])
-    if user_info is None:
+    except Exception as e:
+        log(
+            "Error during authentication",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         return {
-            "osu_token": "incorrect-credentials",
+            "osu_token": "authentication-error",
             "response_body": (
-                app.packets.notification(f"{BASE_DOMAIN}: Incorrect credentials")
+                app.packets.notification(
+                    f"{BASE_DOMAIN}: Authentication error occurred",
+                )
                 + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
             ),
         }
 
-    if osu_version.stream is OsuStream.TOURNEY and not (
-        user_info["priv"] & Privileges.DONATOR
-        and user_info["priv"] & Privileges.UNRESTRICTED
-    ):
-        # trying to use tourney client with insufficient privileges.
-        return {
-            "osu_token": "no",
-            "response_body": app.packets.login_reply(
-                LoginFailureReason.AUTHENTICATION_FAILED,
-            ),
-        }
+    try:
+        if osu_version.stream is OsuStream.TOURNEY and not (
+            user_info["priv"] & Privileges.DONATOR
+            and user_info["priv"] & Privileges.UNRESTRICTED
+        ):
+            # trying to use tourney client with insufficient privileges.
+            log(
+                "Insufficient privileges for tourney client",
+                Ansi.LYELLOW,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "priv": user_info["priv"],
+                },
+            )
+            return {
+                "osu_token": "no",
+                "response_body": app.packets.login_reply(
+                    LoginFailureReason.AUTHENTICATION_FAILED,
+                ),
+            }
+    except Exception as e:
+        log(
+            "Error checking tourney permissions",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "stream": osu_version.stream,
+            },
+        )
+        # Continue anyway, permissions error shouldn't block normal login
 
     """ login credentials verified """
 
-    await logins_repo.create(
-        user_id=user_info["id"],
-        ip=str(ip),
-        osu_ver=osu_version.date,
-        osu_stream=osu_version.stream,
-    )
+    try:
+        await logins_repo.create(
+            user_id=user_info["id"],
+            ip=str(ip),
+            osu_ver=osu_version.date,
+            osu_stream=osu_version.stream,
+        )
+    except Exception as e:
+        log(
+            "Error logging login in database",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
+        # Continue anyway, this shouldn't block login
 
-    await client_hashes_repo.create(
-        userid=user_info["id"],
-        osupath=login_data["osu_path_md5"],
-        adapters=login_data["adapters_md5"],
-        uninstall_id=login_data["uninstall_md5"],
-        disk_serial=login_data["disk_signature_md5"],
-    )
+    try:
+        await client_hashes_repo.create(
+            userid=user_info["id"],
+            osupath=login_data["osu_path_md5"],
+            adapters=login_data["adapters_md5"],
+            uninstall_id=login_data["uninstall_md5"],
+            disk_serial=login_data["disk_signature_md5"],
+        )
+    except Exception as e:
+        log(
+            "Error saving client hashes",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
+        # Continue anyway, this shouldn't block login
 
     # TODO: store adapters individually
 
     # Some disk manufacturers set constant/shared ids for their products.
     # In these cases, there's not a whole lot we can do -- we'll allow them thru.
     INACTIONABLE_DISK_SIGNATURE_MD5S: list[str] = [
-        hashlib.md5(b"0").hexdigest(),  # "0" is likely the most common variant
+        hashlib.md5(
+            b"0",
+            usedforsecurity=False,
+        ).hexdigest(),  # "0" is likely the most common variant
     ]
 
     if login_data["disk_signature_md5"] not in INACTIONABLE_DISK_SIGNATURE_MD5S:
@@ -785,7 +1249,7 @@ async def handle_osu_login_request(
             # we will not allow any banned matches; if there are any,
             # then ask the user to contact staff and resolve manually.
             if not all(
-                [hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches],
+                hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches
             ):
                 return {
                     "osu_token": "contact-staff",
@@ -804,134 +1268,415 @@ async def handle_osu_login_request(
     # get clan & clan priv if we're in a clan
     clan_id: int | None = None
     clan_priv: ClanPrivileges | None = None
-    if user_info["clan_id"] != 0:
-        clan_id = user_info["clan_id"]
-        clan_priv = ClanPrivileges(user_info["clan_priv"])
+    try:
+        if user_info["clan_id"] != 0:
+            clan_id = user_info["clan_id"]
+            clan_priv = ClanPrivileges(user_info["clan_priv"])
+    except Exception as e:
+        log(
+            "Error processing clan information",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "clan_id": user_info.get("clan_id"),
+            },
+        )
+        # Continue with login, clan info isn't critical
 
     db_country = user_info["country"]
 
-    geoloc = await app.state.services.fetch_geoloc(ip, headers)
+    try:
+        geoloc = await app.state.services.fetch_geoloc(ip, headers)
 
-    if geoloc is None:
+        if geoloc is None:
+            log(
+                "Geolocation failed",
+                Ansi.LYELLOW,
+                extra={"ip": ip, "username": login_data["username"]},
+            )
+            return {
+                "osu_token": "login-failed",
+                "response_body": (
+                    app.packets.notification(
+                        f"{BASE_DOMAIN}: Login failed. Please contact an admin.",
+                    )
+                    + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+                ),
+            }
+    except Exception as e:
+        log(
+            "Error fetching geolocation",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         return {
             "osu_token": "login-failed",
             "response_body": (
                 app.packets.notification(
-                    f"{BASE_DOMAIN}: Login failed. Please contact an admin.",
+                    f"{BASE_DOMAIN}: Error determining your location. Please try again later.",
                 )
                 + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
             ),
         }
 
-    if db_country == "xx":
-        # bugfix for old bancho.py versions when
-        # country wasn't stored on registration.
-        log(f"Fixing {login_data['username']}'s country.", Ansi.LGREEN)
+    try:
+        if db_country == "xx":
+            # bugfix for old bancho.py versions when
+            # country wasn't stored on registration.
+            log(
+                f"Fixing {login_data['username']}'s country.",
+                Ansi.LGREEN,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "new_country": geoloc["country"]["acronym"],
+                },
+            )
 
-        await users_repo.partial_update(
+            await users_repo.partial_update(
+                id=user_info["id"],
+                country=geoloc["country"]["acronym"],
+            )
+    except Exception as e:
+        log(
+            "Error updating user country",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "country_from": db_country,
+                "country_to": geoloc["country"]["acronym"],
+            },
+        )
+        # Continue anyway, country update isn't critical
+
+    try:
+        client_details = ClientDetails(
+            osu_version=osu_version,
+            osu_path_md5=login_data["osu_path_md5"],
+            adapters_md5=login_data["adapters_md5"],
+            uninstall_md5=login_data["uninstall_md5"],
+            disk_signature_md5=login_data["disk_signature_md5"],
+            adapters=adapters,
+            ip=ip,
+        )
+    except Exception as e:
+        log(
+            "Error creating client details",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
+        return {
+            "osu_token": "login-failed",
+            "response_body": (
+                app.packets.notification(
+                    f"{BASE_DOMAIN}: Error processing client details. Please try again.",
+                )
+                + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+            ),
+        }
+
+    try:
+        player = Player(
             id=user_info["id"],
-            country=geoloc["country"]["acronym"],
+            name=user_info["name"],
+            priv=Privileges(user_info["priv"]),
+            pw_bcrypt=user_info["pw_bcrypt"].encode(),
+            token=Player.generate_token(),
+            clan_id=clan_id,
+            clan_priv=clan_priv,
+            geoloc=geoloc,
+            utc_offset=login_data["utc_offset"],
+            pm_private=login_data["pm_private"],
+            silence_end=user_info["silence_end"],
+            donor_end=user_info["donor_end"],
+            client_details=client_details,
+            login_time=login_time,
+            is_tourney_client=osu_version.stream == "tourney",
+            api_key=user_info["api_key"],
+            preferred_lb_view=user_info.get("preferred_lb_view", "all_time"),
+        )
+    except Exception as e:
+        log(
+            "Error creating player object",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
+        return {
+            "osu_token": "login-failed",
+            "response_body": (
+                app.packets.notification(
+                    f"{BASE_DOMAIN}: Error creating player session. Please try again.",
+                )
+                + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+            ),
+        }
+
+    try:
+        data = bytearray(app.packets.protocol_version(19))
+        data += app.packets.login_reply(player.id)
+
+        # *real* client privileges are sent with this packet,
+        # then the user's apparent privileges are sent in the
+        # userPresence packets to other players. we'll send
+        # supporter along with the user's privileges here,
+        # but not in userPresence (so that only donators
+        # show up with the yellow name in-game, but everyone
+        # gets osu!direct & other in-game perks).
+        data += app.packets.bancho_privileges(
+            player.bancho_priv | ClientPrivileges.SUPPORTER,
         )
 
-    client_details = ClientDetails(
-        osu_version=osu_version,
-        osu_path_md5=login_data["osu_path_md5"],
-        adapters_md5=login_data["adapters_md5"],
-        uninstall_md5=login_data["uninstall_md5"],
-        disk_signature_md5=login_data["disk_signature_md5"],
-        adapters=adapters,
-        ip=ip,
-    )
-
-    player = Player(
-        id=user_info["id"],
-        name=user_info["name"],
-        priv=Privileges(user_info["priv"]),
-        pw_bcrypt=user_info["pw_bcrypt"].encode(),
-        token=Player.generate_token(),
-        clan_id=clan_id,
-        clan_priv=clan_priv,
-        geoloc=geoloc,
-        utc_offset=login_data["utc_offset"],
-        pm_private=login_data["pm_private"],
-        silence_end=user_info["silence_end"],
-        donor_end=user_info["donor_end"],
-        client_details=client_details,
-        login_time=login_time,
-        is_tourney_client=osu_version.stream == "tourney",
-        api_key=user_info["api_key"],
-    )
-
-    data = bytearray(app.packets.protocol_version(19))
-    data += app.packets.login_reply(player.id)
-
-    # *real* client privileges are sent with this packet,
-    # then the user's apparent privileges are sent in the
-    # userPresence packets to other players. we'll send
-    # supporter along with the user's privileges here,
-    # but not in userPresence (so that only donators
-    # show up with the yellow name in-game, but everyone
-    # gets osu!direct & other in-game perks).
-    data += app.packets.bancho_privileges(
-        player.bancho_priv | ClientPrivileges.SUPPORTER,
-    )
-
-    data += WELCOME_NOTIFICATION
+        data += WELCOME_NOTIFICATION
+    except Exception as e:
+        log(
+            "Error creating initial response packets",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
+        return {
+            "osu_token": "login-failed",
+            "response_body": (
+                app.packets.notification(
+                    f"{BASE_DOMAIN}: Server error building response. Please try again.",
+                )
+                + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+            ),
+        }
 
     # send all appropriate channel info to our player.
-    # the osu! client will attempt to join the channels.
-    for channel in app.state.sessions.channels:
-        if (
-            not channel.auto_join
-            or not channel.can_read(player.priv)
-            or channel.real_name == "#lobby"  # (can't be in mp lobby @ login)
-        ):
-            continue
+    try:
+        # the osu! client will attempt to join the channels.
+        for channel in app.state.sessions.channels:
+            if (
+                not channel.auto_join
+                or not channel.can_read(player.priv)
+                or channel.real_name == "#lobby"  # (can't be in mp lobby @ login)
+            ):
+                continue
 
-        # send chan info to all players who can see
-        # the channel (to update their playercounts)
-        chan_info_packet = app.packets.channel_info(
-            channel.real_name,
-            channel.topic,
-            len(channel.players),
+            # send chan info to all players who can see
+            # the channel (to update their playercounts)
+            chan_info_packet = app.packets.channel_info(
+                channel.real_name,
+                channel.topic,
+                len(channel.players),
+            )
+
+            data += chan_info_packet
+
+            for o in app.state.sessions.players:
+                if channel.can_read(o.priv):
+                    o.enqueue(chan_info_packet)
+    except Exception as e:
+        log(
+            "Error sending channel info",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
         )
-
-        data += chan_info_packet
-
-        for o in app.state.sessions.players:
-            if channel.can_read(o.priv):
-                o.enqueue(chan_info_packet)
+        # Continue anyway, channel info isn't critical for login
 
     # tells osu! to reorder channels based on config.
-    data += app.packets.channel_info_end()
+    try:
+        data += app.packets.channel_info_end()
+    except Exception as e:
+        log(
+            "Error sending channel info end packet",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
+        # Continue anyway
 
     # fetch some of the player's
     # information from sql to be cached.
-    await player.stats_from_sql_full()
-    await player.relationships_from_sql()
+    try:
+        await player.stats_from_sql_full()
+        await player.relationships_from_sql()
+        await player.load_season_stats()
+    except Exception as e:
+        log(
+            "Error fetching player stats/relationships",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
+        # Continue anyway, we can still let them log in
 
     # TODO: fetch player.recent_scores from sql
 
-    data += app.packets.main_menu_icon(
-        icon_url=app.settings.MENU_ICON_URL,
-        onclick_url=app.settings.MENU_ONCLICK_URL,
-    )
-    data += app.packets.friends_list(player.friends)
-    data += app.packets.silence_end(player.remaining_silence)
+    try:
+        data += app.packets.main_menu_icon(
+            icon_url=app.settings.MENU_ICON_URL,
+            onclick_url=app.settings.MENU_ONCLICK_URL,
+        )
+        data += app.packets.friends_list(player.friends)
+        data += app.packets.silence_end(player.remaining_silence)
+    except Exception as e:
+        log(
+            "Error adding menu icon and basic player data",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
+        # Continue anyway, these are not critical for login
 
-    # update our new player's stats, and broadcast them.
-    user_data = app.packets.user_presence(player) + app.packets.user_stats(player)
-
-    data += user_data
+    # Initialize user_data to avoid "possibly unbound" error
+    user_data = b""
+    try:
+        # update our new player's stats, and broadcast them.
+        user_data = app.packets.user_presence(player) + app.packets.user_stats(player)
+        data += user_data
+    except Exception as e:
+        log(
+            "Error creating user presence/stats packets",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
+        # This is critical, but we'll try to continue
 
     if not player.restricted:
-        # player is unrestricted, two way data
-        for o in app.state.sessions.players:
-            # enqueue us to them
-            o.enqueue(user_data)
+        try:
+            # player is unrestricted, two way data
+            for o in app.state.sessions.players:
+                # enqueue us to them
+                o.enqueue(user_data)
 
-            # enqueue them to us.
-            if not o.restricted:
+                # enqueue them to us.
+                if not o.restricted:
+                    if o is app.state.sessions.bot:
+                        # optimization for bot since it's
+                        # the most frequently requested user
+                        data += app.packets.bot_presence(o)
+                        data += app.packets.bot_stats(o)
+                    else:
+                        data += app.packets.user_presence(o)
+                        data += app.packets.user_stats(o)
+        except Exception as e:
+            log(
+                "Error processing other players' data",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                },
+            )
+            # Continue anyway, partial player list is better than none
+
+        try:
+            # the player may have been sent mail while offline,
+            # enqueue any messages from their respective authors.
+            mail_rows = await mail_repo.fetch_all_mail_to_user(
+                user_id=player.id,
+                read=False,
+            )
+
+            if mail_rows:
+                sent_to: set[int] = set()
+
+                for msg in mail_rows:
+                    # Add "Unread messages" header as the first message
+                    # for any given sender, to make it clear that the
+                    # messages are coming from the mail system.
+                    if msg["from_id"] not in sent_to:
+                        data += app.packets.send_message(
+                            sender=msg["from_name"],
+                            msg="Unread messages",
+                            recipient=msg["to_name"],
+                            sender_id=msg["from_id"],
+                        )
+                        sent_to.add(msg["from_id"])
+
+                    msg_time = datetime.fromtimestamp(msg["time"])
+                    data += app.packets.send_message(
+                        sender=msg["from_name"],
+                        msg=f"[{msg_time:%a %b %d @ %H:%M%p}] {msg['msg']}",
+                        recipient=msg["to_name"],
+                        sender_id=msg["from_id"],
+                    )
+        except Exception as e:
+            log(
+                "Error fetching or processing mail",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                },
+            )
+            # Continue anyway, mail isn't critical for login
+
+        try:
+            if not player.priv & Privileges.VERIFIED:
+                # this is the player's first login, verify their
+                # account & send info about the server/its usage.
+                await player.add_privs(Privileges.VERIFIED)
+
+                if player.id == FIRST_USER_ID:
+                    # this is the first player registering on
+                    # the server, grant them full privileges.
+                    await player.add_privs(
+                        Privileges.STAFF
+                        | Privileges.NOMINATOR
+                        | Privileges.WHITELISTED
+                        | Privileges.TOURNEY_MANAGER
+                        | Privileges.DONATOR
+                        | Privileges.ALUMNI,
+                    )
+
+                data += app.packets.send_message(
+                    sender=app.state.sessions.bot.name,
+                    msg=WELCOME_MSG,
+                    recipient=player.name,
+                    sender_id=app.state.sessions.bot.id,
+                )
+        except Exception as e:
+            log(
+                "Error handling first-time user verification",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                    "privileges": player.priv,
+                },
+            )
+            # Continue anyway, they can still play even if verification failed
+
+    else:
+        try:
+            # player is restricted, one way data
+            for o in app.state.sessions.players.unrestricted:
+                # enqueue them to us.
                 if o is app.state.sessions.bot:
                     # optimization for bot since it's
                     # the most frequently requested user
@@ -941,101 +1686,85 @@ async def handle_osu_login_request(
                     data += app.packets.user_presence(o)
                     data += app.packets.user_stats(o)
 
-        # the player may have been sent mail while offline,
-        # enqueue any messages from their respective authors.
-        mail_rows = await mail_repo.fetch_all_mail_to_user(
-            user_id=player.id,
-            read=False,
-        )
-
-        sent_to: set[int] = set()
-
-        for msg in mail_rows:
-            # Add "Unread messages" header as the first message
-            # for any given sender, to make it clear that the
-            # messages are coming from the mail system.
-            if msg["from_id"] not in sent_to:
-                data += app.packets.send_message(
-                    sender=msg["from_name"],
-                    msg="Unread messages",
-                    recipient=msg["to_name"],
-                    sender_id=msg["from_id"],
-                )
-                sent_to.add(msg["from_id"])
-
-            msg_time = datetime.fromtimestamp(msg["time"])
-            data += app.packets.send_message(
-                sender=msg["from_name"],
-                msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
-                recipient=msg["to_name"],
-                sender_id=msg["from_id"],
-            )
-
-        if not player.priv & Privileges.VERIFIED:
-            # this is the player's first login, verify their
-            # account & send info about the server/its usage.
-            await player.add_privs(Privileges.VERIFIED)
-
-            if player.id == FIRST_USER_ID:
-                # this is the first player registering on
-                # the server, grant them full privileges.
-                await player.add_privs(
-                    Privileges.STAFF
-                    | Privileges.NOMINATOR
-                    | Privileges.WHITELISTED
-                    | Privileges.TOURNEY_MANAGER
-                    | Privileges.DONATOR
-                    | Privileges.ALUMNI,
-                )
-
+            data += app.packets.account_restricted()
             data += app.packets.send_message(
                 sender=app.state.sessions.bot.name,
-                msg=WELCOME_MSG,
+                msg=RESTRICTED_MSG,
                 recipient=player.name,
                 sender_id=app.state.sessions.bot.id,
             )
+        except Exception as e:
+            log(
+                "Error processing restricted player login",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                },
+            )
+            # Continue anyway, partial functionality is better than none
 
-    else:
-        # player is restricted, one way data
-        for o in app.state.sessions.players.unrestricted:
-            # enqueue them to us.
-            if o is app.state.sessions.bot:
-                # optimization for bot since it's
-                # the most frequently requested user
-                data += app.packets.bot_presence(o)
-                data += app.packets.bot_stats(o)
-            else:
-                data += app.packets.user_presence(o)
-                data += app.packets.user_stats(o)
+    try:
+        # add `p` to the global player list,
+        # making them officially logged in.
+        app.state.sessions.players.append(player)
+    except Exception as e:
+        log(
+            "Error adding player to global player list",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
+        # This is critical, but we'll return what we have
 
-        data += app.packets.account_restricted()
-        data += app.packets.send_message(
-            sender=app.state.sessions.bot.name,
-            msg=RESTRICTED_MSG,
-            recipient=player.name,
-            sender_id=app.state.sessions.bot.id,
+    try:
+        if app.state.services.datadog:
+            if not player.restricted:
+                app.state.services.datadog.increment("bancho.online_players")  # type: ignore[no-untyped-call]
+
+            time_taken = time.time() - login_time
+            app.state.services.datadog.histogram("bancho.login_time", time_taken)  # type: ignore[no-untyped-call]
+    except Exception as e:
+        log(
+            "Error updating datadog metrics",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
+        # Metrics aren't critical for functionality
+
+    try:
+        user_os = "unix (wine)" if running_under_wine else "win32"
+        country_code = player.geoloc["country"]["acronym"].upper()
+
+        log(
+            f"{player} logged in from {country_code} using {login_data['osu_version']} on {user_os}",
+            Ansi.LCYAN,
         )
 
-    # add `p` to the global player list,
-    # making them officially logged in.
-    app.state.sessions.players.append(player)
-
-    if app.state.services.datadog:
-        if not player.restricted:
-            app.state.services.datadog.increment("bancho.online_players")  # type: ignore[no-untyped-call]
-
-        time_taken = time.time() - login_time
-        app.state.services.datadog.histogram("bancho.login_time", time_taken)  # type: ignore[no-untyped-call]
-
-    user_os = "unix (wine)" if running_under_wine else "win32"
-    country_code = player.geoloc["country"]["acronym"].upper()
-
-    log(
-        f"{player} logged in from {country_code} using {login_data['osu_version']} on {user_os}",
-        Ansi.LCYAN,
-    )
-
-    player.update_latest_activity_soon()
+        player.update_latest_activity_soon()
+    except Exception as e:
+        log(
+            "Error in final login steps",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
+        # Not critical for functionality
 
     return {"osu_token": player.token, "response_body": bytes(data)}
 
@@ -1137,7 +1866,7 @@ class SendPrivateMessage(BasePacket):
 
     async def handle(self, player: Player) -> None:
         if player.silenced:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to send a dm while silenced.", Ansi.LYELLOW)
             return
 
@@ -1153,7 +1882,7 @@ class SendPrivateMessage(BasePacket):
         # messages offline, due to the mail system. B)
         target = await app.state.sessions.players.from_cache_or_sql(name=target_name)
         if not target:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(
                     f"{player} tried to write to non-existent user {target_name}.",
                     Ansi.LYELLOW,
@@ -1163,14 +1892,14 @@ class SendPrivateMessage(BasePacket):
         if player.id in target.blocks:
             player.enqueue(app.packets.user_dm_blocked(target_name))
 
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to message {target}, but they have them blocked.")
             return
 
         if target.pm_private and player.id not in target.friends:
             player.enqueue(app.packets.user_dm_blocked(target_name))
 
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to message {target}, but they are blocking dms.")
             return
 
@@ -1178,7 +1907,7 @@ class SendPrivateMessage(BasePacket):
             # if target is silenced, inform player.
             player.enqueue(app.packets.target_silenced(target_name))
 
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} tried to message {target}, but they are silenced.")
             return
 
@@ -1230,6 +1959,20 @@ class SendPrivateMessage(BasePacket):
             else:
                 # no commands triggered.
                 r_match = NOW_PLAYING_RGX.match(msg)
+                or_match = OLD_NOW_PLAYING_RGX.match(msg)
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "messages",
+                ]:
+                    log(f"self.msg object: {self.msg}")
+                if or_match:
+                    if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                        "all",
+                        "messages",
+                    ]:
+                        log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
+                    # TODO: convert link to new format, grab mode from new link.
+                    r_match = or_match
                 if r_match:
                     # user is /np'ing a map.
                     # save it to their player instance
@@ -1298,6 +2041,7 @@ class SendPrivateMessage(BasePacket):
                                 for acc, result in zip(
                                     app.settings.PP_CACHED_ACCURACIES,
                                     results,
+                                    strict=False,
                                 )
                             )
 
@@ -1730,7 +2474,7 @@ class MatchComplete(BasePacket):
         slot.status = SlotStatus.complete
 
         # check if there are any players that haven't finished.
-        if any([s.status == SlotStatus.playing for s in player.match.slots]):
+        if any(s.status == SlotStatus.playing for s in player.match.slots):
             return
 
         # find any players just sitting in the multi room

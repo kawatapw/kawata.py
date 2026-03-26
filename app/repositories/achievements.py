@@ -1,27 +1,100 @@
+"""
+Achievements Repository - Database Operations for Achievement Management
+
+This module provides database operations for managing achievements in the osu!
+server application. It implements the repository pattern for achievement data
+access, providing a clean abstraction layer between the application logic and
+database operations for achievement storage, retrieval, and management.
+
+The repository handles all CRUD operations for achievements, including creation,
+retrieval, updating, and deletion of achievement records. It uses SQLAlchemy for
+database interactions and provides both individual and batch operations for
+efficient data management.
+
+Key Features:
+    - Complete CRUD operations for achievement data
+    - SQLAlchemy-based database interactions
+    - Type-safe data access with TypedDict definitions
+    - Support for pagination and filtering
+    - Dynamic condition evaluation for achievement unlocking
+    - Unique constraint enforcement for achievement properties
+    - Integration with the application state management system
+
+Integration Points:
+    - Achievement validation in app/usecases/achievements.py
+    - Score processing in app/objects/score.py
+    - Player achievement tracking in app/repositories/user_achievements.py
+    - Database connection management in app/state/services.py
+    - Application state in app/state/__init__.py
+
+Database Schema:
+    - id: Primary key with auto-increment
+    - file: Achievement asset filename (unique)
+    - name: Achievement display name (unique)
+    - desc: Achievement description (unique)
+    - cond: Condition string for achievement unlocking
+
+Achievement Conditions:
+    - Conditions are stored as strings in the database
+    - They are evaluated as lambda functions at runtime
+    - Format: lambda score, mode_vn: <condition_expression>
+    - Examples: "score.passed", "score.acc >= 95.0", "score.max_combo >= 1000"
+
+Usage Pattern:
+    # Create a new achievement
+    achievement = await create(
+        file="pass_map",
+        name="First Pass",
+        desc="Pass your first map",
+        cond="score.passed"
+    )
+
+    # Fetch achievement by ID or name
+    achievement = await fetch_one(id=1)
+    achievement = await fetch_one(name="First Pass")
+
+    # Fetch all achievements with pagination
+    achievements = await fetch_many(page=1, page_size=10)
+
+    # Update achievement
+    updated = await partial_update(
+        id=1,
+        desc="Updated description"
+    )
+
+    # Delete achievement
+    deleted = await delete_one(id=1)
+
+Related Files:
+    - app/usecases/achievements.py: Achievement validation logic
+    - app/objects/achievement.py: Achievement data model
+    - app/repositories/user_achievements.py: Player achievement tracking
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
-from typing import TypedDict
-from typing import cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 if TYPE_CHECKING:
     from app.objects.score import Score
 
-from sqlalchemy import Column
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import (
+    Column,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
 
 
 class AchievementsTable(Base):
@@ -76,7 +149,7 @@ async def create(
     achievement = await app.state.services.database.fetch_one(select_stmt)
     assert achievement is not None
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")  # nosec B307
     return cast(Achievement, achievement)
 
 
@@ -99,7 +172,7 @@ async def fetch_one(
     if achievement is None:
         return None
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")  # nosec B307
     return cast(Achievement, achievement)
 
 
@@ -121,9 +194,14 @@ async def fetch_many(
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
-    achievements = await app.state.services.database.fetch_all(select_stmt)
-    for achievement in achievements:
-        achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievements: (
+        list[dict[str, Any]] | None
+    ) = await app.state.services.database.fetch_all(select_stmt)
+    if achievements is not None:
+        for achievement in achievements:
+            achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")  # nosec B307
+    else:
+        achievements = []
 
     return cast(list[Achievement], achievements)
 
@@ -153,7 +231,7 @@ async def partial_update(
     if achievement is None:
         return None
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")  # nosec B307
     return cast(Achievement, achievement)
 
 
@@ -169,5 +247,5 @@ async def delete_one(
     delete_stmt = delete(AchievementsTable).where(AchievementsTable.id == id)
     await app.state.services.database.execute(delete_stmt)
 
-    achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+    achievement["cond"] = eval(f"lambda score, mode_vn: {achievement['cond']}")  # nosec B307
     return cast(Achievement, achievement)

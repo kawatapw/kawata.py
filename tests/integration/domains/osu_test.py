@@ -105,11 +105,11 @@ async def test_score_submission(
     # cho token must be valid uuid
     try:
         UUID(response.headers["cho-token"])
-    except ValueError:
+    except ValueError as err:
         raise AssertionError(
             "cho-token is not a valid uuid",
             response.headers["cho-token"],
-        )
+        ) from err
 
     has_supporter = True
 
@@ -132,27 +132,7 @@ async def test_score_submission(
     storyboard_md5 = hashlib.md5(b"lol123").hexdigest()
 
     score_online_checksum = hashlib.md5(
-        "chickenmcnuggets{0}o15{1}{2}smustard{3}{4}uu{5}{6}{7}{8}{9}{10}{11}Q{12}{13}{15}{14:%y%m%d%H%M%S}{16}{17}".format(
-            n100 + n300,
-            n50,
-            ngeki,
-            nkatu,
-            nmiss,
-            beatmap_md5,
-            max_combo,
-            perfect,
-            username,
-            score,
-            grade,
-            mods,
-            passed,
-            game_mode,
-            client_time,
-            osu_version,
-            client_hashes,
-            storyboard_md5,
-            # yyMMddHHmmss
-        ).encode(),
+        f"chickenmcnuggets{n100 + n300}o15{n50}{ngeki}smustard{nkatu}{nmiss}uu{beatmap_md5}{max_combo}{perfect}{username}{score}{grade}{mods}Q{passed}{game_mode}{client_hashes}{client_time:%y%m%d%H%M%S}{osu_version}{storyboard_md5}".encode(),
     ).hexdigest()
 
     score_data = [
@@ -230,8 +210,7 @@ async def test_score_submission(
         },
         files={
             # simulate replay data
-            "score": b"12345"
-            * 100,
+            "score": b"12345" * 100,
         },
     )
 
@@ -239,5 +218,5 @@ async def test_score_submission(
     assert response.status_code == status.HTTP_200_OK
     assert (
         response.read()
-        == b"beatmapId:315|beatmapSetId:141|beatmapPlaycount:1|beatmapPasscount:1|approvedDate:2014-05-18 15:41:48|\n|chartId:beatmap|chartUrl:https://osu.cmyui.xyz/s/141|chartName:Beatmap Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:10.448|onlineScoreId:1|\n|chartId:overall|chartUrl:https://cmyui.xyz/u/3|chartName:Overall Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:11|achievements-new:osu-skill-pass-4+Insanity Approaches+You're not twitching, you're just ready./all-intro-hidden+Blindsight+I can see just perfectly"
+        == b"beatmapId:315|beatmapSetId:141|beatmapPlaycount:1|beatmapPasscount:1|approvedDate:2014-05-18 15:41:48|\n|chartId:beatmap|chartUrl:https://osu.cmyui.xyz/s/141|chartName:Beatmap Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:10.313|onlineScoreId:1|\n|chartId:overall|chartUrl:https://cmyui.xyz/u/3|chartName:Overall Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:11|achievements-new:osu-skill-pass-4+Insanity Approaches+You're not twitching, you're just ready./all-intro-hidden+Blindsight+I can see just perfectly"
     )

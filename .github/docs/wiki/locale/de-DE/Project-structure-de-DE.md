@@ -4,18 +4,18 @@
     ├── app                        # der Server - Logik, Klassen und Objekte
     |   ├── api                    # Code für die Bearbeitung externer Anfragen
     |   |   ├── domains            # Endpunkte, die von außen erreicht werden können
-    |   |   |   ├── cho.py         # Endpunkte verfügbar @ https://c.cmyui.xyz
-    |   |   |   ├── map.py         # Endpunkte verfügbar @ https://b.cmyui.xyz
-    |   |   |   └── osu.py         # Endpunkte verfügbar @ https://osu.cmyui.xyz
+    |   |   |   ├── cho.py         # Endpunkte verfügbar @ https://c.kawata.pw
+    |   |   |   ├── map.py         # Endpunkte verfügbar @ https://b.kawata.pw
+    |   |   |   └── osu.py         # Endpunkte verfügbar @ https://osu.kawata.pw
     |   |   |
     |   |   ├── v1                 # Version 1 der API
-    |   |   |   └── api.py         # Endpunkte verfügbar @ https://api.cmyui.xyz/v1
+    |   |   |   └── api.py         # Endpunkte verfügbar @ https://api.kawata.pw/v1
     |   |   |
     |   |   ├── v2                 # Version 2 der API
-    |   |   |   ├── clans.py       # Endpunkte verfügbar @ https://api.cmyui.xyz/v2/clans
-    |   |   |   ├── maps.py        # Endpunkte verfügbar @ https://api.cmyui.xyz/v2/maps
-    |   |   |   ├── players.py     # Endpunkte verfügbar @ https://api.cmyui.xyz/v2/players
-    |   |   |   └── scores.py      # Endpunkte verfügbar @ https://api.cmyui.xyz/v2/scores
+    |   |   |   ├── clans.py       # Endpunkte verfügbar @ https://api.kawata.pw/v2/clans
+    |   |   |   ├── maps.py        # Endpunkte verfügbar @ https://api.kawata.pw/v2/maps
+    |   |   |   ├── players.py     # Endpunkte verfügbar @ https://api.kawata.pw/v2/players
+    |   |   |   └── scores.py      # Endpunkte verfügbar @ https://api.kawata.pw/v2/scores
     |   |   |
     |   |   ├── init_api.py        # Logik zum Zusammenstellen des Servers
     |   |   └── middlewares.py     # Logik, die sich um die Endpunkte wickelt
@@ -50,5 +50,5 @@
     |
     ├── ext                        # externe Entitäten, die beim Betrieb des Servers verwendet werden
     ├── migrations                 # Datenbankmigrationen - Aktualisierungen des Schemas
-    ├── tools                      # verschiedene Tools aus der Geschichte von bancho.py
+    ├── tools                      # verschiedene Tools aus der Geschichte von kawata.py
     └── main.py                    # ein Einstiegspunkt (Skript) zur Ausführung des Servers

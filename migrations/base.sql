@@ -14,6 +14,41 @@ create table achievements
 		unique (name)
 );
 
+create table badges
+(
+	id int(11) not null,
+	name varchar(64) not null,
+	description varchar(256) not null,
+	priority int(11) not null,
+	primary key (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table badge_styles
+(
+	id int(11) not null,
+	badge_id int(11) not null,
+	type varchar(32) not null,
+	value varchar(256) not null,
+	primary key (id),
+	key badge_id (badge_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table changelog
+(
+	id int(64) not null auto_increment,
+	type int(16) not null default 0 comment 'Change Type, Determines if change is for Frontend, Backend, or Client .',
+	poster int(32) not null comment 'ID of User that posted/made this change.',
+	category varchar(256) default null,
+	content varchar(4096) not null,
+	time datetime not null,
+	version varchar(64) default null comment 'Only needed for Client Changelog',
+	primary key (id),
+	key type (type),
+	key poster (poster),
+	key category (category),
+	key version (version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores changelogs for Server and Client';
+
 create table channels
 (
 	id int auto_increment
@@ -37,6 +72,8 @@ create table clans
 	tag varchar(6) charset utf8 not null,
 	owner int not null,
 	created_at datetime not null,
+	description varchar(1024) not null,
+	icon varchar(1024) not null,
 	constraint clans_name_uindex
 		unique (name),
 	constraint clans_owner_uindex
@@ -98,14 +135,19 @@ create table relationships
 
 create table logs
 (
-	id int auto_increment
-		primary key,
-	`from` int not null comment 'both from and to are playerids',
-	`to` int not null,
-	`action` varchar(32) not null,
-	msg varchar(2048) charset utf8 null,
-	time datetime not null on update CURRENT_TIMESTAMP
-);
+	id          int auto_increment primary key,
+	from_id     int not null comment 'moderator user id',
+	to_id       int not null comment 'target user or map id',
+	action      varchar(32) not null,
+	msg         varchar(2048) charset utf8mb3 default null,
+	created_at  datetime not null default CURRENT_TIMESTAMP,
+	action_type tinyint not null default 0 comment '0=user, 1=map, 2=badge',
+	index idx_logs_action (action),
+	index idx_logs_to_id (to_id),
+	index idx_logs_from_id (from_id),
+	index idx_logs_created (created_at),
+	index idx_logs_type_created (action_type, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 create table mail
 (
@@ -182,6 +224,15 @@ create table map_requests
 	active tinyint(1) not null
 );
 
+create table newly_ranked
+(
+	map_id int(64) not null,
+	mod_id int(16) not null,
+	time datetime not null,
+	unique key map_id (map_id),
+	key mod_id (mod_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 create table performance_reports
 (
 	scoreid bigint(20) unsigned not null,
@@ -202,6 +253,15 @@ create table performance_reports
 	primary key (scoreid, mod_mode)
 );
 
+create table privileges_groups
+(
+	id int(11) not null auto_increment,
+	name varchar(256) not null,
+	privileges bigint(32) not null,
+	color varchar(32) not null,
+	primary key (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
 create table ratings
 (
 	userid int not null,
@@ -210,13 +270,20 @@ create table ratings
 	primary key (userid, map_md5)
 );
 
+create table scoreinfo
+(
+	scoreid bigint(20) unsigned not null,
+	cheat_values varchar(1024) default null,
+	key scoreid (scoreid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 create table scores
 (
 	id bigint unsigned auto_increment
 		primary key,
 	map_md5 char(32) not null,
 	score int not null,
-	pp float(7,3) not null,
+	pp float(8,3) not null,
 	acc float(6,3) not null,
 	max_combo int not null,
 	mods int not null,
@@ -234,7 +301,8 @@ create table scores
 	client_flags int not null,
 	userid int not null,
 	perfect tinyint(1) not null,
-	online_checksum char(32) not null
+	online_checksum char(32) not null,
+	pinned tinyint(1) not null default 0
 );
 create index scores_map_md5_index
 	on scores (map_md5);
@@ -256,6 +324,75 @@ create index scores_online_checksum_index
 	on scores (online_checksum);
 create index scores_fetch_leaderboard_generic_index
 	on scores (map_md5, status, mode);
+create index scores_idx_map_md5_status_mode_userid
+	on scores (map_md5, status, mode, userid);
+create index scores_idx_map_md5_mode_userid
+	on scores (map_md5, mode, userid);
+create index scores_idx_userid_mode_status_map_md_pp
+	on scores (userid, mode, status, map_md5, pp);
+create index idx_scores_userid_mode_grade
+	on scores (userid, mode, grade);
+create index scores_userid_status_mode_md5_score_idx
+	on scores (userid, status, mode, map_md5, score);
+create index scores_idx_mode_status
+	on scores (mode, status);
+create index scores_idx_map_md5_score
+	on scores (map_md5, score);
+create index idx_scores_season_filter
+	on scores (play_time, status, mode);
+create index idx_scores_user_season
+	on scores (userid, play_time, mode);
+create index scores_pinned_index
+	on scores (pinned);
+
+create table server_data
+(
+	type varchar(256) not null,
+	value varchar(4096) default null,
+	unique key type (type),
+	key value (value(768))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores Data for the server, example would be notice.';
+
+create table season_schedules
+(
+	id int auto_increment primary key,
+	name varchar(64) not null,
+	description varchar(256) default null,
+	schedule_type enum('manual', 'custom', 'seasonal', 'half_year', 'third_year', 'quarter_year', 'ifc_sched') not null,
+	config json not null comment 'Schedule-specific configuration',
+	is_default boolean not null default false,
+	created_at datetime not null default current_timestamp,
+	unique key idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table seasons
+(
+	id int auto_increment primary key,
+	name varchar(64) not null,
+	schedule_id int default null comment 'FK to season_schedules, NULL for manual seasons',
+	start_date datetime not null,
+	end_date datetime not null,
+	is_active boolean not null default false,
+	end_calculated boolean not null default false comment 'Whether final stats have been calculated for ended season',
+	awards_badges boolean not null default false comment 'Whether this season awards badges (reserved for future use)',
+	description varchar(256) default null,
+	created_at datetime not null default current_timestamp,
+	index idx_schedule_id (schedule_id),
+	index idx_start_date (start_date),
+	index idx_end_date (end_date),
+	index idx_is_active (is_active),
+	foreign key (schedule_id) references season_schedules(id) on delete set null
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table season_config
+(
+	id int auto_increment primary key,
+	season_id int not null,
+	config_key varchar(64) not null,
+	config_value text default null,
+	unique key idx_season_key (season_id, config_key),
+	foreign key (season_id) references seasons(id) on delete cascade
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 create table startups
 (
@@ -269,8 +406,9 @@ create table startups
 
 create table stats
 (
-	id int auto_increment,
+	id int not null,
 	mode tinyint(1) not null,
+	season_id int unsigned not null default 0,
 	tscore bigint unsigned default 0 not null,
 	rscore bigint unsigned default 0 not null,
 	pp int unsigned default 0 not null,
@@ -285,7 +423,8 @@ create table stats
 	sh_count int unsigned default 0 not null,
 	s_count int unsigned default 0 not null,
 	a_count int unsigned default 0 not null,
-	primary key (id, mode)
+	primary key (id, mode, season_id),
+	index idx_season_id (season_id)
 );
 create index stats_mode_index
 	on stats (mode);
@@ -332,6 +471,23 @@ create index user_achievements_achid_index
 create index user_achievements_userid_index
 	on user_achievements (userid);
 
+create table user_badges
+(
+	userid int(11) not null,
+	badge_id int(11) not null,
+	key userid (userid),
+	key badge (badge_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+create table user_customisations
+(
+	userid int(32) not null,
+	hue int(3) not null default 180,
+	has_banner tinyint(1) not null default 0,
+	has_background tinyint(1) not null default 0,
+	unique key userid (userid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 create table users
 (
 	id int auto_increment
@@ -339,7 +495,7 @@ create table users
 	name varchar(32) charset utf8 not null,
 	safe_name varchar(32) charset utf8 not null,
 	email varchar(254) not null,
-	priv int default 1 not null,
+	priv bigint(20) default 1,
 	pw_bcrypt char(60) not null,
 	country char(2) default 'xx' not null,
 	silence_end int default 0 not null,
@@ -350,10 +506,12 @@ create table users
 	clan_priv tinyint(1) default 0 not null,
 	preferred_mode int default 0 not null,
 	play_style int default 0 not null,
-	custom_badge_name varchar(16) charset utf8 null,
+	custom_badge_name varchar(64) charset utf8 null,
 	custom_badge_icon varchar(64) null,
-	userpage_content varchar(2048) charset utf8 null,
+	userpage_content mediumtext null,
 	api_key char(36) null,
+	preferred_lb_view enum('all_time', 'seasonal') not null default 'all_time',
+	preferred_schedule_id int unsigned null default null,
 	constraint users_api_key_uindex
 		unique (api_key),
 	constraint users_email_uindex
@@ -371,6 +529,80 @@ create index users_clan_priv_index
 	on users (clan_priv);
 create index users_country_index
 	on users (country);
+
+create table wiped_scores
+(
+	id bigint unsigned auto_increment
+		primary key,
+	map_md5 char(32) not null,
+	score int not null,
+	pp float(8,3) not null,
+	acc float(6,3) not null,
+	max_combo int not null,
+	mods int not null,
+	n300 int not null,
+	n100 int not null,
+	n50 int not null,
+	nmiss int not null,
+	ngeki int not null,
+	nkatu int not null,
+	grade varchar(2) default 'N' not null,
+	status tinyint not null,
+	mode tinyint not null,
+	play_time datetime not null,
+	time_elapsed int not null,
+	client_flags int not null,
+	userid int not null,
+	perfect tinyint(1) not null,
+	online_checksum char(32) not null
+);
+create index wiped_scores_map_md5_index
+	on wiped_scores (map_md5);
+create index wiped_scores_score_index
+	on wiped_scores (score);
+create index wiped_scores_pp_index
+	on wiped_scores (pp);
+create index wiped_scores_mods_index
+	on wiped_scores (mods);
+create index wiped_scores_status_index
+	on wiped_scores (status);
+create index wiped_scores_mode_index
+	on wiped_scores (mode);
+create index wiped_scores_play_time_index
+	on wiped_scores (play_time);
+create index wiped_scores_userid_index
+	on wiped_scores (userid);
+create index wiped_scores_online_checksum_index
+	on wiped_scores (online_checksum);
+create index wiped_scores_fetch_leaderboard_generic_index
+	on wiped_scores (map_md5, status, mode);
+create index wiped_scores_idx_map_md5_status_mode_userid
+	on wiped_scores (map_md5, status, mode, userid);
+create index wiped_scores_idx_map_md5_mode_userid
+	on wiped_scores (map_md5, mode, userid);
+create index wiped_scores_idx_userid_mode_status_map_md_pp
+	on wiped_scores (userid, mode, status, map_md5, pp);
+create index idx_wiped_scores_userid_mode_grade
+	on wiped_scores (userid, mode, grade);
+create index wiped_scores_userid_status_mode_md5_score_idx
+	on wiped_scores (userid, status, mode, map_md5, score);
+create index wiped_scores_idx_mode_status
+	on wiped_scores (mode, status);
+create index wiped_scores_idx_map_md5_score
+	on wiped_scores (map_md5, score);
+
+alter table badge_styles
+	add constraint badge_styles_ibfk_1 foreign key (badge_id) references badges (id) on delete cascade;
+
+alter table scoreinfo
+	add constraint scoreinfo_ibfk_1 foreign key (scoreid) references scores (id) on delete cascade;
+
+alter table user_badges
+	add constraint badge foreign key (badge_id) references badges (id) on delete cascade on update cascade,
+	add constraint user foreign key (userid) references users (id) on delete cascade on update cascade;
+
+alter table user_customisations
+	add constraint FK_user_customizations foreign key (userid) references users (id) on delete cascade;
 
 insert into users (id, name, safe_name, priv, country, silence_end, email, pw_bcrypt, creation_time, latest_activity)
 values (1, 'BanchoBot', 'banchobot', 1, 'ca', 0, 'bot@akatsuki.pw',
@@ -400,6 +632,10 @@ values ('#osu', 'General discussion.', 1, 2, true),
 	   ('#staff', 'General discussion for staff members.', 28672, 28672, true),
 	   ('#admin', 'General discussion for administrators.', 24576, 24576, true),
 	   ('#dev', 'General discussion for developers.', 16384, 16384, true);
+
+insert into server_data (type, value) VALUES ('seasons_enabled', '0');
+insert into server_data (type, value) VALUES ('seasons_default_mode', 'all_time');
+insert into server_data (type, value) VALUES ('seasons_active_type_id', '1');
 
 insert into achievements (id, file, name, `desc`, cond) values (1, 'osu-skill-pass-1', 'Rising Star', 'Can''t go forward without the first steps.', '(score.mods & 1 == 0) and 1 <= score.sr < 2 and mode_vn == 0');
 insert into achievements (id, file, name, `desc`, cond) values (2, 'osu-skill-pass-2', 'Constellation Prize', 'Definitely not a consolation prize. Now things start getting hard!', '(score.mods & 1 == 0) and 2 <= score.sr < 3 and mode_vn == 0');

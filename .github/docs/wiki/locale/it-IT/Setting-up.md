@@ -3,19 +3,19 @@
 ## scaricare e installare il codice del server osu! sulla tua macchina
 
 ```sh
-# clona il repository di bancho.py sulla tua macchina
-git clone https://github.com/osuAkatsuki/bancho.py
+# clona il repository di kawata.py sulla tua macchina
+git clone https://github.com/kawatapw/kawata.py
 
-# entra nella nuova directory di bancho.py
-cd bancho.py
+# entra nella nuova directory di kawata.py
+cd kawata.py
 
 # installa docker per costruire l'immagine dell'applicazione
 sudo apt install -y docker
 ```
 
-## configurare bancho.py
+## configurare kawata.py
 
-Tutta la configurazione per il server osu! (bancho.py) può essere effettuata dai file
+Tutta la configurazione per il server osu! (kawata.py) può essere effettuata dai file
 `.env` e `logging.yaml`. Forniremo file di esempio per ciascuno, che puoi utilizzare
 come base e modificare a tuo piacimento.
 
@@ -37,7 +37,7 @@ nano logging.yaml
 
 ## configurare un reverse proxy (useremo nginx)
 
-bancho.py si basa su un reverse proxy per il supporto TLS (https) e per semplificare
+kawata.py si basa su un reverse proxy per il supporto TLS (https) e per semplificare
 la configurazione. Nginx è un server web open-source ed efficiente che utilizzeremo
 in questa guida, ma sentiti libero di esplorare altre opzioni, come caddy e h2o.
 

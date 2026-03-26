@@ -1,3 +1,98 @@
+"""
+Player Module - osu! Player Data Model and Management
+
+This module defines the Player class, which represents a player in the osu! server
+application. The Player class is the central data model for user management,
+handling all aspects of player state including authentication, privileges, social
+interactions, gameplay statistics, and real-time communication.
+
+The Player class manages the complete lifecycle of player sessions from login to
+logout, including privilege management, social features (friends, blocks, clans),
+multiplayer participation, spectator mode, and packet-based communication with
+the osu! client. It integrates with multiple subsystems to provide a comprehensive
+player experience.
+
+Key Features:
+    - Complete player session management with token-based authentication
+    - Hierarchical privilege system with dynamic updates
+    - Social features including friends, blocks, and clan membership
+    - Multiplayer match participation and management
+    - Spectator mode with real-time updates
+    - Channel-based communication system
+    - Gameplay statistics tracking across all modes
+    - Anti-cheat integration with client validation
+    - Real-time packet queue management
+    - Administrative actions (restrict, silence, etc.)
+
+Integration Points:
+    - Authentication in app/api/domains/cho.py
+    - Privilege management in app/constants/privileges.py
+    - Social features in app/repositories/users.py
+    - Multiplayer in app/objects/match.py
+    - Spectator mode in app/objects/channel.py
+    - Statistics in app/repositories/stats.py
+    - Anti-cheat in app/constants/clientflags.py
+    - Packet handling in app/packets.py
+
+Player States:
+    - Online/Offline: Token-based session tracking
+    - Restricted/Unrestricted: Privilege-based access control
+    - Silenced/Unsilenced: Communication restrictions
+    - In Match/Spectating: Gameplay participation states
+    - Bot/Tourney Client: Special client types
+
+Privilege System:
+    - Server privileges: Administrative and moderation permissions
+    - Client privileges: Client-side permission display
+    - Clan privileges: Clan-specific permissions
+    - Dynamic privilege updates with client notification
+
+Social Features:
+    - Friends list with relationship management
+    - Block list for communication filtering
+    - Clan membership with role-based permissions
+    - Direct messaging and channel communication
+
+Multiplayer Integration:
+    - Match joining and leaving with validation
+    - Slot management and team assignment
+    - Host transfer and referee capabilities
+    - Match state synchronization
+
+Spectator System:
+    - Spectator channel management
+    - Real-time spectator updates
+    - Stealth mode for administrative observation
+    - Spectator list maintenance
+
+Usage Pattern:
+    # Create player instance
+    player = Player(
+        id=12345,
+        name="PlayerName",
+        priv=Privileges.UNRESTRICTED,
+        pw_bcrypt=hashed_password,
+        token=Player.generate_token()
+    )
+
+    # Handle player actions
+    player.join_match(match, password)
+    player.add_spectator(other_player)
+    player.enqueue(packet_data)
+
+    # Administrative actions
+    await player.restrict(admin, "Reason")
+    await player.silence(admin, duration, "Reason")
+
+Related Files:
+    - app/api/domains/cho.py: Client connection handling
+    - app/objects/match.py: Multiplayer match management
+    - app/objects/channel.py: Channel communication
+    - app/packets.py: Packet creation and handling
+    - app/repositories/users.py: Database operations for players
+    - app/repositories/stats.py: Statistics management
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -5,43 +100,29 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from enum import IntEnum
-from enum import StrEnum
-from enum import unique
+from enum import IntEnum, StrEnum, unique
 from functools import cached_property
-from typing import TYPE_CHECKING
-from typing import TypedDict
-from typing import cast
-
-import databases.core
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import app.packets
 import app.settings
 import app.state
 from app._typing import IPAddress
+from app.constants.aeris_features import AerisFeatures
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.constants.privileges import ClientPrivileges
-from app.constants.privileges import Privileges
+from app.constants.privileges import ClientPrivileges, Privileges
 from app.discord import Webhook
-from app.logging import Ansi
-from app.logging import log
+from app.logging import Ansi, log, logLevel
 from app.objects.channel import Channel
-from app.objects.match import Match
-from app.objects.match import MatchTeams
-from app.objects.match import MatchTeamTypes
-from app.objects.match import Slot
-from app.objects.match import SlotStatus
-from app.objects.score import Grade
-from app.objects.score import Score
-from app.repositories import clans as clans_repo
+from app.objects.match import Match, MatchTeams, MatchTeamTypes, Slot, SlotStatus
+from app.objects.score import Grade, Score
 from app.repositories import logs as logs_repo
+from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.state.services import Geolocation
-from app.utils import escape_enum
-from app.utils import make_safe_name
-from app.utils import pymysql_encode
+from app.utils import escape_enum, make_safe_name, pymysql_encode
 
 if TYPE_CHECKING:
     from app.constants.privileges import ClanPrivileges
@@ -122,6 +203,7 @@ class OsuStream(StrEnum):
     CUTTINGEDGE = "cuttingedge"
     TOURNEY = "tourney"
     DEV = "dev"
+    AERIS = "Aeris"
 
 
 class OsuVersion:
@@ -226,6 +308,9 @@ class Player:
         is_bot_client: bool = False,
         is_tourney_client: bool = False,
         api_key: str | None = None,
+        preferred_lb_view: str = "all_time",
+        selected_season_id: int | None = None,
+        preferred_schedule_id: int | None = None,
     ) -> None:
         if geoloc is None:
             geoloc = {
@@ -236,6 +321,10 @@ class Player:
 
         self.id = id
         self.name = name
+        self.aeris_client: bool = (
+            False  # Identified by the Specific packet dedicated to Kawata/Aeris clients
+        )
+        self.aeris_client_features: int = AerisFeatures.None_  # by default the client don't take into account any Kawata/Aeris features, because it's another client
         self.priv = priv
         self.pw_bcrypt = pw_bcrypt
         self.token = token
@@ -252,6 +341,9 @@ class Player:
         self.is_bot_client = is_bot_client
         self.is_tourney_client = is_tourney_client
         self.api_key = api_key
+        self.preferred_lb_view = preferred_lb_view
+        self.preferred_schedule_id = preferred_schedule_id
+        self.selected_season_id = selected_season_id
 
         # avoid enqueuing packets to bot accounts.
         if self.is_bot_client:
@@ -265,6 +357,14 @@ class Player:
         self.in_lobby = False
 
         self.stats: dict[GameMode, ModeData] = {}
+        self.season_stats: dict[
+            int,
+            dict[GameMode, ModeData],
+        ] = {}  # season_id -> {mode -> stats}
+        self._active_season_by_schedule: dict[
+            int,
+            int | None,
+        ] = {}  # schedule_id -> active season_id cache
         self.status = Status()
 
         # userids, not player objects
@@ -280,14 +380,105 @@ class Player:
         self.pres_filter = PresenceFilter.Nil
 
         # store most recent score for each gamemode.
-        self.recent_scores: dict[GameMode, Score | None] = {
-            mode: None for mode in GameMode
-        }
+        self.recent_scores: dict[GameMode, Score | None] = dict.fromkeys(GameMode)
 
         # store the last beatmap /np'ed by the user.
         self.last_np: LastNp | None = None
 
         self._packet_queue: list[bytes] = []
+
+    def get_season_stats(self, season_id: int, mode: GameMode) -> ModeData | None:
+        """Get stats for a specific season and mode."""
+        return self.season_stats.get(season_id, {}).get(mode)
+
+    def get_season_stats_by_schedule(
+        self,
+        schedule_id: int,
+        mode: GameMode,
+    ) -> ModeData | None:
+        """Get stats for the active season of a specific schedule and mode.
+
+        This method looks up the active season for the given schedule_id
+        and returns the stats for that season.
+        """
+        # This requires async lookup, so we'll need to handle this differently
+        # For now, return None - this will be handled in the score submission logic
+        return None
+
+    def set_season_stats(self, season_id: int, mode: GameMode, stats: ModeData) -> None:
+        """Set stats for a specific season and mode."""
+        if season_id not in self.season_stats:
+            self.season_stats[season_id] = {}
+        self.season_stats[season_id][mode] = stats
+
+    async def load_season_stats(self) -> None:
+        """Load stats for all active seasons."""
+        try:
+            seasons_enabled = await app.state.services.database.fetch_val(
+                "SELECT value FROM server_data WHERE type = 'seasons_enabled'",
+            )
+            if seasons_enabled != "1":
+                return
+
+            # Get all active seasons
+            active_seasons = await seasons_repo.fetch_many()
+            for season in active_seasons:
+                if season["is_active"]:
+                    # Cache active season by schedule_id for synchronous lookup
+                    schedule_id = season.get("schedule_id")
+                    if schedule_id is not None:
+                        self._active_season_by_schedule[schedule_id] = season["id"]
+
+                    for mode in GameMode:
+                        stat = await stats_repo.fetch_one(
+                            player_id=self.id,
+                            mode=mode.value,
+                            season_id=season["id"],
+                        )
+                        if stat:
+                            # Update season rank in Redis first
+                            await self.update_season_rank(season["id"], mode)
+
+                            # Get the calculated rank
+                            rank = await self.get_season_rank(season["id"], mode)
+
+                            # Convert Stat TypedDict to ModeData dataclass
+                            mode_data = ModeData(
+                                tscore=stat["tscore"],
+                                rscore=stat["rscore"],
+                                pp=stat["pp"],
+                                acc=stat["acc"],
+                                plays=stat["plays"],
+                                playtime=stat["playtime"],
+                                max_combo=stat["max_combo"],
+                                total_hits=stat["total_hits"],
+                                rank=rank,
+                                grades={
+                                    Grade.XH: stat["xh_count"],
+                                    Grade.X: stat["x_count"],
+                                    Grade.SH: stat["sh_count"],
+                                    Grade.S: stat["s_count"],
+                                    Grade.A: stat["a_count"],
+                                },
+                            )
+                            self.set_season_stats(season["id"], mode, mode_data)
+        except Exception as e:
+            log(
+                f"Failed to load season stats for {self}: {e}",
+                Ansi.LRED,
+                level=logLevel.ERROR,
+            )
+
+    def get_active_season_for_schedule(self, schedule_id: int) -> int | None:
+        """Get the active season ID for a specific schedule.
+
+        Returns the cached active season ID for the given schedule.
+        The cache is populated during load_season_stats().
+
+        Returns:
+            The season_id of the active season for the given schedule, or None if no active season.
+        """
+        return self._active_season_by_schedule.get(schedule_id)
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.id})>"
@@ -350,7 +541,38 @@ class Player:
 
     @property
     def gm_stats(self) -> ModeData:
-        """The player's stats in their currently selected mode."""
+        """The player's stats in their currently selected mode.
+
+        Returns seasonal stats if the player has preferred_lb_view set to 'seasonal'
+        and has a selected_season_id, otherwise returns all-time stats.
+        """
+        if self.preferred_lb_view == "seasonal":
+            if self.selected_season_id is not None:
+                season_stats = self.get_season_stats(
+                    self.selected_season_id,
+                    self.status.mode,
+                )
+            else:
+                schedule_id: int = 0
+                season_id: int = 0
+                if self.preferred_schedule_id is not None:
+                    schedule_id = self.preferred_schedule_id
+                if schedule_id != 0:
+                    season_id = self.get_active_season_for_schedule(schedule_id) or 0
+                else:
+                    # No schedule specified, try to get the first active season
+                    # from any schedule as a default
+                    for sched_id, s_id in self._active_season_by_schedule.items():
+                        if s_id is not None:
+                            schedule_id = sched_id
+                            season_id = s_id
+                            break
+                if season_id != 0:
+                    season_stats = self.get_season_stats(season_id, self.status.mode)
+                else:
+                    season_stats = None
+            if season_stats is not None:
+                return season_stats
         return self.stats[self.status.mode]
 
     @property
@@ -370,6 +592,17 @@ class Player:
 
         return score
 
+    @property
+    def has_group_capability(self) -> bool:
+        """Does the server and the client has group capabilities"""
+        from app.api.domains.packets.aeris import AERIS_SERVER_FEATURES
+
+        return (
+            self.aeris_client
+            and AERIS_SERVER_FEATURES & AerisFeatures.Groups > 0
+            and self.aeris_client_features & AerisFeatures.Groups > 0
+        )
+
     @staticmethod
     def generate_token() -> str:
         """Generate a random uuid as a token."""
@@ -377,12 +610,22 @@ class Player:
 
     def logout(self) -> None:
         """Log `self` out of the server."""
+        # Store the token before clearing it (needed for removal from _by_token)
+        original_token = self.token
+
         # invalidate the user's token.
         self.token = ""
 
         # leave multiplayer.
         if self.match:
             self.leave_match()
+
+        group = app.state.sessions.groups.get_group(self)
+        if group is not None:
+            if group.lead is self:
+                group.disband()
+            else:
+                group.remove_user(self)
 
         # stop spectating.
         host = self.spectating
@@ -395,7 +638,7 @@ class Player:
 
         # remove from playerlist and
         # enqueue logout to all users.
-        app.state.sessions.players.remove(self)
+        app.state.sessions.players.remove(self, original_token=original_token)
 
         if not self.restricted:
             if app.state.services.datadog:
@@ -456,8 +699,8 @@ class Player:
         await self.remove_privs(Privileges.UNRESTRICTED)
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="restrict",
             msg=reason,
         )
@@ -468,13 +711,13 @@ class Player:
                 self.id,
             )
             await app.state.services.redis.zrem(
-                f'bancho:leaderboard:{mode}:{self.geoloc["country"]["acronym"]}',
+                f"bancho:leaderboard:{mode}:{self.geoloc['country']['acronym']}",
                 self.id,
             )
 
         log_msg = f"{admin} restricted {self} for: {reason}."
 
-        log(log_msg, Ansi.LRED)
+        log(log_msg, Ansi.LRED, level=logLevel.INFO)
 
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
@@ -490,14 +733,15 @@ class Player:
         await self.add_privs(Privileges.UNRESTRICTED)
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="unrestrict",
             msg=reason,
         )
 
         if not self.is_online:
             await self.stats_from_sql_full()
+            await self.load_season_stats()
 
         for mode, stats in self.stats.items():
             await app.state.services.redis.zadd(
@@ -533,8 +777,8 @@ class Player:
         )
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="silence",
             msg=reason,
         )
@@ -561,8 +805,8 @@ class Player:
         )
 
         await logs_repo.create(
-            _from=admin.id,
-            to=self.id,
+            from_id=admin.id,
+            to_id=self.id,
             action="unsilence",
             msg=reason,
         )
@@ -629,7 +873,7 @@ class Player:
     def leave_match(self) -> None:
         """Attempt to remove `self` from their match."""
         if not self.match:
-            if app.settings.DEBUG:
+            if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{self} tried leaving a match they're not in?", Ansi.LYELLOW)
             return
 
@@ -717,7 +961,7 @@ class Player:
                 if channel.can_read(player.priv):
                     player.enqueue(chan_info_packet)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{self} joined {channel}.")
 
         return True
@@ -752,7 +996,7 @@ class Player:
                 if channel.can_read(player.priv):
                     player.enqueue(chan_info_packet)
 
-        if app.settings.DEBUG:
+        if app.settings.DEBUG_LEVEL >= 1:
             log(f"{self} left {channel}.")
 
     def add_spectator(self, player: Player) -> None:
@@ -895,9 +1139,12 @@ class Player:
 
     async def relationships_from_sql(self) -> None:
         """Retrieve `self`'s relationships from sql."""
-        for row in await app.state.services.database.fetch_all(
-            "SELECT user2, type FROM relationships WHERE user1 = :user1",
-            {"user1": self.id},
+        for row in (
+            await app.state.services.database.fetch_all(
+                "SELECT user2, type FROM relationships WHERE user1 = :user1",
+                {"user1": self.id},
+            )
+            or []
         ):
             if row["type"] == "friend":
                 self.friends.add(row["user2"])
@@ -913,6 +1160,17 @@ class Player:
 
         rank = await app.state.services.redis.zrevrank(
             f"bancho:leaderboard:{mode.value}",
+            str(self.id),
+        )
+        return cast(int, rank) + 1 if rank is not None else 0
+
+    async def get_season_rank(self, season_id: int, mode: GameMode) -> int:
+        """Get the player's rank in a specific season and mode."""
+        if self.restricted:
+            return 0
+
+        rank = await app.state.services.redis.zrevrank(
+            f"bancho:leaderboard:{mode.value}:season:{season_id}",
             str(self.id),
         )
         return cast(int, rank) + 1 if rank is not None else 0
@@ -948,8 +1206,49 @@ class Player:
 
         return await self.get_global_rank(mode)
 
+    async def update_season_rank(self, season_id: int, mode: GameMode) -> int:
+        """Update the player's rank in a specific season and mode.
+
+        Returns the player's rank after the update.
+        """
+        season_stats = self.get_season_stats(season_id, mode)
+        if season_stats is None:
+            return 0
+
+        if not self.restricted:
+            # Update season leaderboard
+            await app.state.services.redis.zadd(
+                f"bancho:leaderboard:{mode.value}:season:{season_id}",
+                {str(self.id): season_stats.pp},
+            )
+
+        return await self.get_season_rank(season_id, mode)
+
     async def stats_from_sql_full(self) -> None:
         """Retrieve `self`'s stats (all modes) from sql."""
+        # Initialize empty stats for all game modes to prevent KeyError
+        for mode in GameMode:
+            if mode not in self.stats:
+                self.stats[mode] = ModeData(
+                    tscore=0,
+                    rscore=0,
+                    pp=0,
+                    acc=0.0,
+                    plays=0,
+                    playtime=0,
+                    max_combo=0,
+                    total_hits=0,
+                    rank=0,
+                    grades={
+                        Grade.XH: 0,
+                        Grade.X: 0,
+                        Grade.SH: 0,
+                        Grade.S: 0,
+                        Grade.A: 0,
+                    },
+                )
+
+        # Then load from database
         for row in await stats_repo.fetch_many(player_id=self.id):
             game_mode = GameMode(row["mode"])
             self.stats[game_mode] = ModeData(
@@ -1014,4 +1313,19 @@ class Player:
                 recipient=self.name,
                 sender_id=bot.id,
             ),
+        )
+
+    async def update_season_preference(self, preference: str) -> None:
+        """Update the player's season view preference.
+
+        Args:
+            preference: Either "all_time" or "seasonal"
+        """
+        if preference not in ("all_time", "seasonal"):
+            raise ValueError("Preference must be 'all_time' or 'seasonal'")
+
+        self.preferred_lb_view = preference
+        await users_repo.partial_update(
+            id=self.id,
+            preferred_lb_view=preference,
         )
