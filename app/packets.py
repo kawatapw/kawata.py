@@ -371,8 +371,8 @@ class MultiplayerMatch:
 
 
 class BasePacket(ABC):
-    @abstractmethod
-    def __init__(self, reader: BanchoPacketReader) -> None: ...
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass
 
     @abstractmethod
     async def handle(self, player: Player) -> None: ...
@@ -415,16 +415,14 @@ class BanchoPacketReader:
     def __next__(self) -> BasePacket:
         # do not break until we've read the
         # header of a packet we can handle.
-        i = 0
         p_type = ClientPackets.UNKNOWN_PACKET
         p_len = 0
         while self.body_view:  # len(self.view) < 7?
-            if len(self.body_view) < 7 and i < 1:
+            if len(self.body_view) < 7:
                 logging.log(
                     f"Packet too short to read header, skipping. {self.body_view}",
                 )
-                i += 1
-                continue
+                break
             p_type, p_len = self._read_header()
 
             if p_type not in self.packet_map:

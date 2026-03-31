@@ -428,12 +428,12 @@ class Players(list[Player]):
                 log(f"{player} removed from player list when not online?")
             return
 
-        super().remove(player)
         # Use original_token if provided (for logout case), otherwise use player.token
         token_to_remove = original_token if original_token is not None else player.token
-        del self._by_token[token_to_remove]
-        del self._by_id[player.id]
-        del self._by_name[player.safe_name]
+        self._by_token.pop(token_to_remove, None)
+        self._by_id.pop(player.id, None)
+        self._by_name.pop(player.safe_name, None)
+        super().remove(player)
 
 
 @error_catcher

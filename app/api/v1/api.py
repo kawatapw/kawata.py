@@ -761,10 +761,14 @@ async def api_get_player_scores(
 
     if season_id is not None:
         season = await seasons_repo.fetch_one(id=season_id)
-        if season:
-            query.append("AND t.play_time >= :start_date AND t.play_time < :end_date")
-            params["start_date"] = season["start_date"]
-            params["end_date"] = season["end_date"]
+        if not season:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {season_id} not found."},
+                status_code=404,
+            )
+        query.append("AND t.play_time >= :start_date AND t.play_time < :end_date")
+        params["start_date"] = season["start_date"]
+        params["end_date"] = season["end_date"]
 
     if mods is not None:
         if strong_equality:
@@ -1040,10 +1044,14 @@ async def api_get_map_scores(
 
     if season_id is not None:
         season = await seasons_repo.fetch_one(id=season_id)
-        if season:
-            query.append("AND s.play_time >= :start_date AND s.play_time < :end_date")
-            params["start_date"] = season["start_date"]
-            params["end_date"] = season["end_date"]
+        if not season:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {season_id} not found."},
+                status_code=404,
+            )
+        query.append("AND s.play_time >= :start_date AND s.play_time < :end_date")
+        params["start_date"] = season["start_date"]
+        params["end_date"] = season["end_date"]
 
     if mods is not None:
         if strong_equality:
@@ -1548,11 +1556,11 @@ async def api_get_friends(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # get user info from username or id
+    # get user info from username or id (includes offline players via DB lookup)
     if username:
-        user_info = app.state.sessions.players.get(name=username)
+        user_info = await app.state.sessions.players.from_cache_or_sql(name=username)
     else:  # if userid
-        user_info = app.state.sessions.players.get(id=user_id)
+        user_info = await app.state.sessions.players.from_cache_or_sql(id=user_id)
     if user_info is None:
         return ORJSONResponse(
             {"status": "Player not found."},

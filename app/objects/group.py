@@ -123,7 +123,7 @@ class Group:
             player.enqueue(app.packets.group_invite(self.lead))
         else:
             player.send_bot(
-                f"You got a new group invite from {player.name}.\ndo !accept {player.safe_name} to accept it",
+                f"You got a new group invite from {self.lead.name}.\ndo !accept {self.lead.safe_name} to accept it",
             )
 
     def make_match(self) -> None:
@@ -135,13 +135,13 @@ class Group:
         if player.has_group_capability:
             player.enqueue(app.packets.group_join())
         for p in self.players:
-            player.enqueue(
+            p.enqueue(
                 app.packets.notification(
                     f"{'you' if p is player else player.name} joined the group",
                 ),
             )
-            if player.has_group_capability:
-                player.enqueue(app.packets.group_users(p))
+            if p.has_group_capability:
+                p.enqueue(app.packets.group_users(p))
         player.join_channel(self.channel)
         self.channel.send_bot(f"{player.name} joined the group")
 
@@ -156,22 +156,21 @@ class Group:
         else:
             self.channel.send_bot(f"{player.name} left the group")
 
+        if kick:
+            player.enqueue(
+                app.packets.notification(
+                    "You have been kicked out of the group",
+                ),
+            )
+        else:
+            player.enqueue(app.packets.notification("You have left the group"))
+
         for p in self.players:
-            if p == player:
-                if kick:
-                    player.enqueue(
-                        app.packets.notification(
-                            "You have been kicked out of the group",
-                        ),
-                    )
-                else:
-                    player.enqueue(app.packets.notification("You have left the group"))
-            else:
-                player.enqueue(
-                    app.packets.notification(f"{player.name} left the group"),
-                )
-            if player.has_group_capability:
-                player.enqueue(app.packets.group_users(p))
+            p.enqueue(
+                app.packets.notification(f"{player.name} left the group"),
+            )
+            if p.has_group_capability:
+                p.enqueue(app.packets.group_users(p))
 
     def delegate(self, player: Player) -> None:
         self.lead = player
@@ -182,7 +181,8 @@ class Group:
 
     def disband(self) -> None:
         app.state.sessions.groups.remove(self)
-        for p in self.players:
+        for p in self.players[:]:
             p.enqueue(app.packets.notification("group has been disbanded"))
             if p.has_group_capability:
                 p.enqueue(app.packets.group_leave())
+            p.leave_channel(self.channel)

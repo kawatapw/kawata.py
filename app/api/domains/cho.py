@@ -360,12 +360,10 @@ async def bancho_handler(
         # the client is performing a login
         request._body = await request.body()  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
         log(
-            f"Login request from {ip}.\nRequest Body: {request._body.decode()}",
+            f"Login request from {ip}.",
             Ansi.LCYAN,
             extra={
                 "Client-IP": ip,
-                "Request-Headers": request.headers,
-                "Request": json.dumps(format_request(request)),
             },
         )
         login_data = await handle_osu_login_request(
