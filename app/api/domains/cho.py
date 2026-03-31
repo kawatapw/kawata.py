@@ -85,6 +85,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import html
 import json
 import random
 import re
@@ -331,12 +332,12 @@ async def bancho_view_matches() -> Response:
 matches:
 {
             new_line.join(
-                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
+                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {html.escape(m.name)}
 -- '''
                 + f"{new_line}-- ".join(
                     [
-                        f"{BEATMAP:<{max_properties_length}}: {m.map_name}",
-                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}",
+                        f"{BEATMAP:<{max_properties_length}}: {html.escape(m.map_name)}",
+                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {html.escape(m.host.safe_name)}",
                     ]
                 )
                 for m in matches
@@ -1056,7 +1057,7 @@ async def handle_osu_login_request(
     # with the exception of tourney spectator clients
     try:
         player = app.state.sessions.players.get(name=login_data["username"])
-        if player and osu_version.stream != "tourney":
+        if player and osu_version.stream != OsuStream.TOURNEY:
             # check if the existing session is still active
             if (login_time - player.last_recv_time) < 10:
                 log(

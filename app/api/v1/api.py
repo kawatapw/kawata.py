@@ -1318,7 +1318,7 @@ async def api_get_global_leaderboard(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, min=0, max=2_147_483_647),
     country: str | None = Query(None, min_length=2, max_length=2),
-    season_id: int = Query(0, alias="season"),
+    season_id: int | None = Query(None, alias="season"),
 ) -> Response:
     if mode_arg in (
         GameMode.RELAX_MANIA,
@@ -1340,7 +1340,7 @@ async def api_get_global_leaderboard(
         query_conditions.append("u.country = :country")
         query_parameters["country"] = country
 
-    if season_id is not None:
+    if season_id is not None and season_id != 0:
         query_conditions.append("s.season_id = :season_id")
         query_parameters["season_id"] = season_id
 
@@ -1675,8 +1675,8 @@ async def api_get_badges(
 
         badges.append(badge)
 
-        # Sort the badges based on priority
-        badges.sort(key=lambda x: x["priority"], reverse=True)
+    # Sort the badges based on priority
+    badges.sort(key=lambda x: x["priority"], reverse=True)
 
     return ORJSONResponse(content={"badges": badges})
 

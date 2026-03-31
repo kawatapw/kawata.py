@@ -810,6 +810,18 @@ _expand_types: dict[osuTypes, Callable[..., bytearray]] = {
 }
 
 
+_INT_BOUNDS: dict[osuTypes, tuple[int, int]] = {
+    osuTypes.i8: (-128, 127),
+    osuTypes.u8: (0, 255),
+    osuTypes.i16: (-32768, 32767),
+    osuTypes.u16: (0, 65535),
+    osuTypes.i32: (-2147483648, 2147483647),
+    osuTypes.u32: (0, 4294967295),
+    osuTypes.i64: (-9223372036854775808, 9223372036854775807),
+    osuTypes.u64: (0, 18446744073709551615),
+}
+
+
 def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
     """Write `args` into bytes."""
     ret = bytearray(struct.pack("<Hx", packid))
@@ -818,11 +830,12 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
         if p_type == osuTypes.raw:
             ret += p_args
         elif p_type in _noexpand_types:
-            if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
+            bounds = _INT_BOUNDS.get(p_type)
+            if bounds is not None and isinstance(p_args, int) and not bounds[0] <= p_args <= bounds[1]:
                 logging.log(
-                    "Integer value out of range for 'i' format code",
+                    f"Integer value out of range for {p_type!r}",
                     level=logging.logLevel.WARNING,
-                    extra={"value": p_args},
+                    extra={"value": p_args, "bounds": bounds},
                 )
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:

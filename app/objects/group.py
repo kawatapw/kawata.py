@@ -118,6 +118,8 @@ class Group:
             lead.enqueue(app.packets.group_users(lead))
 
     def invite(self, player: Player) -> None:
+        if player in self.players:
+            return
         if player in self.invites:
             return
         self.invites.append(player)
