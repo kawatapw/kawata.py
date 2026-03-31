@@ -910,7 +910,6 @@ async def handle_osu_login_request(
             extra={
                 "ip": ip,
                 "error": str(e),
-                "body": body,
                 "exception_type": type(e).__name__,
             },
         )

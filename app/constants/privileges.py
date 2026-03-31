@@ -182,6 +182,8 @@ def GetPriv(priv: int | list[Privileges]) -> int | list[Privileges]:
         ValueError: If no privileges are found.
     """
     if isinstance(priv, int):
+        if priv < 0:
+            raise ValueError("Privilege value cannot be negative")
         privs: int | list[Privileges] = [
             p for p in Privileges if p.value != 0 and priv & p.value == p.value
         ]

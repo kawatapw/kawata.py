@@ -113,6 +113,8 @@ _SAFE_BIN_OPS: dict[type, Callable[..., Any]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
+    ast.BitAnd: operator.and_,
+    ast.BitOr: operator.or_,
 }
 
 
@@ -192,11 +194,32 @@ def _safe_eval_node(
     raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
+_ALLOWED_AST_TYPES: frozenset[type] = frozenset({
+    ast.Expression,
+    ast.Constant,
+    ast.Name,
+    ast.Attribute,
+    ast.Compare,
+    ast.BoolOp,
+    ast.UnaryOp,
+    ast.BinOp,
+    ast.Load,
+    # Comparison operator nodes
+    ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
+    # Boolean operator nodes
+    ast.And, ast.Or,
+    # Unary operator nodes
+    ast.Not, ast.USub,
+    # Binary operator nodes
+    ast.Add, ast.Sub, ast.Mult, ast.BitAnd, ast.BitOr,
+})
+
+
 def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
     """Parse an achievement condition string into a safe callable.
 
     Only allows: attribute access on 'score', comparisons, boolean
-    operators (and/or/not), arithmetic (+/-/*), and literals.
+    operators (and/or/not), arithmetic (+/-/*/&/|), and literals.
     """
     try:
         tree = ast.parse(cond_str, mode="eval")
@@ -204,6 +227,15 @@ def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
         raise ValueError(
             f"Invalid achievement condition syntax: {cond_str!r}",
         ) from exc
+
+    # Eagerly validate the AST: reject any node types not handled
+    # by _safe_eval_node so bad conditions fail at load time.
+    for node in ast.walk(tree):
+        if type(node) not in _ALLOWED_AST_TYPES:
+            raise ValueError(
+                f"Unsupported AST node {type(node).__name__!r} "
+                f"in achievement condition: {cond_str!r}",
+            )
 
     def evaluator(score: Score, mode_vn: int) -> bool:
         return _safe_eval_node(tree, score, mode_vn)

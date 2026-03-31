@@ -165,6 +165,14 @@ class Group:
         else:
             player.enqueue(app.packets.notification("You have left the group"))
 
+        if not self.players:
+            self.disband()
+            return
+
+        if player is self.lead:
+            self.lead = self.players[0]
+            self.channel.send_bot(f"Lead is now {self.lead.name}")
+
         for p in self.players:
             p.enqueue(
                 app.packets.notification(f"{player.name} left the group"),

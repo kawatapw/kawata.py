@@ -247,7 +247,7 @@ async def api_calculate_pp_batch(
     Returns results keyed by beatmap ID.
     """
 
-    if app.state.sessions.api_keys.get(token.credentials) is None:
+    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1686,12 +1686,14 @@ async def api_update_map_status(
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
+            status_code=401,
         )
     if token.credentials != app.settings.BOT_API_KEY:
         return ORJSONResponse(
             {
                 "status": "This endpoint is locked down and should only be used by the server.",
             },
+            status_code=403,
         )
     if map_id is None and set_id is None:
         return ORJSONResponse(

@@ -422,7 +422,7 @@ class BanchoPacketReader:
                 logging.log(
                     f"Packet too short to read header, skipping. {self.body_view}",
                 )
-                break
+                raise StopIteration
             p_type, p_len = self._read_header()
 
             if p_type not in self.packet_map:
