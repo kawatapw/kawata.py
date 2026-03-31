@@ -1395,7 +1395,9 @@ async def handle_osu_login_request(
             login_time=login_time,
             is_tourney_client=osu_version.stream == "tourney",
             api_key=user_info["api_key"],
-            preferred_lb_view=user_info.get("preferred_lb_view", "all_time"),
+            preferred_lb_view=user_info.get("preferred_lb_view", "all_time")
+            if user_info.get("preferred_lb_view", "all_time") in ("all_time", "seasonal")
+            else "all_time",
         )
     except Exception as e:
         log(

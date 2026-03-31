@@ -64,7 +64,7 @@ Usage Pattern:
     group.add_player(player)
 
     # Remove player from group
-    group.remove_player(player)
+    group.remove_user(player)
 
     # Delegate leadership
     group.delegate(new_leader)
@@ -134,7 +134,8 @@ class Group:
         self.lead.send_bot("Matches are not currently implemented.")
 
     def add_player(self, player: Player) -> None:
-        self.invites.remove(player)
+        if player in self.invites:
+            self.invites.remove(player)
         self.players.append(player)
         if player.has_group_capability:
             player.enqueue(app.packets.group_join())
@@ -201,3 +202,4 @@ class Group:
                 p.enqueue(app.packets.group_leave())
             p.leave_channel(self.channel)
         self.players.clear()
+        self.invites.clear()

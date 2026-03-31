@@ -154,15 +154,15 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 @error_catcher
 async def api_calculate_pp(
     token: HTTPCredentials | None = api_key_dependency,  # noqa: B008
-    beatmap_id: int = Query(None, alias="id", min=0, max=2_147_483_647),  # noqa: B008
-    nkatu: int = Query(None, max=2_147_483_647),  # noqa: B008
-    ngeki: int = Query(None, max=2_147_483_647),  # noqa: B008
-    n100: int = Query(None, max=2_147_483_647),  # noqa: B008
-    n50: int = Query(None, max=2_147_483_647),  # noqa: B008
-    misses: int = Query(0, max=2_147_483_647),  # noqa: B008
-    mods: int = Query(0, min=0, max=2_147_483_647),  # noqa: B008
-    mode: int = Query(0, min=0, max=11),  # noqa: B008
-    combo: int = Query(None, max=2_147_483_647),  # noqa: B008
+    beatmap_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),  # noqa: B008
+    nkatu: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    ngeki: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    n100: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    n50: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    misses: int = Query(0, le=2_147_483_647),  # noqa: B008
+    mods: int = Query(0, ge=0, le=2_147_483_647),  # noqa: B008
+    mode: int = Query(0, ge=0, le=11),  # noqa: B008
+    combo: int | None = Query(None, le=2_147_483_647),  # noqa: B008
     acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),  # noqa: B008
 ) -> ORJSONResponse:
     """Calculates the PP of a specified map with specified score parameters."""
@@ -1316,7 +1316,7 @@ async def api_get_global_leaderboard(
     sort: Literal["tscore", "rscore", "pp", "acc", "plays", "playtime"] = "pp",
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
     limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, min=0, max=2_147_483_647),
+    offset: int = Query(0, ge=0, le=2_147_483_647),
     country: str | None = Query(None, min_length=2, max_length=2),
     season_id: int | None = Query(None, alias="season"),
 ) -> Response:
@@ -1343,6 +1343,8 @@ async def api_get_global_leaderboard(
     if season_id is not None and season_id != 0:
         query_conditions.append("s.season_id = :season_id")
         query_parameters["season_id"] = season_id
+    else:
+        query_conditions.append("s.season_id = 0")
 
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id as player_id, u.name, u.country, s.tscore, s.rscore, "
@@ -1386,7 +1388,7 @@ async def api_get_top_players() -> Response:
 
         mode = GameMode(mode_arg)
 
-        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0"]
+        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0", "s.season_id = 0"]
         query_parameters: dict[str, object] = {"mode": mode}
 
         rows = await app.state.services.database.fetch_all(
@@ -1687,7 +1689,7 @@ async def api_update_map_status(
     token: HTTPCredentials | None = api_key_dependency,
     map_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
     set_id: int | None = Query(None, alias="sid", ge=0, le=2_147_483_647),
-    status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
+    map_status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
 ) -> Response:
     """Update the status of a given beatmap."""
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
@@ -1706,7 +1708,7 @@ async def api_update_map_status(
         return ORJSONResponse(
             {"status": "Must provide either id or sid!"},
         )
-    if status not in (0, 1, 2, 3, 4, 5):
+    if map_status not in (0, 1, 2, 3, 4, 5):
         return ORJSONResponse(
             {"status": "Invalid status!"},
         )
@@ -1716,7 +1718,7 @@ async def api_update_map_status(
     if not bmap:
         if set_id is None:
             raise HTTPException(status_code=404, detail="Beatmap not found")
-    new_status = RankedStatus(status)
+    new_status = RankedStatus(map_status)
     # Update the beatmap status
     if set_id is not None:
         try:
