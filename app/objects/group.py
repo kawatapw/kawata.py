@@ -118,6 +118,8 @@ class Group:
             lead.enqueue(app.packets.group_users(lead))
 
     def invite(self, player: Player) -> None:
+        if player in self.invites:
+            return
         self.invites.append(player)
         if player.has_group_capability:
             player.enqueue(app.packets.group_invite(self.lead))
@@ -188,9 +190,12 @@ class Group:
         self.channel.send_bot(f"Lead is now {player.name}")
 
     def disband(self) -> None:
+        if self not in app.state.sessions.groups:
+            return
         app.state.sessions.groups.remove(self)
         for p in self.players[:]:
             p.enqueue(app.packets.notification("group has been disbanded"))
             if p.has_group_capability:
                 p.enqueue(app.packets.group_leave())
             p.leave_channel(self.channel)
+        self.players.clear()

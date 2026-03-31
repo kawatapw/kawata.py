@@ -549,6 +549,13 @@ async def api_get_player_status(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Validate identifiers are non-empty
+    if not identifiers:
+        return ORJSONResponse(
+            {"status": "Must provide non-empty ids or names."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     # Limit the number of identifiers to prevent abuse
     if len(identifiers) > 100:
         return ORJSONResponse(

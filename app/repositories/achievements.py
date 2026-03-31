@@ -295,6 +295,9 @@ async def create(
     cond: str,
 ) -> Achievement:
     """Create a new achievement."""
+    # Validate condition before persisting to DB
+    cond_func = _make_achievement_cond(cond)
+
     insert_stmt = insert(AchievementsTable).values(
         file=file,
         name=name,
@@ -307,7 +310,7 @@ async def create(
     achievement = await app.state.services.database.fetch_one(select_stmt)
     assert achievement is not None
 
-    achievement["cond"] = _make_achievement_cond(achievement["cond"])
+    achievement["cond"] = cond_func
     return cast(Achievement, achievement)
 
 
@@ -372,6 +375,10 @@ async def partial_update(
     cond: str | _UnsetSentinel = UNSET,
 ) -> Achievement | None:
     """Update an existing achievement."""
+    # Validate condition before persisting to DB
+    if not isinstance(cond, _UnsetSentinel):
+        _make_achievement_cond(cond)
+
     update_stmt = update(AchievementsTable).where(AchievementsTable.id == id)
     if not isinstance(file, _UnsetSentinel):
         update_stmt = update_stmt.values(file=file)
@@ -405,5 +412,4 @@ async def delete_one(
     delete_stmt = delete(AchievementsTable).where(AchievementsTable.id == id)
     await app.state.services.database.execute(delete_stmt)
 
-    achievement["cond"] = _make_achievement_cond(achievement["cond"])
     return cast(Achievement, achievement)
