@@ -117,6 +117,7 @@ from app.logging import Ansi, log, logLevel
 from app.objects.channel import Channel
 from app.objects.match import Match, MatchTeams, MatchTeamTypes, Slot, SlotStatus
 from app.objects.score import Grade, Score
+from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
@@ -298,6 +299,7 @@ class Player:
         token: str,
         clan_id: int | None = None,
         clan_priv: ClanPrivileges | None = None,
+        clan: clans_repo.Clan | None = None,
         geoloc: Geolocation | None = None,
         utc_offset: int = 0,
         pm_private: bool = False,
@@ -330,6 +332,7 @@ class Player:
         self.token = token
         self.clan_id = clan_id
         self.clan_priv = clan_priv
+        self.clan = clan
         self.geoloc = geoloc
         self.utc_offset = utc_offset
         self.pm_private = pm_private

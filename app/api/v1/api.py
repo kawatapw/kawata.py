@@ -1858,8 +1858,8 @@ async def api_get_online_players_sample(
             "id": p.id,
             "name": p.name,
             "country": p.geoloc["country"]["acronym"],
-            "clan_id": p.clan.id if p.clan else None,
-            "clan_tag": p.clan.tag if p.clan else None,
+            "clan_id": p.clan["id"] if p.clan else None,
+            "clan_tag": p.clan["tag"] if p.clan else None,
             "pp": round(p.gm_stats.pp, 2) if p.gm_stats else 0,
             "rank": p.gm_stats.rank if p.gm_stats else 0,
             "status": {

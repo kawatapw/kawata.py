@@ -1266,10 +1266,12 @@ async def handle_osu_login_request(
     # get clan & clan priv if we're in a clan
     clan_id: int | None = None
     clan_priv: ClanPrivileges | None = None
+    clan: clans_repo.Clan | None = None
     try:
         if user_info["clan_id"] != 0:
             clan_id = user_info["clan_id"]
             clan_priv = ClanPrivileges(user_info["clan_priv"])
+            clan = await clans_repo.fetch_one(id=clan_id)
     except Exception as e:
         log(
             "Error processing clan information",
@@ -1386,6 +1388,7 @@ async def handle_osu_login_request(
             token=Player.generate_token(),
             clan_id=clan_id,
             clan_priv=clan_priv,
+            clan=clan,
             geoloc=geoloc,
             utc_offset=login_data["utc_offset"],
             pm_private=login_data["pm_private"],
