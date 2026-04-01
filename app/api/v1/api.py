@@ -88,6 +88,7 @@ Related Files:
 import asyncio
 import hashlib
 import json
+import random
 import struct
 from pathlib import Path as SystemPath
 from typing import Any, Literal
@@ -377,6 +378,12 @@ async def api_search_players(
 @error_catcher
 async def api_get_player_count() -> Response:
     """Get the current amount of online players."""
+    recent = await app.state.services.database.fetch_all(
+        "SELECT id FROM users WHERE priv & 1 ORDER BY id DESC LIMIT 5",
+    )
+    scores_count = await app.state.services.database.fetch_val(
+        "SELECT COUNT(*) FROM scores",
+    )
     return ORJSONResponse(
         {
             "status": "success",
@@ -384,6 +391,8 @@ async def api_get_player_count() -> Response:
                 # -1 for the bot, who is always online
                 "online": len(app.state.sessions.players.unrestricted) - 1,
                 "total": await users_repo.fetch_count(),
+                "total_scores": scores_count or 0,
+                "recent_users": [row["id"] for row in recent] if recent else [],
             },
         },
     )
@@ -1823,3 +1832,44 @@ async def api_update_map_status(
 #     # write to the avatar file
 #     (AVATARS_PATH / f"{player.id}.{ext}").write_bytes(ava_file)
 #     return JSON({"status": "success."})
+
+
+@router.get("/get_online_players_sample")
+@error_catcher
+async def api_get_online_players_sample(
+    limit: int = Query(12, ge=1, le=50),
+) -> Response:
+    """Return a sample of currently online players for home page display."""
+    # Get unrestricted online players (exclude bot, ID 1)
+    online = [
+        p for p in app.state.sessions.players.unrestricted
+        if p.id > 1
+    ]
+
+    # Sample random players (or return all if fewer than limit)
+    if len(online) > limit:
+        sample = random.sample(online, limit)
+    else:
+        sample = online
+
+    players = []
+    for p in sample:
+        players.append({
+            "id": p.id,
+            "name": p.name,
+            "country": p.geoloc["country"]["acronym"],
+            "clan_id": p.clan.id if p.clan else None,
+            "clan_tag": p.clan.tag if p.clan else None,
+            "pp": round(p.gm_stats.pp, 2) if p.gm_stats else 0,
+            "rank": p.gm_stats.rank if p.gm_stats else 0,
+            "status": {
+                "online": True,
+                "action": p.status.action.value if p.status else 0,
+                "info_text": p.status.info_text if p.status else "",
+            },
+        })
+
+    return ORJSONResponse({
+        "status": "success",
+        "players": players,
+    })
