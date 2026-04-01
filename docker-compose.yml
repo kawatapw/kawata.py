@@ -50,7 +50,7 @@ services:
   ## application services
 
   bancho:
-    # * we also have a public image: kawatapw/kawata.py:latest 
+    # * we also have a public image: kawatapw/kawata.py:latest
     # NOTE: (You can also use BE-Master/BE-Prod/BE-Staging/BE-Dev tags for running Production/Staging/Dev versions of the image. For production environments, please use BE-Prod to ensure you are using a Production Ready image.)
     image: ${GITHUB_OWNER}/${GITHUB_REPO}:${CONTAINER_VERSION}
     ports:
@@ -70,6 +70,7 @@ services:
     init: true
     volumes:
       - .:/srv/root
+      - venv:/srv/root/.venv
       - data:/srv/root/.data
     environment:
       - APP_HOST=${APP_HOST}
@@ -125,6 +126,7 @@ services:
       - USINGROOTDOMAIN=${USINGROOTDOMAIN}
 
 volumes:
+  venv:
   data:
   db-data:
   redis-data:

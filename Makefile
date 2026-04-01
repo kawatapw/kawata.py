@@ -24,27 +24,27 @@ logs:
     docker compose logs -f bancho mysql redis --tail ${last}
 
 shell:
-    uv run python
+	uv run --active python
 
 test:
     docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test
     docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
 
 lint:
-    uv run pre-commit run --all-files
+	uv run --active pre-commit run --all-files
 
 type-check:
-    uv run mypy .
+	uv run --active mypy .
 
 install:
-    uv sync --all-extras --dev
+	uv sync --all-extras --dev
 
 uninstall:
-    # uv doesn't have a direct uninstall command, but you can remove the virtual environment
-    rm -rf .venv
+	# uv doesn't have a direct uninstall command, but you can remove the virtual environment
+	rm -rf .venv
 
 # To bump the version number run `make bump version=<major/minor/patch>`
 # (DO NOT USE IF YOU DON'T KNOW WHAT YOU'RE DOING)
 # https://python-poetry.org/docs/cli/#version
 bump:
-    uv run bump2version $(version)
+	uv run --active bump2version $(version)

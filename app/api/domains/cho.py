@@ -1,27 +1,104 @@
-"""cho: handle cho packets from the osu! client"""
+"""
+CHO Domain Module - osu! Client Packet Handling and Authentication
+
+This module implements the core CHO (Chat/Osu) protocol handler for the osu! server
+application. It manages all client-server communication including authentication,
+chat messaging, multiplayer match management, spectator mode, and various gameplay
+features. The module serves as the primary interface between the osu! client and
+the server's internal systems.
+
+The CHO protocol is the main communication protocol used by the osu! client to
+interact with the server. This module handles packet parsing, authentication,
+session management, and routing of client requests to appropriate handlers.
+It implements the complete login flow, chat system, multiplayer functionality,
+and various other features required for a fully functional osu! private server.
+
+Key Features:
+    - Complete osu! client authentication and session management
+    - Real-time chat messaging with channel support
+    - Multiplayer match creation, joining, and management
+    - Spectator mode with frame streaming
+    - Beatmap information and performance calculation
+    - User presence and status broadcasting
+    - Anti-cheat integration and validation
+    - Rate limiting and security measures
+    - Comprehensive error handling and logging
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Channel management in app/objects/channel.py
+    - Packet handling in app/packets.py
+    - Database operations in app/repositories/
+    - Performance calculation in app/usecases/performance.py
+    - Anti-cheat validation in app/constants/clientflags.py
+
+Authentication Flow:
+    1. Client sends login request without osu-token header
+    2. Server parses login data (username, password, client info)
+    3. Validates client version and hardware information
+    4. Authenticates user credentials against database
+    5. Creates player session and generates token
+    6. Returns login response with session token
+
+Packet Handling:
+    - All client packets are processed through the bancho_handler endpoint
+    - Packets are parsed using BanchoPacketReader
+    - Each packet type has a dedicated handler class
+    - Handlers are registered using the @register decorator
+    - Restricted players have limited packet access
+
+Security Features:
+    - Password hashing with bcrypt
+    - Session token generation and validation
+    - Hardware fingerprinting for anti-cheat
+    - Rate limiting on login attempts
+    - Input validation and sanitization
+    - Restricted player limitations
+
+Usage Pattern:
+    # Login endpoint (POST /)
+    # Handles both login requests and packet processing
+
+    # Health check endpoint (GET /health)
+    # Returns server health status
+
+    # Server info endpoints (GET /infos, GET /)
+    # Returns server information and status
+
+    # Online users endpoint (GET /online)
+    # Returns list of online players
+
+    # Matches endpoint (GET /matches)
+    # Returns list of active multiplayer matches
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Multiplayer match handling
+    - app/objects/channel.py: Chat channel management
+    - app/packets.py: Packet definitions and utilities
+    - app/repositories/: Database access layer
+    - app/usecases/performance.py: Performance calculation
+"""
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
-import logging, random
+import html
 import json
+import random
 import re
 import struct
 import time
-from collections.abc import Callable
-from collections.abc import Mapping
-from datetime import date
-from datetime import datetime
+from collections.abc import Callable, Mapping
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
-from typing import Literal
-from typing import TypedDict
+from typing import Any, Literal, TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
-from fastapi import APIRouter
-from fastapi import Response
+from fastapi import APIRouter, Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -35,39 +112,48 @@ from app import commands
 from app._typing import IPAddress
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
-from app.constants.mods import SPEED_CHANGING_MODS
-from app.constants.mods import Mods
-from app.constants.privileges import ClanPrivileges
-from app.constants.privileges import ClientPrivileges
-from app.constants.privileges import Privileges
-from app.logging import Ansi, log, get_timestamp, magnitude_fmt_time, error_catcher, format_request
-
-from app.objects.beatmap import Beatmap
-from app.objects.beatmap import ensure_osu_file_is_available
+from app.constants.mods import SPEED_CHANGING_MODS, Mods
+from app.constants.privileges import ClanPrivileges, ClientPrivileges, Privileges
+from app.logging import (
+    Ansi,
+    error_catcher,
+    format_request,
+    get_timestamp,
+    log,
+    magnitude_fmt_time,
+)
+from app.objects.beatmap import Beatmap, ensure_osu_file_is_available
 from app.objects.channel import Channel
-from app.objects.match import MAX_MATCH_NAME_LENGTH
-from app.objects.match import Match
-from app.objects.match import MatchTeams
-from app.objects.match import MatchTeamTypes
-from app.objects.match import MatchWinConditions
-from app.objects.match import Slot
-from app.objects.match import SlotStatus
-from app.objects.player import Action
-from app.objects.player import ClientDetails
-from app.objects.player import OsuStream
-from app.objects.player import OsuVersion
-from app.objects.player import Player
-from app.objects.player import PresenceFilter
-from app.packets import BanchoPacketReader
-from app.packets import BasePacket
-from app.packets import ClientPackets
-from app.packets import LoginFailureReason
+from app.objects.match import (
+    MAX_MATCH_NAME_LENGTH,
+    Match,
+    MatchTeams,
+    MatchTeamTypes,
+    MatchWinConditions,
+    Slot,
+    SlotStatus,
+)
+from app.objects.player import (
+    Action,
+    ClientDetails,
+    OsuStream,
+    OsuVersion,
+    Player,
+    PresenceFilter,
+)
+from app.packets import (
+    BanchoPacketReader,
+    BasePacket,
+    ClientPackets,
+    LoginFailureReason,
+)
 from app.repositories import client_hashes as client_hashes_repo
 from app.repositories import ingame_logins as logins_repo
 from app.repositories import mail as mail_repo
 from app.repositories import users as users_repo
 from app.state import services
 from app.usecases.performance import ScoreParams
+
 from .packets import aeris
 
 OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
@@ -94,26 +180,27 @@ OLD_NOW_PLAYING_RGX = re.compile(
 FIRST_USER_ID = 3
 
 motds = [
-    "PANIGE Lazy Boi", 
-    "This Server Is sponsored by Raid Sh- oh... it's sponsored by nothing", 
+    "PANIGE Lazy Boi",
+    "This Server Is sponsored by Raid Sh- oh... it's sponsored by nothing",
     "Winners don't do drugs, unless it's steroids... In which case, DO LOTS OF DRUGS",
     "Inherited Flame Cancer",
-    "Hug ?", 
-    "PP when?", 
-    ":thinking:"
+    "Hug ?",
+    "PP when?",
+    ":thinking:",
 ]
 
-router = APIRouter(tags=["Bancho API"])
+router: APIRouter = APIRouter(tags=["Bancho API"])
+
 
 @router.get("/health")
 async def health_check() -> Response:
     checks: dict[str, Any] = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "bancho.py",
-        "checks": {}
+        "checks": {},
     }
-    
+
     # Check database
     try:
         await app.state.services.database.ping()
@@ -121,7 +208,7 @@ async def health_check() -> Response:
     except Exception as e:
         checks["status"] = "unhealthy"
         checks["checks"]["database"] = f"failed: {str(e)}"
-    
+
     # Check Redis
     try:
         await app.state.services.redis.ping()
@@ -129,11 +216,15 @@ async def health_check() -> Response:
     except Exception as e:
         checks["status"] = "unhealthy"
         checks["checks"]["redis"] = f"failed: {str(e)}"
-    
-    
+
     # Return appropriate HTTP status
     status_code = 200 if checks["status"] == "healthy" else 503
-    return Response(content=json.dumps(checks), status_code=status_code, media_type="application/json")
+    return Response(
+        content=json.dumps(checks),
+        status_code=status_code,
+        media_type="application/json",
+    )
+
 
 @router.get("/infos")
 @error_catcher
@@ -141,15 +232,22 @@ async def bancho_view_infos() -> Response:
     """Get server information"""
     data = {
         "version": aeris.AERIS_SERVER_FEATURES,
-        "motd": "osu!Kawata Welcome! | " + random.choice(motds),
-        "onlineUsers": len([player for player in app.state.sessions.players if not player.is_bot_client]),
-        "icon": "https://kawata.pw/static/images/logo.png"
+        "motd": "osu!Kawata Welcome! | " + random.choice(motds),  # nosec B311
+        "onlineUsers": len(
+            [
+                player
+                for player in app.state.sessions.players
+                if not player.is_bot_client
+            ],
+        ),
+        "icon": "https://kawata.pw/static/images/logo.png",
     }
 
     if app.settings.CLIENT_VERSION is not None:
         data["latestClientVersion"] = app.settings.CLIENT_VERSION
 
     return JSONResponse(data)
+
 
 @router.get("/")
 @error_catcher
@@ -164,7 +262,7 @@ async def bancho_http_handler() -> Response:
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+<body style="font-family: monospace; white-space: pre-wrap;">Running kawata.py v{app.settings.VERSION}
 
 <a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
@@ -172,7 +270,7 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/kawatapw/kawata.py">Source code</a>
 </body>
 </html>""",
     )
@@ -232,14 +330,19 @@ async def bancho_view_matches() -> Response:
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
 matches:
-{new_line.join(
-    f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
+{
+            new_line.join(
+                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {html.escape(m.name)}
 -- '''
-    + f"{new_line}-- ".join([
-        f'{BEATMAP:<{max_properties_length}}: {m.map_name}',
-        f'{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}'
-    ]) for m in matches
-)}
+                + f"{new_line}-- ".join(
+                    [
+                        f"{BEATMAP:<{max_properties_length}}: {html.escape(m.map_name)}",
+                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {html.escape(m.host.safe_name)}",
+                    ]
+                )
+                for m in matches
+            )
+        }
 </body>
 </html>""",
     )
@@ -256,13 +359,14 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
-        request._body = await request.body() # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
-        log(f"Login request from {ip}.\nRequest Body: {request._body.decode()}", Ansi.LCYAN, 
+        request._body = await request.body()  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
+        log(
+            f"Login request from {ip}.",
+            Ansi.LCYAN,
             extra={
                 "Client-IP": ip,
-                "Request-Headers": request.headers,
-                "Request": json.dumps(format_request(request)),
-            })
+            },
+        )
         login_data = await handle_osu_login_request(
             request.headers,
             request._body,
@@ -303,13 +407,16 @@ async def bancho_handler(
             for packet in BanchoPacketReader(body_view, packet_map):
                 await packet.handle(player)
     except Exception:
-        log(f"Error handling packet from {player}.", Ansi.LRED,
+        log(
+            f"Error handling packet from {player}.",
+            Ansi.LRED,
             exc_info=True,
             extra={
                 "Client-IP": ip,
                 "Request-Headers": request.headers,
                 "Request": json.dumps(format_request(request)),
-            })
+            },
+        )
 
     player.last_recv_time = time.time()
 
@@ -339,6 +446,9 @@ def register(
 
 @register(ClientPackets.PING, restricted=True)
 class Ping(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         pass  # ping be like
 
@@ -482,10 +592,16 @@ class SendMessage(BasePacket):
             # we'll update the player's last np stored.
             r_match = NOW_PLAYING_RGX.match(msg)
             or_match = OLD_NOW_PLAYING_RGX.match(msg)
-            if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+            if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                "all",
+                "messages",
+            ]:
                 log(f"self.msg object: {self.msg}")
             if or_match:
-                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "messages",
+                ]:
                     log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
                 # TODO: convert link to new format, grab mode from new link.
                 r_match = or_match
@@ -493,7 +609,10 @@ class SendMessage(BasePacket):
                 # the player is /np'ing a map.
                 # save it to their player instance
                 # so we can use this elsewhere owo..
-                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "messages",
+                ]:
                     log(f"NP Regex Matched: {r_match}", Ansi.LMAGENTA)
                 bmap = await Beatmap.from_bid(int(r_match["bid"]))
 
@@ -553,6 +672,9 @@ class Logout(BasePacket):
 
 @register(ClientPackets.REQUEST_STATUS_UPDATE, restricted=True)
 class StatsUpdateRequest(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         player.enqueue(app.packets.user_stats(player))
 
@@ -601,22 +723,26 @@ class LoginData(TypedDict):
 def parse_login_data(data: bytes) -> LoginData:
     """Parse data from the body of a login request."""
     debug_info = {"processing_stage": "initialization"}
-    
+
     try:
         # Split the login data
         username, password_md5, remainder = data.decode().split("\n", maxsplit=2)
         debug_info["processing_stage"] = "username/password parsing"
         debug_info["username"] = username
-        
+
         # Split remainder into components
-        osu_version, utc_offset, display_city, client_hashes, pm_private = remainder.split("|", maxsplit=4)
+        osu_version, utc_offset, display_city, client_hashes, pm_private = (
+            remainder.split("|", maxsplit=4)
+        )
         debug_info["processing_stage"] = "client info parsing"
         debug_info["osu_version"] = osu_version
-        
+
         # Split client hashes
-        osu_path_md5, adapters_str, adapters_md5, uninstall_md5, disk_signature_md5 = client_hashes[:-1].split(":", maxsplit=4)
+        osu_path_md5, adapters_str, adapters_md5, uninstall_md5, disk_signature_md5 = (
+            client_hashes[:-1].split(":", maxsplit=4)
+        )
         debug_info["processing_stage"] = "hash parsing"
-        
+
         # Build the login data structure
         login_data: LoginData = {
             "username": username,
@@ -631,27 +757,33 @@ def parse_login_data(data: bytes) -> LoginData:
             "uninstall_md5": uninstall_md5,
             "disk_signature_md5": disk_signature_md5,
         }
-        
+
         # Log successful processing
-        log(f"Successfully parsed login data for {username}", Ansi.LGREEN, extra=debug_info)
-        
+        log(
+            f"Successfully parsed login data for {username}",
+            Ansi.LGREEN,
+            extra=debug_info,
+        )
+
         return login_data
-        
+
     except Exception as e:
         # Update debug info with error details
         debug_info["error"] = str(e)
         debug_info["error_type"] = type(e).__name__
-        
+
         # Log the failure with the same debug_info
         log(f"Failed to parse login data: {e}", Ansi.LRED, extra=debug_info)
         raise
 
 
-
 def parse_osu_version_string(osu_version_string: str) -> OsuVersion | None:
     match = regexes.OSU_VERSION.match(osu_version_string)
     if match is None:
-        log(f"Regex mismatch for osu version string: {osu_version_string}", Ansi.LYELLOW)
+        log(
+            f"Regex mismatch for osu version string: {osu_version_string}",
+            Ansi.LYELLOW,
+        )
         return None
 
     osu_version = OsuVersion(
@@ -763,20 +895,32 @@ async def handle_osu_login_request(
 
     login_time = time.time()
     login_data = None
-    
+
     # parse login data
     try:
         login_data = parse_login_data(body)
-        log(f"Login attempt from {login_data['username']} at {ip}", Ansi.LCYAN, 
-            extra={"ip": ip, "username": login_data['username']})
+        log(
+            f"Login attempt from {login_data['username']} at {ip}",
+            Ansi.LCYAN,
+            extra={"ip": ip, "username": login_data["username"]},
+        )
     except Exception as e:
-        log(f"Error parsing login data", Ansi.LRED, 
-            extra={"ip": ip, "error": str(e), "body": body, "exception_type": type(e).__name__})
+        log(
+            "Error parsing login data",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "error": str(e),
+                "exception_type": type(e).__name__,
+            },
+        )
         return {
             "osu_token": "invalid-request",
             "response_body": (
                 app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                + app.packets.notification("Login data malformed. Please restart your osu! and try again.")
+                + app.packets.notification(
+                    "Login data malformed. Please restart your osu! and try again.",
+                )
             ),
         }
 
@@ -784,23 +928,42 @@ async def handle_osu_login_request(
     try:
         osu_version = parse_osu_version_string(login_data["osu_version"])
         if osu_version is None:
-            log(f"Invalid osu version string", Ansi.LYELLOW, 
-                extra={"ip": ip, "username": login_data['username'], "version_string": login_data["osu_version"]})
+            log(
+                "Invalid osu version string",
+                Ansi.LYELLOW,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "version_string": login_data["osu_version"],
+                },
+            )
             return {
                 "osu_token": "invalid-request",
                 "response_body": (
                     app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                    + app.packets.notification("Invalid Version! Please restart your osu! and try again.")
+                    + app.packets.notification(
+                        "Invalid Version! Please restart your osu! and try again.",
+                    )
                 ),
             }
     except Exception as e:
-        log(f"Error parsing osu version", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "osu_version": login_data["osu_version"], "error": str(e)})
+        log(
+            "Error parsing osu version",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "osu_version": login_data["osu_version"],
+                "error": str(e),
+            },
+        )
         return {
             "osu_token": "invalid-request",
             "response_body": (
                 app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                + app.packets.notification("Error processing client version. Please restart osu!.")
+                + app.packets.notification(
+                    "Error processing client version. Please restart osu!.",
+                )
             ),
         }
 
@@ -814,9 +977,16 @@ async def handle_osu_login_request(
                 allowed_client_versions is not None
                 and osu_version.date not in allowed_client_versions
             ):
-                log(f"Client too old", Ansi.LYELLOW, 
-                    extra={"ip": ip, "username": login_data['username'], "client_date": str(osu_version.date), 
-                           "stream": osu_version.stream})
+                log(
+                    "Client too old",
+                    Ansi.LYELLOW,
+                    extra={
+                        "ip": ip,
+                        "username": login_data["username"],
+                        "client_date": str(osu_version.date),
+                        "stream": osu_version.stream,
+                    },
+                )
                 return {
                     "osu_token": "client-too-old",
                     "response_body": (
@@ -825,30 +995,57 @@ async def handle_osu_login_request(
                     ),
                 }
     except Exception as e:
-        log(f"Error checking client version against allowed versions", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "client_version": str(osu_version.date)})
+        log(
+            "Error checking client version against allowed versions",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "client_version": str(osu_version.date),
+            },
+        )
         # We'll let them through since this is our error
 
     try:
         adapters, running_under_wine = parse_adapters_string(login_data["adapters_str"])
         if not (running_under_wine or any(adapters)):
-            log(f"Empty adapters", Ansi.LYELLOW, 
-                extra={"ip": ip, "username": login_data['username'], "adapters_str": login_data["adapters_str"]})
+            log(
+                "Empty adapters",
+                Ansi.LYELLOW,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "adapters_str": login_data["adapters_str"],
+                },
+            )
             return {
                 "osu_token": "empty-adapters",
                 "response_body": (
                     app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                    + app.packets.notification("Please restart your osu! and try again.")
+                    + app.packets.notification(
+                        "Please restart your osu! and try again.",
+                    )
                 ),
             }
     except Exception as e:
-        log(f"Error parsing adapters", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "adapters_str": login_data["adapters_str"], "error": str(e)})
+        log(
+            "Error parsing adapters",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "adapters_str": login_data["adapters_str"],
+                "error": str(e),
+            },
+        )
         return {
             "osu_token": "invalid-request",
             "response_body": (
                 app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                + app.packets.notification("Error processing hardware information. Please restart osu!.")
+                + app.packets.notification(
+                    "Error processing hardware information. Please restart osu!.",
+                )
             ),
         }
 
@@ -860,34 +1057,59 @@ async def handle_osu_login_request(
     # with the exception of tourney spectator clients
     try:
         player = app.state.sessions.players.get(name=login_data["username"])
-        if player and osu_version.stream != "tourney":
+        if player and osu_version.stream != OsuStream.TOURNEY:
             # check if the existing session is still active
             if (login_time - player.last_recv_time) < 10:
-                log(f"User already logged in", Ansi.LYELLOW, 
-                    extra={"ip": ip, "username": login_data['username'], "last_recv_time": player.last_recv_time})
+                log(
+                    "User already logged in",
+                    Ansi.LYELLOW,
+                    extra={
+                        "ip": ip,
+                        "username": login_data["username"],
+                        "last_recv_time": player.last_recv_time,
+                    },
+                )
                 return {
                     "osu_token": "user-already-logged-in",
                     "response_body": (
-                        app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+                        app.packets.login_reply(
+                            LoginFailureReason.AUTHENTICATION_FAILED,
+                        )
                         + app.packets.notification("User already logged in.")
                     ),
                 }
             else:
                 # session is not active; replace it
-                log(f"Replacing inactive session", Ansi.LGREEN, 
-                    extra={"ip": ip, "username": login_data['username'], "inactive_for": login_time - player.last_recv_time})
+                log(
+                    "Replacing inactive session",
+                    Ansi.LGREEN,
+                    extra={
+                        "ip": ip,
+                        "username": login_data["username"],
+                        "inactive_for": login_time - player.last_recv_time,
+                    },
+                )
                 player.logout()
                 del player
     except Exception as e:
-        log(f"Error checking for duplicate sessions", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e)})
+        log(
+            "Error checking for duplicate sessions",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         # Continue anyway, this error shouldn't block login
 
     try:
-        user_info = await authenticate(login_data["username"], login_data["password_md5"])
+        user_info = await authenticate(
+            login_data["username"],
+            login_data["password_md5"],
+        )
         if user_info is None:
-            log(f"Authentication failed", Ansi.LYELLOW, 
-                extra={"ip": ip, "username": login_data['username']})
+            log(
+                "Authentication failed",
+                Ansi.LYELLOW,
+                extra={"ip": ip, "username": login_data["username"]},
+            )
             return {
                 "osu_token": "incorrect-credentials",
                 "response_body": (
@@ -896,12 +1118,17 @@ async def handle_osu_login_request(
                 ),
             }
     except Exception as e:
-        log(f"Error during authentication", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e)})
+        log(
+            "Error during authentication",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         return {
             "osu_token": "authentication-error",
             "response_body": (
-                app.packets.notification(f"{BASE_DOMAIN}: Authentication error occurred")
+                app.packets.notification(
+                    f"{BASE_DOMAIN}: Authentication error occurred",
+                )
                 + app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
             ),
         }
@@ -912,8 +1139,15 @@ async def handle_osu_login_request(
             and user_info["priv"] & Privileges.UNRESTRICTED
         ):
             # trying to use tourney client with insufficient privileges.
-            log(f"Insufficient privileges for tourney client", Ansi.LYELLOW, 
-                extra={"ip": ip, "username": login_data['username'], "priv": user_info["priv"]})
+            log(
+                "Insufficient privileges for tourney client",
+                Ansi.LYELLOW,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "priv": user_info["priv"],
+                },
+            )
             return {
                 "osu_token": "no",
                 "response_body": app.packets.login_reply(
@@ -921,8 +1155,16 @@ async def handle_osu_login_request(
                 ),
             }
     except Exception as e:
-        log(f"Error checking tourney permissions", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "stream": osu_version.stream})
+        log(
+            "Error checking tourney permissions",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "stream": osu_version.stream,
+            },
+        )
         # Continue anyway, permissions error shouldn't block normal login
 
     """ login credentials verified """
@@ -935,8 +1177,16 @@ async def handle_osu_login_request(
             osu_stream=osu_version.stream,
         )
     except Exception as e:
-        log(f"Error logging login in database", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
+        log(
+            "Error logging login in database",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
         # Continue anyway, this shouldn't block login
 
     try:
@@ -948,8 +1198,16 @@ async def handle_osu_login_request(
             disk_serial=login_data["disk_signature_md5"],
         )
     except Exception as e:
-        log(f"Error saving client hashes", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
+        log(
+            "Error saving client hashes",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
         # Continue anyway, this shouldn't block login
 
     # TODO: store adapters individually
@@ -957,7 +1215,10 @@ async def handle_osu_login_request(
     # Some disk manufacturers set constant/shared ids for their products.
     # In these cases, there's not a whole lot we can do -- we'll allow them thru.
     INACTIONABLE_DISK_SIGNATURE_MD5S: list[str] = [
-        hashlib.md5(b"0").hexdigest(),  # "0" is likely the most common variant
+        hashlib.md5(
+            b"0",
+            usedforsecurity=False,
+        ).hexdigest(),  # "0" is likely the most common variant
     ]
 
     if login_data["disk_signature_md5"] not in INACTIONABLE_DISK_SIGNATURE_MD5S:
@@ -986,7 +1247,7 @@ async def handle_osu_login_request(
             # we will not allow any banned matches; if there are any,
             # then ask the user to contact staff and resolve manually.
             if not all(
-                [hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches],
+                hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches
             ):
                 return {
                     "osu_token": "contact-staff",
@@ -1010,8 +1271,16 @@ async def handle_osu_login_request(
             clan_id = user_info["clan_id"]
             clan_priv = ClanPrivileges(user_info["clan_priv"])
     except Exception as e:
-        log(f"Error processing clan information", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "clan_id": user_info.get("clan_id")})
+        log(
+            "Error processing clan information",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "clan_id": user_info.get("clan_id"),
+            },
+        )
         # Continue with login, clan info isn't critical
 
     db_country = user_info["country"]
@@ -1020,8 +1289,11 @@ async def handle_osu_login_request(
         geoloc = await app.state.services.fetch_geoloc(ip, headers)
 
         if geoloc is None:
-            log(f"Geolocation failed", Ansi.LYELLOW, 
-                extra={"ip": ip, "username": login_data['username']})
+            log(
+                "Geolocation failed",
+                Ansi.LYELLOW,
+                extra={"ip": ip, "username": login_data["username"]},
+            )
             return {
                 "osu_token": "login-failed",
                 "response_body": (
@@ -1032,8 +1304,11 @@ async def handle_osu_login_request(
                 ),
             }
     except Exception as e:
-        log(f"Error fetching geolocation", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e)})
+        log(
+            "Error fetching geolocation",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         return {
             "osu_token": "login-failed",
             "response_body": (
@@ -1048,17 +1323,32 @@ async def handle_osu_login_request(
         if db_country == "xx":
             # bugfix for old bancho.py versions when
             # country wasn't stored on registration.
-            log(f"Fixing {login_data['username']}'s country.", Ansi.LGREEN, 
-                extra={"ip": ip, "username": login_data['username'], "new_country": geoloc["country"]["acronym"]})
+            log(
+                f"Fixing {login_data['username']}'s country.",
+                Ansi.LGREEN,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "new_country": geoloc["country"]["acronym"],
+                },
+            )
 
             await users_repo.partial_update(
                 id=user_info["id"],
                 country=geoloc["country"]["acronym"],
             )
     except Exception as e:
-        log(f"Error updating user country", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), 
-                   "country_from": db_country, "country_to": geoloc["country"]["acronym"]})
+        log(
+            "Error updating user country",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "country_from": db_country,
+                "country_to": geoloc["country"]["acronym"],
+            },
+        )
         # Continue anyway, country update isn't critical
 
     try:
@@ -1072,8 +1362,11 @@ async def handle_osu_login_request(
             ip=ip,
         )
     except Exception as e:
-        log(f"Error creating client details", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e)})
+        log(
+            "Error creating client details",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         return {
             "osu_token": "login-failed",
             "response_body": (
@@ -1102,10 +1395,21 @@ async def handle_osu_login_request(
             login_time=login_time,
             is_tourney_client=osu_version.stream == "tourney",
             api_key=user_info["api_key"],
+            preferred_lb_view=user_info.get("preferred_lb_view", "all_time")
+            if user_info.get("preferred_lb_view", "all_time") in ("all_time", "seasonal")
+            else "all_time",
         )
     except Exception as e:
-        log(f"Error creating player object", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
+        log(
+            "Error creating player object",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
         return {
             "osu_token": "login-failed",
             "response_body": (
@@ -1133,8 +1437,16 @@ async def handle_osu_login_request(
 
         data += WELCOME_NOTIFICATION
     except Exception as e:
-        log(f"Error creating initial response packets", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
+        log(
+            "Error creating initial response packets",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
         return {
             "osu_token": "login-failed",
             "response_body": (
@@ -1170,16 +1482,27 @@ async def handle_osu_login_request(
                 if channel.can_read(o.priv):
                     o.enqueue(chan_info_packet)
     except Exception as e:
-        log(f"Error sending channel info", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
+        log(
+            "Error sending channel info",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
         # Continue anyway, channel info isn't critical for login
 
     # tells osu! to reorder channels based on config.
     try:
         data += app.packets.channel_info_end()
     except Exception as e:
-        log(f"Error sending channel info end packet", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e)})
+        log(
+            "Error sending channel info end packet",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         # Continue anyway
 
     # fetch some of the player's
@@ -1187,9 +1510,18 @@ async def handle_osu_login_request(
     try:
         await player.stats_from_sql_full()
         await player.relationships_from_sql()
+        await player.load_season_stats()
     except Exception as e:
-        log(f"Error fetching player stats/relationships", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": user_info["id"]})
+        log(
+            "Error fetching player stats/relationships",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": user_info["id"],
+            },
+        )
         # Continue anyway, we can still let them log in
 
     # TODO: fetch player.recent_scores from sql
@@ -1202,8 +1534,11 @@ async def handle_osu_login_request(
         data += app.packets.friends_list(player.friends)
         data += app.packets.silence_end(player.remaining_silence)
     except Exception as e:
-        log(f"Error adding menu icon and basic player data", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e)})
+        log(
+            "Error adding menu icon and basic player data",
+            Ansi.LRED,
+            extra={"ip": ip, "username": login_data["username"], "error": str(e)},
+        )
         # Continue anyway, these are not critical for login
 
     # Initialize user_data to avoid "possibly unbound" error
@@ -1213,8 +1548,16 @@ async def handle_osu_login_request(
         user_data = app.packets.user_presence(player) + app.packets.user_stats(player)
         data += user_data
     except Exception as e:
-        log(f"Error creating user presence/stats packets", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+        log(
+            "Error creating user presence/stats packets",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
         # This is critical, but we'll try to continue
 
     if not player.restricted:
@@ -1235,8 +1578,16 @@ async def handle_osu_login_request(
                         data += app.packets.user_presence(o)
                         data += app.packets.user_stats(o)
         except Exception as e:
-            log(f"Error processing other players' data", Ansi.LRED, 
-                extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+            log(
+                "Error processing other players' data",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                },
+            )
             # Continue anyway, partial player list is better than none
 
         try:
@@ -1266,13 +1617,21 @@ async def handle_osu_login_request(
                     msg_time = datetime.fromtimestamp(msg["time"])
                     data += app.packets.send_message(
                         sender=msg["from_name"],
-                        msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
+                        msg=f"[{msg_time:%a %b %d @ %H:%M%p}] {msg['msg']}",
                         recipient=msg["to_name"],
                         sender_id=msg["from_id"],
                     )
         except Exception as e:
-            log(f"Error fetching or processing mail", Ansi.LRED, 
-                extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+            log(
+                "Error fetching or processing mail",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                },
+            )
             # Continue anyway, mail isn't critical for login
 
         try:
@@ -1300,9 +1659,17 @@ async def handle_osu_login_request(
                     sender_id=app.state.sessions.bot.id,
                 )
         except Exception as e:
-            log(f"Error handling first-time user verification", Ansi.LRED, 
-                extra={"ip": ip, "username": login_data['username'], "error": str(e), 
-                       "user_id": player.id, "privileges": player.priv})
+            log(
+                "Error handling first-time user verification",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                    "privileges": player.priv,
+                },
+            )
             # Continue anyway, they can still play even if verification failed
 
     else:
@@ -1327,8 +1694,16 @@ async def handle_osu_login_request(
                 sender_id=app.state.sessions.bot.id,
             )
         except Exception as e:
-            log(f"Error processing restricted player login", Ansi.LRED, 
-                extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+            log(
+                "Error processing restricted player login",
+                Ansi.LRED,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "error": str(e),
+                    "user_id": player.id,
+                },
+            )
             # Continue anyway, partial functionality is better than none
 
     try:
@@ -1336,8 +1711,16 @@ async def handle_osu_login_request(
         # making them officially logged in.
         app.state.sessions.players.append(player)
     except Exception as e:
-        log(f"Error adding player to global player list", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+        log(
+            "Error adding player to global player list",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
         # This is critical, but we'll return what we have
 
     try:
@@ -1348,8 +1731,16 @@ async def handle_osu_login_request(
             time_taken = time.time() - login_time
             app.state.services.datadog.histogram("bancho.login_time", time_taken)  # type: ignore[no-untyped-call]
     except Exception as e:
-        log(f"Error updating datadog metrics", Ansi.LRED, 
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+        log(
+            "Error updating datadog metrics",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
         # Metrics aren't critical for functionality
 
     try:
@@ -1363,8 +1754,16 @@ async def handle_osu_login_request(
 
         player.update_latest_activity_soon()
     except Exception as e:
-        log(f"Error in final login steps", Ansi.LRED,
-            extra={"ip": ip, "username": login_data['username'], "error": str(e), "user_id": player.id})
+        log(
+            "Error in final login steps",
+            Ansi.LRED,
+            extra={
+                "ip": ip,
+                "username": login_data["username"],
+                "error": str(e),
+                "user_id": player.id,
+            },
+        )
         # Not critical for functionality
 
     return {"osu_token": player.token, "response_body": bytes(data)}
@@ -1561,10 +1960,16 @@ class SendPrivateMessage(BasePacket):
                 # no commands triggered.
                 r_match = NOW_PLAYING_RGX.match(msg)
                 or_match = OLD_NOW_PLAYING_RGX.match(msg)
-                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                    "all",
+                    "messages",
+                ]:
                     log(f"self.msg object: {self.msg}")
                 if or_match:
-                    if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in ["all", "messages"]:
+                    if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+                        "all",
+                        "messages",
+                    ]:
                         log(f"Old NP Regex Matched: {or_match}", Ansi.LMAGENTA)
                     # TODO: convert link to new format, grab mode from new link.
                     r_match = or_match
@@ -1636,6 +2041,7 @@ class SendPrivateMessage(BasePacket):
                                 for acc, result in zip(
                                     app.settings.PP_CACHED_ACCURACIES,
                                     results,
+                                    strict=False,
                                 )
                             )
 
@@ -2068,7 +2474,7 @@ class MatchComplete(BasePacket):
         slot.status = SlotStatus.complete
 
         # check if there are any players that haven't finished.
-        if any([s.status == SlotStatus.playing for s in player.match.slots]):
+        if any(s.status == SlotStatus.playing for s in player.match.slots):
             return
 
         # find any players just sitting in the multi room

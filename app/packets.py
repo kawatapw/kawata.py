@@ -1,26 +1,77 @@
+"""
+Packets Module - osu! Bancho Protocol Packet Handling
+
+This module implements the complete osu! Bancho protocol packet system for the
+osu! server application. It provides comprehensive packet reading, writing, and
+handling functionality for communication between the osu! client and server.
+
+The module defines all packet types, data structures, and serialization methods
+required for the Bancho protocol. It handles both client-to-server packets
+(incoming) and server-to-client packets (outgoing), with support for all
+standard osu! multiplayer, chat, and gameplay features.
+
+Key Features:
+    - Complete Bancho protocol packet implementation
+    - Client and server packet type definitions
+    - Binary packet serialization and deserialization
+    - Score frame and replay frame handling
+    - Multiplayer match state management
+    - Chat message and channel management
+    - Spectator mode packet handling
+    - Group and tournament support
+    - Performance-optimized packet writing
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Channel management in app/objects/channel.py
+    - Session management in app/state/sessions.py
+    - Logging system in app/logging.py
+    - Group management in app/objects/group.py
+
+Packet Categories:
+    - ClientPackets: Packets sent from osu! client to server
+    - ServerPackets: Packets sent from server to osu! client
+    - ScoreFrame: Score update data during gameplay
+    - ReplayFrame: Replay data for spectator mode
+    - MultiplayerMatch: Match state and configuration
+
+Usage Pattern:
+    # Reading packets from client
+    with memoryview(await request.body()) as body_view:
+        for packet in BanchoPacketReader(body_view, packet_map):
+            await packet.handle(player)
+
+    # Writing packets to client
+    packet_data = write(ServerPackets.USER_STATS, ...)
+    player.enqueue(packet_data)
+
+    # Creating specific packets
+    stats_packet = user_stats(player)
+    message_packet = send_message(sender, msg, recipient, sender_id)
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Multiplayer match handling
+    - app/objects/channel.py: Chat channel management
+    - app/state/sessions.py: Session and player collections
+    - app/logging.py: Logging utilities
+"""
+
 from __future__ import annotations
 
+import json
 import random
 import struct
-from abc import ABC
-from abc import abstractmethod
-from collections.abc import Callable
-from collections.abc import Collection
-from collections.abc import Iterator
-from dataclasses import dataclass
-from dataclasses import field
-from enum import IntEnum
-from enum import unique
-from functools import cache
-from functools import lru_cache
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import NamedTuple
-from typing import cast
-from app import logging
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Collection, Iterator
+from dataclasses import dataclass, field
+from enum import IntEnum, unique
+from functools import cache, lru_cache
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
-import json
-from app.state.sessions import groups, players
+from app import logging
+from app.state.sessions import groups
 
 # from app.objects.beatmap import BeatmapInfo
 
@@ -102,8 +153,8 @@ class ClientPackets(IntEnum):
     IDENTIFY = 126
     SPECTATE_FRAMES_FIX = 1176  # These fix packets that are sent during spectating, currently we do nothing with them but they must exist in this list for spectating to work properly and not disconnect user.
     SPECTATE_FRAMES_FIX1 = 3584
-    SPECTATE_FRAMES_FIX2 = 51200  
-    
+    SPECTATE_FRAMES_FIX2 = 51200
+
     CREATE_GROUP = 110
     DISBAND_GROUP = 111
     INVITE_GROUP = 112
@@ -181,11 +232,11 @@ class ServerPackets(IntEnum):
     RTX = 105  # unused
     MATCH_ABORT = 106
     SWITCH_TOURNAMENT_SERVER = 107
-    
+
     GROUP_JOIN = 122
     GROUP_LEAVE = 123
     GROUP_INVITE = 124
-    GROUP_USERS= 125
+    GROUP_USERS = 125
     IDENTIFY = 127
 
     def __repr__(self) -> str:
@@ -320,7 +371,8 @@ class MultiplayerMatch:
 
 
 class BasePacket(ABC):
-    def __init__(self, reader: BanchoPacketReader) -> None: ...
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass
 
     @abstractmethod
     async def handle(self, player: Player) -> None: ...
@@ -363,14 +415,14 @@ class BanchoPacketReader:
     def __next__(self) -> BasePacket:
         # do not break until we've read the
         # header of a packet we can handle.
-        i = 0
         p_type = ClientPackets.UNKNOWN_PACKET
         p_len = 0
         while self.body_view:  # len(self.view) < 7?
-            if len(self.body_view) < 7 and i < 1:
-                logging.log(f"Packet too short to read header, skipping. {self.body_view}")
-                i += 1
-                continue
+            if len(self.body_view) < 7:
+                logging.log(
+                    f"Packet too short to read header, skipping. {self.body_view}",
+                )
+                raise StopIteration
             p_type, p_len = self._read_header()
 
             if p_type not in self.packet_map:
@@ -471,7 +523,7 @@ class BanchoPacketReader:
         length = int.from_bytes(self.body_view[:2], "little")
         self.body_view = self.body_view[2:]
 
-        val = struct.unpack(f'<{"I" * length}', self.body_view[: length * 4])
+        val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
         return val
 
@@ -479,7 +531,7 @@ class BanchoPacketReader:
         length = int.from_bytes(self.body_view[:4], "little")
         self.body_view = self.body_view[4:]
 
-        val = struct.unpack(f'<{"I" * length}', self.body_view[: length * 4])
+        val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
         return val
 
@@ -624,11 +676,11 @@ def write_string(s: str) -> bytes:
     return ret
 
 
-def write_i32_list(l: Collection[int]) -> bytearray:
-    """Write `l` into bytes (int32 list)."""
-    ret = bytearray(len(l).to_bytes(2, "little"))
+def write_i32_list(items: Collection[int]) -> bytearray:
+    """Write `items` into bytes (int32 list)."""
+    ret = bytearray(len(items).to_bytes(2, "little"))
 
-    for i in l:
+    for i in items:
         ret += i.to_bytes(4, "little", signed=True)
 
     return ret
@@ -758,6 +810,18 @@ _expand_types: dict[osuTypes, Callable[..., bytearray]] = {
 }
 
 
+_INT_BOUNDS: dict[osuTypes, tuple[int, int]] = {
+    osuTypes.i8: (-128, 127),
+    osuTypes.u8: (0, 255),
+    osuTypes.i16: (-32768, 32767),
+    osuTypes.u16: (0, 65535),
+    osuTypes.i32: (-2147483648, 2147483647),
+    osuTypes.u32: (0, 4294967295),
+    osuTypes.i64: (-9223372036854775808, 9223372036854775807),
+    osuTypes.u64: (0, 18446744073709551615),
+}
+
+
 def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
     """Write `args` into bytes."""
     ret = bytearray(struct.pack("<Hx", packid))
@@ -766,8 +830,13 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
         if p_type == osuTypes.raw:
             ret += p_args
         elif p_type in _noexpand_types:
-            if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
-                logging.log(f"Integer value out of range for 'i' format code", level=logging.logLevel.WARNING, extra={"value": p_args})
+            bounds = _INT_BOUNDS.get(p_type)
+            if bounds is not None and isinstance(p_args, int) and not bounds[0] <= p_args <= bounds[1]:
+                logging.log(
+                    f"Integer value out of range for {p_type!r}",
+                    level=logging.logLevel.WARNING,
+                    extra={"value": p_args, "bounds": bounds},
+                )
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:
             ret += _expand_types[p_type](*p_args)
@@ -849,7 +918,7 @@ BOT_STATUSES = (
 @cache
 def bot_stats(player: Player) -> bytes:
     # pick at random from list of potential statuses.
-    status_id, status_txt = random.choice(BOT_STATUSES)
+    status_id, status_txt = random.choice(BOT_STATUSES)  # nosec B311
 
     return write(
         ServerPackets.USER_STATS,
@@ -1325,33 +1394,37 @@ def switch_tournament_server(ip: str) -> bytes:
     # but we can send it either way xd.
     return write(ServerPackets.SWITCH_TOURNAMENT_SERVER, (ip, osuTypes.string))
 
+
 # packet id: 127
 def identify(version: int) -> bytes:
     return write(ServerPackets.IDENTIFY, (version, osuTypes.i32))
 
+
 def group_join() -> bytes:
     return write(ServerPackets.GROUP_JOIN)
+
 
 def group_leave() -> bytes:
     return write(ServerPackets.GROUP_LEAVE)
 
-def group_users(player:Player) -> bytes:
+
+def group_users(player: Player) -> bytes:
     group = groups.get_group(player)
     users = []
     if group is not None:
         for user in group.players:
             lead = 1 if user.id == group.lead.id else 0
 
-            users.append({
-                "Name": user.name,
-                "ID" : str(user.id),
-                "Lead": str(lead)
-            })
-    return write(ServerPackets.GROUP_USERS, (json.dumps(users, indent=5), osuTypes.string))
+            users.append({"Name": user.name, "ID": str(user.id), "Lead": str(lead)})
+    return write(
+        ServerPackets.GROUP_USERS,
+        (json.dumps(users, indent=5), osuTypes.string),
+    )
 
-def group_invite(lead:Player) -> bytes:
-    invite = {
-		"From":lead.name,
-		"ID":lead.id
-	}
-    return write(ServerPackets.GROUP_INVITE, (json.dumps(invite, indent=5), osuTypes.string))
+
+def group_invite(lead: Player) -> bytes:
+    invite = {"From": lead.name, "ID": lead.id}
+    return write(
+        ServerPackets.GROUP_INVITE,
+        (json.dumps(invite, indent=5), osuTypes.string),
+    )

@@ -1,3 +1,101 @@
+"""
+Match Module - osu! Multiplayer Match Management System
+
+This module defines the Match class and related enumerations for managing osu!
+multiplayer matches. It provides comprehensive functionality for creating, managing,
+and running multiplayer matches including slot management, game mode configuration,
+win condition handling, and scrim/tournament support.
+
+The Match class handles all aspects of multiplayer gameplay including player slot
+management, map selection, mod configuration, team management, and score tracking.
+It supports various match types including head-to-head, team vs, tag co-op, and
+tag team vs modes with configurable win conditions and scoring systems.
+
+Key Features:
+    - Complete multiplayer match lifecycle management
+    - 16-slot player management with status tracking
+    - Support for all osu! game modes and mod combinations
+    - Configurable win conditions (score, accuracy, combo, scorev2)
+    - Team-based and free-for-all match types
+    - Scrimmage mode with match points and bans
+    - Tournament pool integration
+    - Real-time match state synchronization
+    - Automated score submission and winner determination
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Channel communication in app/objects/channel.py
+    - Packet handling in app/packets.py
+    - Beatmap management in app/objects/beatmap.py
+    - Session management in app/state/sessions.py
+    - Tournament pools in app/repositories/tourney_pools.py
+
+Match Types:
+    - Head-to-head: Free-for-all competition
+    - Team vs: Two-team competition (red vs blue)
+    - Tag co-op: Cooperative gameplay
+    - Tag team vs: Team-based cooperative gameplay
+
+Win Conditions:
+    - Score: Highest total score wins
+    - Accuracy: Highest accuracy percentage wins
+    - Combo: Highest maximum combo wins
+    - ScoreV2: ScoreV2 scoring system wins
+
+Slot Management:
+    - 16 slots per match (0-15)
+    - Slot statuses: open, locked, not_ready, ready, no_map, playing, complete, quit
+    - Team assignment: neutral, blue, red
+    - Mod configuration per slot
+    - Player loading and skipping tracking
+
+Scrimmage Features:
+    - Match points tracking per team/player
+    - Ban system for maps/mods
+    - Configurable winning point threshold
+    - PP-based scoring option
+    - Automatic winner determination
+
+Usage Pattern:
+    # Create a match
+    match = Match(
+        id=0,
+        name="My Match",
+        password="secret",
+        has_public_history=True,
+        map_name="Beatmap Name",
+        map_id=12345,
+        map_md5="abc123...",
+        host_id=player.id,
+        mode=GameMode.VANILLA_OSU,
+        mods=Mods.NOMOD,
+        win_condition=MatchWinConditions.score,
+        team_type=MatchTeamTypes.head_to_head,
+        freemods=False,
+        seed=0,
+        chat_channel=channel
+    )
+
+    # Add player to match
+    slot_id = match.get_free()
+    if slot_id is not None:
+        match.slots[slot_id].player = player
+        match.slots[slot_id].status = SlotStatus.not_ready
+
+    # Start match
+    match.start()
+
+    # Handle score submissions
+    await match.update_matchpoints(playing_slots)
+
+Related Files:
+    - app/objects/player.py: Player class with match interactions
+    - app/objects/channel.py: Channel class for match communication
+    - app/packets.py: Packet creation for match updates
+    - app/objects/beatmap.py: Beatmap class for map management
+    - app/state/sessions.py: Session management with match tracking
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -5,11 +103,8 @@ from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime as datetime
 from datetime import timedelta as timedelta
-from enum import IntEnum
-from enum import unique
-from typing import TYPE_CHECKING
-from typing import TypedDict
-from typing import cast
+from enum import IntEnum, unique
+from typing import TYPE_CHECKING, TypedDict
 
 import app.packets
 import app.settings
@@ -19,8 +114,7 @@ from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.repositories.tourney_pools import TourneyPool
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 if TYPE_CHECKING:
     from asyncio import TimerHandle

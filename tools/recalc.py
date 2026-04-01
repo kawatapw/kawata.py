@@ -6,28 +6,23 @@ import asyncio
 import math
 import os
 import sys
-from collections.abc import Awaitable
-from collections.abc import Iterator
-from collections.abc import Sequence
-from dataclasses import dataclass
-from dataclasses import field
+from collections.abc import Awaitable, Iterator, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import databases
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from akatsuki_pp_py import Beatmap, Calculator
 from redis import asyncio as aioredis
 
-sys.path.insert(0, os.path.abspath(os.pardir))
-os.chdir(os.path.abspath(os.pardir))
+_project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_project_root))
+os.chdir(_project_root)
 
 try:
     import app.settings
     import app.state.services
     from app.constants.gamemodes import GameMode
-    from app.constants.mods import Mods
     from app.constants.privileges import Privileges
     from app.objects.beatmap import ensure_osu_file_is_available
 except ModuleNotFoundError:
@@ -84,7 +79,7 @@ async def recalculate_score(
     if math.isnan(new_pp) or math.isinf(new_pp):
         new_pp = 0.0
 
-    #new_pp = min(new_pp, 9999.999)
+    # new_pp = min(new_pp, 9999.999)
 
     await ctx.database.execute(
         "UPDATE scores SET pp = :new_pp WHERE id = :id",
@@ -218,6 +213,93 @@ async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
         await process_score_chunk(score_chunk, ctx)
 
 
+async def recalculate_season_user(
+    id: int,
+    game_mode: GameMode,
+    season_id: int,
+    ctx: Context,
+) -> None:
+    """Recalculate stats for a user in a specific season."""
+    best_scores = await ctx.database.fetch_all(
+        "SELECT s.pp, s.acc FROM scores s "
+        "INNER JOIN maps m ON s.map_md5 = m.md5 "
+        "INNER JOIN seasons se ON s.play_time >= se.start_date AND s.play_time < se.end_date "
+        "WHERE s.userid = :user_id AND s.mode = :mode "
+        "AND s.status = 2 AND m.status IN (2, 3) "  # ranked, approved
+        "AND se.id = :season_id "
+        "ORDER BY s.pp DESC",
+        {"user_id": id, "mode": game_mode, "season_id": season_id},
+    )
+
+    total_scores = len(best_scores)
+    if not total_scores:
+        return
+
+    # calculate new total weighted accuracy
+    weighted_acc = sum(row["acc"] * 0.95**i for i, row in enumerate(best_scores))
+    bonus_acc = 100.0 / (20 * (1 - 0.95**total_scores))
+    acc = (weighted_acc * bonus_acc) / 100
+
+    # calculate new total weighted pp
+    weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(best_scores))
+    bonus_pp = 416.6667 * (1 - 0.9994**total_scores)
+    pp = round(weighted_pp + bonus_pp)
+
+    await ctx.database.execute(
+        "UPDATE stats SET pp = :pp, acc = :acc WHERE id = :id AND mode = :mode AND season_id = :season_id",
+        {"pp": pp, "acc": acc, "id": id, "mode": game_mode, "season_id": season_id},
+    )
+
+    if debug_mode_enabled:
+        print(
+            f"Recalculated user ID {id} mode {game_mode.value} season {season_id} ({pp:.3f}pp, {acc:.3f}%)",
+        )
+
+
+async def process_season_user_chunk(
+    chunk: list[int],
+    game_mode: GameMode,
+    season_id: int,
+    ctx: Context,
+) -> None:
+    tasks: list[Awaitable[None]] = []
+    for id in chunk:
+        tasks.append(recalculate_season_user(id, game_mode, season_id, ctx))
+
+    await asyncio.gather(*tasks)
+
+
+async def recalculate_season_users(
+    season_id: int,
+    mode: GameMode,
+    ctx: Context,
+) -> None:
+    """Recalculate stats for all users in a specific season."""
+    user_ids = [
+        row["userid"]
+        for row in await ctx.database.fetch_all(
+            "SELECT DISTINCT userid FROM scores s "
+            "INNER JOIN seasons se ON s.play_time >= se.start_date AND s.play_time < se.end_date "
+            "WHERE se.id = :season_id AND s.mode = :mode",
+            {"season_id": season_id, "mode": mode},
+        )
+    ]
+
+    for id_chunk in divide_chunks(user_ids, 100):
+        await process_season_user_chunk(id_chunk, mode, season_id, ctx)
+
+
+async def recalculate_all_seasons(mode: GameMode, ctx: Context) -> None:
+    """Recalculate stats for all seasons."""
+    seasons = await ctx.database.fetch_all(
+        "SELECT id, name FROM seasons ORDER BY start_date",
+    )
+
+    for season in seasons:
+        print(f"Recalculating stats for season {season['id']} ({season['name']})")
+        await recalculate_season_users(season["id"], mode, ctx)
+
+
 async def main(argv: Sequence[str] | None = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
 
@@ -240,6 +322,21 @@ async def main(argv: Sequence[str] | None = None) -> int:
         "--no-stats",
         help="Disable recalculating user stats",
         action="store_true",
+    )
+    parser.add_argument(
+        "--season-id",
+        type=int,
+        help="Recalculate stats for a specific season ID",
+    )
+    parser.add_argument(
+        "--all-seasons",
+        action="store_true",
+        help="Recalculate stats for all seasons",
+    )
+    parser.add_argument(
+        "--seasons-only",
+        action="store_true",
+        help="Only recalculate season stats (skip all-time stats)",
     )
 
     parser.add_argument(
@@ -270,13 +367,41 @@ async def main(argv: Sequence[str] | None = None) -> int:
             await recalculate_mode_scores(mode, ctx)
 
         if not args.no_stats:
-            await recalculate_mode_users(mode, ctx)
+            if not args.seasons_only:
+                await recalculate_mode_users(mode, ctx)
+
+            if args.season_id:
+                await recalculate_season_users(args.season_id, mode, ctx)
+            elif args.all_seasons:
+                await recalculate_all_seasons(mode, ctx)
 
     await app.state.services.http_client.aclose()
     await db.disconnect()
     await redis.aclose()
 
     return 0
+
+
+async def bulk_recalculate_season_stats(
+    db: databases.Database,
+    season_id: int,
+) -> None:
+    """Recalculate seasonal stats using the same weighted pp/acc as non-seasonal recalc.
+
+    This delegates to `recalculate_season_users` for all modes, so seasonal
+    pp/acc are 1:1 with the main recalc logic.
+    """
+    print(f"Starting seasonal stats recalculation for season {season_id}")
+
+    for mode in GameMode:
+        print(f"Recalculating stats for season {season_id} mode {mode.value}")
+        ctx = Context(db, await aioredis.from_url(app.settings.REDIS_DSN))  # type: ignore[no-untyped-call]
+        try:
+            await recalculate_season_users(season_id, mode, ctx)
+        finally:
+            await ctx.redis.aclose()
+
+    print(f"Seasonal stats recalculation complete for season {season_id}")
 
 
 if __name__ == "__main__":

@@ -8,11 +8,11 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Index
 from sqlalchemy import Integer
-from sqlalchemy import SmallInteger as TinyInt
 from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy import insert
 from sqlalchemy import select
+from sqlalchemy.dialects.mysql import TINYINT as TinyInt
 
 import app.state.services
 from app.repositories import Base
@@ -75,10 +75,13 @@ async def create(
         action_type=action_type,
     )
     rec_id = await app.state.services.database.execute(insert_stmt)
+    if rec_id is None:
+        raise RuntimeError("Failed to insert admin log record")
 
     select_stmt = select(*READ_PARAMS).where(AdminV2LogTable.id == rec_id)
     log = await app.state.services.database.fetch_one(select_stmt)
-    assert log is not None
+    if log is None:
+        raise RuntimeError("Failed to fetch inserted admin log record")
     return cast(AdminV2Log, log)
 
 

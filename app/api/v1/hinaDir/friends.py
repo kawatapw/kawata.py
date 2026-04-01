@@ -235,15 +235,15 @@ async def api_get_friends_leaderboard(
     params["mode"] = mode
 
     rows = await app.state.services.database.fetch_all(
-        "SELECT s.id, u.name, u.country, u.priv, "
+        "SELECT u.id, u.name, u.country, u.priv, "
         "c.tag AS clan_tag, "
-        "s.pp, s.acc, s.plays "
-        "FROM stats s "
-        "INNER JOIN users u ON u.id = s.id "
+        "COALESCE(s.pp, 0) AS pp, COALESCE(s.acc, 0) AS acc, COALESCE(s.plays, 0) AS plays "
+        "FROM users u "
+        "LEFT JOIN stats s ON s.id = u.id AND s.mode = :mode "
         "LEFT JOIN clans c ON u.clan_id = c.id "
-        f"WHERE s.id IN ({placeholders}) "
-        "AND s.mode = :mode AND u.priv & 1 "
-        "ORDER BY s.pp DESC "
+        f"WHERE u.id IN ({placeholders}) "
+        "AND u.priv & 1 "
+        "ORDER BY pp DESC "
         "LIMIT 50",
         params,
     )
@@ -266,8 +266,10 @@ async def api_get_friends_leaderboard(
             if player and player.is_online:
                 entry["is_online"] = True
 
-            # Round accuracy
-            entry["acc"] = round(entry["acc"], 2)
+            # Cast Decimal→native Python types for JSON serialization
+            entry["pp"] = float(entry["pp"])
+            entry["acc"] = round(float(entry["acc"]), 2)
+            entry["plays"] = int(entry["plays"])
 
             leaderboard.append(entry)
 
@@ -316,7 +318,10 @@ async def api_get_player_quick_stats(
         )
 
     stats = dict(stats_row)
-    stats["acc"] = round(stats["acc"], 2)
+    stats["pp"] = float(stats["pp"])
+    stats["acc"] = round(float(stats["acc"]), 2)
+    stats["tscore"] = int(stats["tscore"])
+    stats["rscore"] = int(stats["rscore"])
 
     # Global rank from Redis
     global_rank = await app.state.services.redis.zrevrank(
@@ -340,7 +345,8 @@ async def api_get_player_quick_stats(
     top_play = None
     if top_row:
         top = dict(top_row)
-        top["acc"] = round(top["acc"], 2)
+        top["pp"] = float(top["pp"])
+        top["acc"] = round(float(top["acc"]), 2)
         top_play = top
 
     return ORJSONResponse({
@@ -366,6 +372,8 @@ async def _get_player_stats(uid: int, mode: int) -> dict[str, Any] | None:
 
     if row:
         entry = dict(row)
+        entry["pp"] = float(entry["pp"])
+        entry["acc"] = float(entry["acc"])
         entry["has_stats"] = entry["pp"] > 0
     else:
         # User exists but no stats for this mode — return zeroes
@@ -398,7 +406,7 @@ async def _get_player_stats(uid: int, mode: int) -> dict[str, Any] | None:
         str(entry["id"]),
     )
     entry["rank"] = (global_rank + 1) if global_rank is not None else 0
-    entry["acc"] = round(entry.get("acc", 0), 2)
+    entry["acc"] = round(float(entry.get("acc", 0)), 2)
 
     return entry
 
@@ -431,6 +439,12 @@ async def api_compare_stats(
         if uid not in seen:
             seen.add(uid)
             unique_ids.append(uid)
+
+    if len(unique_ids) < 2:
+        return ORJSONResponse(
+            {"status": "Provide 2-4 distinct user IDs."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     players = []
     for uid in unique_ids:

@@ -1,0 +1,135 @@
+name: Master Workflow
+
+on:
+  # Trigger on all pushes (including tags) to any branch
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  # Trigger on all pull requests
+  pull_request:
+    branches:
+      - '**'
+  # Manual trigger
+  workflow_dispatch:
+  # Allow other workflows to call this
+  workflow_call:
+
+jobs:
+  # Initial summary job
+  initial-summary:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' || github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call')
+    steps:
+      - name: Generate initial summary
+        run: |
+          echo "## Workflow Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch/Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "**PR Number:** ${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+            echo "**PR Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Workflow Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build:** ✅ Always runs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lint:** ${{ github.event_name == 'pull_request' && '✅ PR only' || '✅ Push/Manual' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test:** ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Sec Scan:** ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ github.event_name == 'push' && (github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging' || startsWith(github.ref, 'refs/tags/')) && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Publish:** ${{ github.event_name == 'push' && (github.ref == 'refs/heads/BE-Master' || github.ref == 'refs/heads/BE-Staging') && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+
+  # Prepare build outputs (single call)
+  prepare:
+    needs: initial-summary
+    uses: ./.github/workflows/prep-build.yaml
+
+  # Core build job (always runs on push/pull_request)
+  build:
+    needs: prepare
+    uses: ./.github/workflows/build.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      tag_list: ${{ needs.prepare.outputs.tag_list }}
+      github_owner: ${{ needs.prepare.outputs.github_owner }}
+      github_repo: ${{ needs.prepare.outputs.github_repo }}
+    secrets: inherit
+
+  # Lint job (runs on Python file changes in PRs, or after build on push)
+  lint:
+    needs: [prepare, build]
+    uses: ./.github/workflows/lint.yaml
+    secrets: inherit
+
+  # Test job (runs after build on push)
+  test:
+    needs: [prepare, build]
+    uses: ./.github/workflows/test.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      tag_list: ${{ needs.prepare.outputs.tag_list }}
+      github_owner: ${{ needs.prepare.outputs.github_owner }}
+      github_repo: ${{ needs.prepare.outputs.github_repo }}
+    secrets: inherit
+
+  # Security scan (runs after build on push)
+  sec-scan:
+    needs: [prepare, build]
+    uses: ./.github/workflows/sec-scan.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      tag_list: ${{ needs.prepare.outputs.tag_list }}
+      github_owner: ${{ needs.prepare.outputs.github_owner }}
+      github_repo: ${{ needs.prepare.outputs.github_repo }}
+    secrets: inherit
+
+  # Release job (only on specific branches/tags)
+  release:
+    needs: [prepare, build, lint, sec-scan, test]
+    if: |
+      (
+        github.ref == 'refs/heads/BE-Master' ||
+        github.ref == 'refs/heads/BE-Staging' ||
+        startsWith(github.ref, 'refs/tags/')
+      )
+    uses: ./.github/workflows/release.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      tag_list: ${{ needs.prepare.outputs.tag_list }}
+      github_owner: ${{ needs.prepare.outputs.github_owner }}
+      github_repo: ${{ needs.prepare.outputs.github_repo }}
+    secrets: inherit
+
+  # Publish job (only on specific branches, after release)
+  publish:
+    needs: [prepare, build, lint, sec-scan, test, release]
+    if: |
+      (
+        github.ref == 'refs/heads/BE-Master' ||
+        github.ref == 'refs/heads/BE-Staging'
+      )
+    uses: ./.github/workflows/publish.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      tag_list: ${{ needs.prepare.outputs.tag_list }}
+      github_owner: ${{ needs.prepare.outputs.github_owner }}
+      github_repo: ${{ needs.prepare.outputs.github_repo }}
+    secrets: inherit
+
+  # Final summary job
+  final-summary:
+    needs: [build, lint, sec-scan, test, release, publish]
+    if: always()
+    uses: ./.github/workflows/summarize.yaml
+    with:
+      run_id: ${{ github.run_id }}
+      workflow_names: "build,lint,sec-scan,test"

@@ -1,27 +1,145 @@
+"""
+Maps Repository - Database Operations for Beatmap Management
+
+This module provides database operations for managing beatmaps in the osu!
+server application. It implements the repository pattern for beatmap data
+access, providing a clean abstraction layer between the application logic
+and database operations for beatmap storage, retrieval, and management.
+
+The repository handles all CRUD operations for beatmaps, including creation,
+retrieval, updating, and deletion of beatmap records. It supports both osu!
+official beatmaps and private server beatmaps with comprehensive metadata
+storage and efficient querying capabilities.
+
+Key Features:
+    - Complete CRUD operations for beatmap data
+    - Support for both osu! and private server beatmaps
+    - Comprehensive beatmap metadata storage
+    - Efficient querying with multiple filter options
+    - Pagination support for large datasets
+    - Unique constraint enforcement for beatmap IDs and MD5 hashes
+    - Integration with beatmap caching and update systems
+
+Integration Points:
+    - Beatmap management in app/objects/beatmap.py
+    - Score submission in app/api/domains/osu.py
+    - Leaderboard generation in app/api/v2/players.py
+    - Beatmap search in app/api/v2/maps.py
+    - Database connection in app/state/services.py
+
+Database Schema:
+    - server: Server type (osu! or private)
+    - id: Beatmap ID (unique per server)
+    - set_id: Parent beatmap set ID
+    - status: Ranked status (Pending, Ranked, Approved, etc.)
+    - md5: File hash for integrity verification (unique)
+    - artist, title, version, creator: Metadata strings
+    - filename: Original .osu filename
+    - last_update: Timestamp of last modification
+    - total_length: Duration in seconds
+    - max_combo: Maximum possible combo
+    - frozen: Whether status should be preserved during updates
+    - plays, passes: Play statistics
+    - mode: Game mode (osu!, taiko, catch, mania)
+    - bpm, cs, od, ar, hp, diff: Difficulty attributes
+
+Beatmap Structure:
+    - id: Unique identifier for the beatmap
+    - server: Server type (osu! or private)
+    - set_id: Parent beatmap set identifier
+    - status: Ranked status
+    - md5: File hash for integrity verification
+    - artist, title, version, creator: Metadata
+    - filename: Original .osu filename
+    - last_update: Last modification timestamp
+    - total_length: Duration in seconds
+    - max_combo: Maximum possible combo
+    - frozen: Whether status is frozen
+    - plays, passes: Play statistics
+    - mode: Game mode
+    - bpm, cs, od, ar, hp, diff: Difficulty attributes
+
+Usage Pattern:
+    # Create a new beatmap
+    beatmap = await create(
+        id=12345,
+        server="osu!",
+        set_id=67890,
+        status=2,
+        md5="abc123...",
+        artist="Artist",
+        title="Title",
+        version="Hard",
+        creator="Creator",
+        filename="Artist - Title (Creator) [Hard].osu",
+        last_update=datetime.now(),
+        total_length=180,
+        max_combo=500,
+        frozen=False,
+        plays=1000,
+        passes=500,
+        mode=0,
+        bpm=180.0,
+        cs=4.0,
+        od=8.0,
+        ar=9.0,
+        hp=6.0,
+        diff=5.5
+    )
+
+    # Fetch beatmap by ID or MD5
+    beatmap = await fetch_one(id=12345)
+    beatmap = await fetch_one(md5="abc123...")
+
+    # Fetch beatmaps with filtering
+    beatmaps = await fetch_many(
+        server="osu!",
+        status=2,
+        mode=0,
+        page=1,
+        page_size=10
+    )
+
+    # Update beatmap
+    updated = await partial_update(
+        id=12345,
+        status=3,
+        plays=1500
+    )
+
+    # Delete beatmap
+    deleted = await delete_one(id=12345)
+
+Related Files:
+    - app/objects/beatmap.py: Beatmap data model
+    - app/api/domains/osu.py: Score submission with beatmap validation
+    - app/api/v2/maps.py: Beatmap search and listing endpoints
+    - app/state/services.py: Database connection management
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Enum
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import delete
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
-from sqlalchemy.dialects.mysql import FLOAT
-from sqlalchemy.dialects.mysql import TINYINT
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
+from sqlalchemy.dialects.mysql import FLOAT, TINYINT
 
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
+from app._typing import UNSET, _UnsetSentinel
 from app.repositories import Base
 
 
