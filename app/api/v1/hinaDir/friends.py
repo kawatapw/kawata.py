@@ -256,9 +256,11 @@ async def api_get_friends_leaderboard(
             entry = dict(row)
             entry["rank"] = i + 1
 
-            # Get global rank from Redis
+            # Get global rank from Redis (season-aware)
+            sid = params["season_id"]
+            lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
             global_rank = await app.state.services.redis.zrevrank(
-                f"bancho:leaderboard:{mode}",
+                lb_key,
                 str(entry["id"]),
             )
             entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
@@ -327,24 +329,34 @@ async def api_get_player_quick_stats(
     stats["tscore"] = int(stats["tscore"])
     stats["rscore"] = int(stats["rscore"])
 
-    # Global rank from Redis
+    # Global rank from Redis (season-aware)
+    lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
     global_rank = await app.state.services.redis.zrevrank(
-        f"bancho:leaderboard:{mode}",
+        lb_key,
         str(user_id),
     )
     stats["global_rank"] = (global_rank + 1) if global_rank is not None else 0
 
-    # Top play (single best score with map title)
-    top_row = await app.state.services.database.fetch_one(
+    # Top play (single best score with map title, season-scoped)
+    top_query = (
         "SELECT t.pp, t.acc, t.grade, t.mods, "
         "CONCAT(b.artist, ' - ', b.title, ' [', b.version, ']') AS map_title "
         "FROM scores t "
         "INNER JOIN maps b ON t.map_md5 = b.md5 "
         "WHERE t.userid = :uid AND t.mode = :mode AND t.status = 2 "
         "AND b.status IN (2, 3) "
-        "ORDER BY t.pp DESC LIMIT 1",
-        {"uid": user_id, "mode": mode},
     )
+    top_params: dict[str, object] = {"uid": user_id, "mode": mode}
+    if sid:
+        from app.repositories import seasons as seasons_repo
+
+        season = await seasons_repo.fetch_one(id=sid)
+        if season:
+            top_query += "AND t.play_time >= :start_date AND t.play_time < :end_date "
+            top_params["start_date"] = season["start_date"]
+            top_params["end_date"] = season["end_date"]
+    top_query += "ORDER BY t.pp DESC LIMIT 1"
+    top_row = await app.state.services.database.fetch_one(top_query, top_params)
 
     top_play = None
     if top_row:
@@ -404,9 +416,10 @@ async def _get_player_stats(uid: int, mode: int, season_id: int = 0) -> dict[str
             "has_stats": False,
         }
 
-    # Global rank from Redis
+    # Global rank from Redis (season-aware)
+    lb_key = f"bancho:leaderboard:{mode}" if not season_id else f"bancho:leaderboard:{mode}:season:{season_id}"
     global_rank = await app.state.services.redis.zrevrank(
-        f"bancho:leaderboard:{mode}",
+        lb_key,
         str(entry["id"]),
     )
     entry["rank"] = (global_rank + 1) if global_rank is not None else 0
