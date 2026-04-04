@@ -21,7 +21,7 @@ router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
 
 
-async def _validate_season(season_id: int | None) -> tuple[int, dict | None]:
+async def _validate_season(season_id: int | None) -> tuple[int, seasons_repo.Season | None]:
     """Validate season_id and return (sid, season_record).
 
     Returns (0, None) for all-time. Returns (sid, season) for valid seasons.
@@ -346,16 +346,27 @@ async def api_get_player_quick_stats(
     )
 
     if not stats_row:
-        return ORJSONResponse(
-            {"status": "Player not found."},
-            status_code=status.HTTP_404_NOT_FOUND,
+        # Check if user exists — return zeroed stats for valid users with no season data
+        user_exists = await app.state.services.database.fetch_val(
+            "SELECT 1 FROM users WHERE id = :uid AND priv & 1",
+            {"uid": user_id},
         )
-
-    stats = dict(stats_row)
-    stats["pp"] = float(stats["pp"])
-    stats["acc"] = round(float(stats["acc"]), 2)
-    stats["tscore"] = int(stats["tscore"])
-    stats["rscore"] = int(stats["rscore"])
+        if not user_exists:
+            return ORJSONResponse(
+                {"status": "Player not found."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        stats = {
+            "pp": 0, "acc": 0.0, "plays": 0, "playtime": 0, "max_combo": 0,
+            "tscore": 0, "rscore": 0, "xh_count": 0, "x_count": 0,
+            "sh_count": 0, "s_count": 0, "a_count": 0,
+        }
+    else:
+        stats = dict(stats_row)
+        stats["pp"] = float(stats["pp"])
+        stats["acc"] = round(float(stats["acc"]), 2)
+        stats["tscore"] = int(stats["tscore"])
+        stats["rscore"] = int(stats["rscore"])
 
     # Global rank from Redis (season-aware)
     lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
