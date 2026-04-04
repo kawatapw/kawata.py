@@ -774,8 +774,17 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
                 level=logging.DEBUG,
             )
 
+            # Fetch user's country for leaderboard
+            user_country = await app.state.services.database.fetch_val(
+                "SELECT country FROM users WHERE id = :user_id",
+                {"user_id": user_id},
+            )
+
             # Update Redis leaderboard for this season
-            await update_season_leaderboard(season_id, user_id, mode, pp)
+            if user_country:
+                await update_season_leaderboard(
+                    season_id, user_id, mode, pp, user_country
+                )
 
     except Exception as e:
         log(
@@ -792,6 +801,7 @@ async def update_season_leaderboard(
     user_id: int,
     mode: int,
     pp: int,
+    country: str,
 ) -> None:
     """Update the Redis leaderboard for a specific season.
 
@@ -800,10 +810,17 @@ async def update_season_leaderboard(
         user_id: The ID of the user.
         mode: The game mode.
         pp: The performance points to set on the leaderboard.
+        country: The user's country code for country-specific leaderboards.
     """
     try:
+        # Global season leaderboard
         await app.state.services.redis.zadd(
             f"bancho:leaderboard:{mode}:season:{season_id}",
+            {str(user_id): pp},
+        )
+        # Country-specific season leaderboard
+        await app.state.services.redis.zadd(
+            f"bancho:leaderboard:{mode}:{country}:season:{season_id}",
             {str(user_id): pp},
         )
     except Exception as e:

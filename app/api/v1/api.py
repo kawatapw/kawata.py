@@ -460,14 +460,26 @@ async def api_get_player_info(
         )
 
         for mode_stats in all_stats:
-            rank = await app.state.services.redis.zrevrank(
-                f"bancho:leaderboard:{mode_stats['mode']}",
-                str(resolved_user_id),
-            )
-            country_rank = await app.state.services.redis.zrevrank(
-                f"bancho:leaderboard:{mode_stats['mode']}:{resolved_country}",
-                str(resolved_user_id),
-            )
+            if season_id is not None:
+                # Use season-specific leaderboard keys
+                rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}:season:{season_id}",
+                    str(resolved_user_id),
+                )
+                country_rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}:{resolved_country}:season:{season_id}",
+                    str(resolved_user_id),
+                )
+            else:
+                # Use global leaderboard keys
+                rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}",
+                    str(resolved_user_id),
+                )
+                country_rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}:{resolved_country}",
+                    str(resolved_user_id),
+                )
 
             # NOTE: this dict-like return is intentional.
             #       but quite cursed.
@@ -894,6 +906,7 @@ async def api_get_player_most_played(
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
     limit: int = Query(25, ge=1, le=100),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> Response:
     """Return the most played beatmaps of a given player."""
     # NOTE: this will almost certainly not scale well, lol.
@@ -928,19 +941,32 @@ async def api_get_player_most_played(
 
     mode = GameMode(mode_arg)
 
-    # fetch & return info from sql
-    rows = await app.state.services.database.fetch_all(
+    # build query
+    query = (
         "SELECT m.md5, m.id, m.set_id, m.status, "
         "m.artist, m.title, m.version, m.creator, COUNT(*) plays "
         "FROM scores s "
         "INNER JOIN maps m ON m.md5 = s.map_md5 "
         "WHERE s.userid = :user_id "
         "AND s.mode = :mode "
-        "GROUP BY s.map_md5 "
-        "ORDER BY plays DESC "
-        "LIMIT :limit",
-        {"user_id": player.id, "mode": mode, "limit": limit},
     )
+    params: dict[str, object] = {"user_id": player.id, "mode": mode, "limit": limit}
+
+    if season_id is not None:
+        season = await seasons_repo.fetch_one(id=season_id)
+        if not season:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {season_id} not found."},
+                status_code=404,
+            )
+        query += "AND s.play_time >= :start_date AND s.play_time < :end_date "
+        params["start_date"] = season["start_date"]
+        params["end_date"] = season["end_date"]
+
+    query += "GROUP BY s.map_md5 ORDER BY plays DESC LIMIT :limit"
+
+    # fetch & return info from sql
+    rows = await app.state.services.database.fetch_all(query, params)
 
     return ORJSONResponse(
         {
