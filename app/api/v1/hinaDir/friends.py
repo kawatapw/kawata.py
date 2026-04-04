@@ -13,6 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 from app.logging import error_catcher
+from app.repositories import seasons as seasons_repo
 import app.settings
 import app.state
 
@@ -348,13 +349,15 @@ async def api_get_player_quick_stats(
     )
     top_params: dict[str, object] = {"uid": user_id, "mode": mode}
     if sid:
-        from app.repositories import seasons as seasons_repo
-
         season = await seasons_repo.fetch_one(id=sid)
-        if season:
-            top_query += "AND t.play_time >= :start_date AND t.play_time < :end_date "
-            top_params["start_date"] = season["start_date"]
-            top_params["end_date"] = season["end_date"]
+        if season is None:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {sid} not found."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        top_query += "AND t.play_time >= :start_date AND t.play_time < :end_date "
+        top_params["start_date"] = season["start_date"]
+        top_params["end_date"] = season["end_date"]
     top_query += "ORDER BY t.pp DESC LIMIT 1"
     top_row = await app.state.services.database.fetch_one(top_query, top_params)
 
