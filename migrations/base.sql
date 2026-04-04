@@ -33,6 +33,38 @@ create table badge_styles
 	key badge_id (badge_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+# -- Beatmap review work items queue;
+CREATE TABLE IF NOT EXISTS beatmap_work_items (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    set_id        INT NOT NULL,
+    request_id    INT DEFAULT NULL,
+    review_state  VARCHAR(16) NOT NULL DEFAULT 'pending',
+    assigned_to   INT DEFAULT NULL,
+    assigned_at   DATETIME DEFAULT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    resolved_at   DATETIME DEFAULT NULL,
+    resolution    VARCHAR(32) DEFAULT NULL,
+    checklist     JSON DEFAULT NULL,
+    priority      TINYINT NOT NULL DEFAULT 0,
+    INDEX idx_bwi_set_id (set_id),
+    INDEX idx_bwi_review_state (review_state),
+    INDEX idx_bwi_assigned (assigned_to),
+    INDEX idx_bwi_created (created_at),
+    INDEX idx_bwi_state_priority (review_state, priority, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+# -- Beatmap review discussion comments;
+CREATE TABLE IF NOT EXISTS beatmap_review_comments (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    work_item_id  INT NOT NULL,
+    user_id       INT NOT NULL,
+    body          TEXT NOT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_brc_work_item (work_item_id),
+    INDEX idx_brc_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 create table changelog
 (
 	id int not null auto_increment,
