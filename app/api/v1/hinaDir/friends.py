@@ -210,6 +210,7 @@ async def api_set_relationship(
 async def api_get_friends_leaderboard(
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
     mode: int = Query(0, ge=0, le=3),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> ORJSONResponse:
     """Returns mutual friends + self ranked by PP for a given game mode."""
     # Get mutual friend IDs (bidirectional)
@@ -234,12 +235,13 @@ async def api_get_friends_leaderboard(
     params = {f"id_{i}": uid for i, uid in enumerate(ids)}
     params["mode"] = mode
 
+    params["season_id"] = season_id if season_id else 0
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id, u.name, u.country, u.priv, "
         "c.tag AS clan_tag, "
         "COALESCE(s.pp, 0) AS pp, COALESCE(s.acc, 0) AS acc, COALESCE(s.plays, 0) AS plays "
         "FROM users u "
-        "LEFT JOIN stats s ON s.id = u.id AND s.mode = :mode "
+        "LEFT JOIN stats s ON s.id = u.id AND s.mode = :mode AND s.season_id = :season_id "
         "LEFT JOIN clans c ON u.clan_id = c.id "
         f"WHERE u.id IN ({placeholders}) "
         "AND u.priv & 1 "
@@ -298,17 +300,19 @@ async def api_get_friends_leaderboard(
 async def api_get_player_quick_stats(
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
     mode: int = Query(0, ge=0, le=3),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> ORJSONResponse:
     """Lightweight endpoint returning extra stats + top play for one player."""
     # Fetch stats
+    sid = season_id if season_id else 0
     stats_row = await app.state.services.database.fetch_one(
         "SELECT s.pp, s.acc, s.plays, s.playtime, s.max_combo, "
         "s.tscore, s.rscore, "
         "s.xh_count, s.x_count, s.sh_count, s.s_count, s.a_count "
         "FROM stats s "
         "INNER JOIN users u ON u.id = s.id "
-        "WHERE s.id = :uid AND s.mode = :mode AND u.priv & 1",
-        {"uid": user_id, "mode": mode},
+        "WHERE s.id = :uid AND s.mode = :mode AND s.season_id = :season_id AND u.priv & 1",
+        {"uid": user_id, "mode": mode, "season_id": sid},
     )
 
     if not stats_row:
@@ -356,8 +360,8 @@ async def api_get_player_quick_stats(
     })
 
 
-async def _get_player_stats(uid: int, mode: int) -> dict[str, Any] | None:
-    """Fetch a single player's stats for a given mode."""
+async def _get_player_stats(uid: int, mode: int, season_id: int = 0) -> dict[str, Any] | None:
+    """Fetch a single player's stats for a given mode and season."""
     row = await app.state.services.database.fetch_one(
         "SELECT s.id, u.name, u.country, "
         "c.tag AS clan_tag, "
@@ -366,8 +370,8 @@ async def _get_player_stats(uid: int, mode: int) -> dict[str, Any] | None:
         "FROM stats s "
         "INNER JOIN users u ON u.id = s.id "
         "LEFT JOIN clans c ON u.clan_id = c.id "
-        "WHERE s.id = :uid AND s.mode = :mode AND u.priv & 1",
-        {"uid": uid, "mode": mode},
+        "WHERE s.id = :uid AND s.mode = :mode AND s.season_id = :season_id AND u.priv & 1",
+        {"uid": uid, "mode": mode, "season_id": season_id},
     )
 
     if row:
@@ -416,6 +420,7 @@ async def _get_player_stats(uid: int, mode: int) -> dict[str, Any] | None:
 async def api_compare_stats(
     users: str = Query(...),
     mode: int = Query(0, ge=0, le=3),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> ORJSONResponse:
     """Returns stats comparison for 2-4 players."""
     try:
@@ -448,7 +453,7 @@ async def api_compare_stats(
 
     players = []
     for uid in unique_ids:
-        p = await _get_player_stats(uid, mode)
+        p = await _get_player_stats(uid, mode, season_id if season_id else 0)
         if p is None:
             return ORJSONResponse(
                 {"status": "Player not found."},
