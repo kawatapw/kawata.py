@@ -21,6 +21,20 @@ router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
 
 
+async def _validate_season(season_id: int | None) -> tuple[int, dict | None]:
+    """Validate season_id and return (sid, season_record).
+
+    Returns (0, None) for all-time. Returns (sid, season) for valid seasons.
+    Raises ORJSONResponse for invalid season IDs.
+    """
+    if not season_id:
+        return 0, None
+    season = await seasons_repo.fetch_one(id=season_id)
+    if season is None:
+        raise ValueError(f"Season {season_id} not found.")
+    return season_id, season
+
+
 def _enrich_with_status(user_row: dict[str, Any]) -> dict[str, Any]:
     """Add is_online + player_status to a user dict by checking in-memory sessions."""
     player = app.state.sessions.players.get(id=user_row["id"])
@@ -236,7 +250,14 @@ async def api_get_friends_leaderboard(
     params = {f"id_{i}": uid for i, uid in enumerate(ids)}
     params["mode"] = mode
 
-    params["season_id"] = season_id if season_id else 0
+    try:
+        sid, _ = await _validate_season(season_id)
+    except ValueError as e:
+        return ORJSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    params["season_id"] = sid
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id, u.name, u.country, u.priv, "
         "c.tag AS clan_tag, "
@@ -306,8 +327,14 @@ async def api_get_player_quick_stats(
     season_id: int | None = Query(None, alias="season_id"),
 ) -> ORJSONResponse:
     """Lightweight endpoint returning extra stats + top play for one player."""
+    try:
+        sid, season = await _validate_season(season_id)
+    except ValueError as e:
+        return ORJSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     # Fetch stats
-    sid = season_id if season_id else 0
     stats_row = await app.state.services.database.fetch_one(
         "SELECT s.pp, s.acc, s.plays, s.playtime, s.max_combo, "
         "s.tscore, s.rscore, "
@@ -348,13 +375,7 @@ async def api_get_player_quick_stats(
         "AND b.status IN (2, 3) "
     )
     top_params: dict[str, object] = {"uid": user_id, "mode": mode}
-    if sid:
-        season = await seasons_repo.fetch_one(id=sid)
-        if season is None:
-            return ORJSONResponse(
-                {"status": "error", "message": f"Season {sid} not found."},
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+    if sid and season:
         top_query += "AND t.play_time >= :start_date AND t.play_time < :end_date "
         top_params["start_date"] = season["start_date"]
         top_params["end_date"] = season["end_date"]
@@ -467,9 +488,17 @@ async def api_compare_stats(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    try:
+        sid, _ = await _validate_season(season_id)
+    except ValueError as e:
+        return ORJSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
     players = []
     for uid in unique_ids:
-        p = await _get_player_stats(uid, mode, season_id if season_id else 0)
+        p = await _get_player_stats(uid, mode, sid)
         if p is None:
             return ORJSONResponse(
                 {"status": "Player not found."},
