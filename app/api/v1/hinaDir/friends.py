@@ -13,11 +13,26 @@ from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 from app.logging import error_catcher
+from app.repositories import seasons as seasons_repo
 import app.settings
 import app.state
 
 router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
+
+
+async def _validate_season(season_id: int | None) -> tuple[int, seasons_repo.Season | None]:
+    """Validate season_id and return (sid, season_record).
+
+    Returns (0, None) for all-time. Returns (sid, season) for valid seasons.
+    Raises ORJSONResponse for invalid season IDs.
+    """
+    if not season_id:
+        return 0, None
+    season = await seasons_repo.fetch_one(id=season_id)
+    if season is None:
+        raise ValueError(f"Season {season_id} not found.")
+    return season_id, season
 
 
 def _enrich_with_status(user_row: dict[str, Any]) -> dict[str, Any]:
@@ -235,7 +250,14 @@ async def api_get_friends_leaderboard(
     params = {f"id_{i}": uid for i, uid in enumerate(ids)}
     params["mode"] = mode
 
-    params["season_id"] = season_id if season_id else 0
+    try:
+        sid, _ = await _validate_season(season_id)
+    except ValueError as e:
+        return ORJSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    params["season_id"] = sid
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id, u.name, u.country, u.priv, "
         "c.tag AS clan_tag, "
@@ -256,9 +278,11 @@ async def api_get_friends_leaderboard(
             entry = dict(row)
             entry["rank"] = i + 1
 
-            # Get global rank from Redis
+            # Get global rank from Redis (season-aware)
+            sid = params["season_id"]
+            lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
             global_rank = await app.state.services.redis.zrevrank(
-                f"bancho:leaderboard:{mode}",
+                lb_key,
                 str(entry["id"]),
             )
             entry["global_rank"] = (global_rank + 1) if global_rank is not None else 0
@@ -303,8 +327,14 @@ async def api_get_player_quick_stats(
     season_id: int | None = Query(None, alias="season_id"),
 ) -> ORJSONResponse:
     """Lightweight endpoint returning extra stats + top play for one player."""
+    try:
+        sid, season = await _validate_season(season_id)
+    except ValueError as e:
+        return ORJSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     # Fetch stats
-    sid = season_id if season_id else 0
     stats_row = await app.state.services.database.fetch_one(
         "SELECT s.pp, s.acc, s.plays, s.playtime, s.max_combo, "
         "s.tscore, s.rscore, "
@@ -316,35 +346,52 @@ async def api_get_player_quick_stats(
     )
 
     if not stats_row:
-        return ORJSONResponse(
-            {"status": "Player not found."},
-            status_code=status.HTTP_404_NOT_FOUND,
+        # Check if user exists — return zeroed stats for valid users with no season data
+        user_exists = await app.state.services.database.fetch_val(
+            "SELECT 1 FROM users WHERE id = :uid AND priv & 1",
+            {"uid": user_id},
         )
+        if not user_exists:
+            return ORJSONResponse(
+                {"status": "Player not found."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        stats = {
+            "pp": 0, "acc": 0.0, "plays": 0, "playtime": 0, "max_combo": 0,
+            "tscore": 0, "rscore": 0, "xh_count": 0, "x_count": 0,
+            "sh_count": 0, "s_count": 0, "a_count": 0,
+        }
+    else:
+        stats = dict(stats_row)
+        stats["pp"] = float(stats["pp"])
+        stats["acc"] = round(float(stats["acc"]), 2)
+        stats["tscore"] = int(stats["tscore"])
+        stats["rscore"] = int(stats["rscore"])
 
-    stats = dict(stats_row)
-    stats["pp"] = float(stats["pp"])
-    stats["acc"] = round(float(stats["acc"]), 2)
-    stats["tscore"] = int(stats["tscore"])
-    stats["rscore"] = int(stats["rscore"])
-
-    # Global rank from Redis
+    # Global rank from Redis (season-aware)
+    lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
     global_rank = await app.state.services.redis.zrevrank(
-        f"bancho:leaderboard:{mode}",
+        lb_key,
         str(user_id),
     )
     stats["global_rank"] = (global_rank + 1) if global_rank is not None else 0
 
-    # Top play (single best score with map title)
-    top_row = await app.state.services.database.fetch_one(
+    # Top play (single best score with map title, season-scoped)
+    top_query = (
         "SELECT t.pp, t.acc, t.grade, t.mods, "
         "CONCAT(b.artist, ' - ', b.title, ' [', b.version, ']') AS map_title "
         "FROM scores t "
         "INNER JOIN maps b ON t.map_md5 = b.md5 "
         "WHERE t.userid = :uid AND t.mode = :mode AND t.status = 2 "
         "AND b.status IN (2, 3) "
-        "ORDER BY t.pp DESC LIMIT 1",
-        {"uid": user_id, "mode": mode},
     )
+    top_params: dict[str, object] = {"uid": user_id, "mode": mode}
+    if sid and season:
+        top_query += "AND t.play_time >= :start_date AND t.play_time < :end_date "
+        top_params["start_date"] = season["start_date"]
+        top_params["end_date"] = season["end_date"]
+    top_query += "ORDER BY t.pp DESC LIMIT 1"
+    top_row = await app.state.services.database.fetch_one(top_query, top_params)
 
     top_play = None
     if top_row:
@@ -404,9 +451,10 @@ async def _get_player_stats(uid: int, mode: int, season_id: int = 0) -> dict[str
             "has_stats": False,
         }
 
-    # Global rank from Redis
+    # Global rank from Redis (season-aware)
+    lb_key = f"bancho:leaderboard:{mode}" if not season_id else f"bancho:leaderboard:{mode}:season:{season_id}"
     global_rank = await app.state.services.redis.zrevrank(
-        f"bancho:leaderboard:{mode}",
+        lb_key,
         str(entry["id"]),
     )
     entry["rank"] = (global_rank + 1) if global_rank is not None else 0
@@ -451,9 +499,17 @@ async def api_compare_stats(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    try:
+        sid, _ = await _validate_season(season_id)
+    except ValueError as e:
+        return ORJSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
     players = []
     for uid in unique_ids:
-        p = await _get_player_stats(uid, mode, season_id if season_id else 0)
+        p = await _get_player_stats(uid, mode, sid)
         if p is None:
             return ORJSONResponse(
                 {"status": "Player not found."},

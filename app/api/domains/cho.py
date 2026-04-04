@@ -147,6 +147,7 @@ from app.packets import (
     ClientPackets,
     LoginFailureReason,
 )
+from app.repositories import clans as clans_repo
 from app.repositories import client_hashes as client_hashes_repo
 from app.repositories import ingame_logins as logins_repo
 from app.repositories import mail as mail_repo
