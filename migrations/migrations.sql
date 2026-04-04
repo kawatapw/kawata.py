@@ -478,9 +478,9 @@ create index scores_fetch_leaderboard_generic_index
 	on scores (map_md5, status, mode);
 
 # v5.2.3
--- Add new tables for manual database changes;
+# -- Add new tables for manual database changes;
 
--- Create changelog table;
+# -- Create changelog table;
 CREATE TABLE changelog (
     id int(64) NOT NULL AUTO_INCREMENT,
     type int(16) NOT NULL DEFAULT 0 COMMENT 'Change Type, Determines if change is for Frontend, Backend, or Client .',
@@ -496,7 +496,7 @@ CREATE TABLE changelog (
     KEY version (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores changelogs for Server and Client';
 
--- Create newly_ranked table;
+# -- Create newly_ranked table;
 CREATE TABLE newly_ranked (
     map_id int(64) NOT NULL,
     mod_id int(16) NOT NULL,
@@ -505,7 +505,7 @@ CREATE TABLE newly_ranked (
     KEY mod_id (mod_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Create privileges_groups table;
+# -- Create privileges_groups table;
 CREATE TABLE privileges_groups (
     id int(11) NOT NULL AUTO_INCREMENT,
     name varchar(256) NOT NULL,
@@ -514,7 +514,7 @@ CREATE TABLE privileges_groups (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
--- Create scoreinfo table;
+# -- Create scoreinfo table;
 CREATE TABLE scoreinfo (
     scoreid bigint(20) UNSIGNED NOT NULL,
     pinned tinyint(1) NOT NULL DEFAULT 0,
@@ -522,7 +522,7 @@ CREATE TABLE scoreinfo (
     KEY scoreid (scoreid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Create server_data table;
+# -- Create server_data table;
 CREATE TABLE server_data (
     type varchar(256) NOT NULL,
     value varchar(4096) DEFAULT NULL,
@@ -530,7 +530,7 @@ CREATE TABLE server_data (
     KEY value (value(768))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores Data for the server, example would be notice.';
 
--- Create wiped_scores table;
+# -- Create wiped_scores table;
 CREATE TABLE wiped_scores (
     id bigint(20) UNSIGNED NOT NULL,
     map_md5 char(32) NOT NULL,
@@ -565,14 +565,14 @@ CREATE TABLE wiped_scores (
     KEY scores_idx_map_md5_score (map_md5,score)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
--- Create users_ordr table;
+# -- Create users_ordr table;
 CREATE TABLE users_ordr (
     userid int(11) NOT NULL,
     skin varchar(256) NOT NULL DEFAULT 'loki_s_ultimatum_v5_fix',
     PRIMARY KEY (userid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Create user_customisations table;
+# -- Create user_customisations table;
 CREATE TABLE user_customisations (
     userid int(32) NOT NULL,
     hue int(3) NOT NULL DEFAULT 180,
@@ -581,7 +581,7 @@ CREATE TABLE user_customisations (
     UNIQUE KEY userid (userid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Modify logs table;
+# -- Modify logs table;
 ALTER TABLE logs
 DROP PRIMARY KEY,
 CHANGE COLUMN `id` `id` varchar(64) NOT NULL,
@@ -592,23 +592,23 @@ ADD COLUMN `type` tinyint(1) NOT NULL DEFAULT 0,
 ADD PRIMARY KEY (id),
 ADD KEY type (type);
 
--- Modify clans table;
+# -- Modify clans table;
 ALTER TABLE clans
 ADD COLUMN description varchar(1024) NOT NULL,
 ADD COLUMN icon varchar(1024) NOT NULL;
 
--- Modify users table;
+# -- Modify users table;
 ALTER TABLE users
 CHANGE COLUMN priv priv bigint(20) DEFAULT 1,
 CHANGE COLUMN custom_badge_name custom_badge_name varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 CHANGE COLUMN userpage_content userpage_content mediumtext DEFAULT NULL;
 
--- Modify scores table;
+# -- Modify scores table;
 ALTER TABLE scores
 ADD COLUMN r_replay_id int(11) NOT NULL,
 CHANGE COLUMN pp pp float(8,3) NOT NULL;
 
--- Add indexes to scores table;
+# -- Add indexes to scores table;
 ALTER TABLE scores
 ADD INDEX scores_idx_map_md5_status_mode_userid (map_md5,status,mode,userid),
 ADD INDEX scores_idx_map_md5_mode_userid (map_md5,mode,userid),
@@ -619,7 +619,7 @@ ADD INDEX scores_idx_mode_status (mode,status),
 ADD INDEX scores_idx_map_md5_score (map_md5,score),
 ADD INDEX scores_fetch_leaderboard_generic_index (map_md5,status,mode);
 
--- Add foreign keys;
+# -- Add foreign keys;
 ALTER TABLE scoreinfo
 ADD CONSTRAINT scoreinfo_ibfk_1 FOREIGN KEY (scoreid) REFERENCES scores (id) ON DELETE CASCADE;
 
@@ -630,15 +630,15 @@ ALTER TABLE user_customisations
 ADD CONSTRAINT FK_user_customizations FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE;
 
 # v5.3.1
--- Fix invalid zero‑date default in logs.time;
--- The column previously used '0000-00-00 00:00:00' which is not a valid datetime;
--- in strict‑mode MySQL/MariaDB.  Change it to use CURRENT_TIMESTAMP for both;
--- insert and update semantics.;
+# -- Fix invalid zero‑date default in logs.time;
+# -- The column previously used '0000-00-00 00:00:00' which is not a valid datetime;
+# -- in strict‑mode MySQL/MariaDB.  Change it to use CURRENT_TIMESTAMP for both;
+# -- insert and update semantics.;
 ALTER TABLE logs
     MODIFY `time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
--- Logs Table Overhaul: Transform to admin_v2_logs design;
--- Step 1: Create new table with the desired schema;
+# -- Logs Table Overhaul: Transform to admin_v2_logs design;
+# -- Step 1: Create new table with the desired schema;
 CREATE TABLE IF NOT EXISTS logs_new (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     from_id     INT NOT NULL COMMENT 'moderator user id',
@@ -654,9 +654,9 @@ CREATE TABLE IF NOT EXISTS logs_new (
     INDEX idx_logs_type_created (action_type, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Step 2: Copy data from old table to new table;
--- Note: The old table uses SHA256 hash as id, new table uses auto-increment;
--- We preserve the order by time to maintain chronological sequence;
+# -- Step 2: Copy data from old table to new table;
+# -- Note: The old table uses SHA256 hash as id, new table uses auto-increment;
+# -- We preserve the order by time to maintain chronological sequence;
 INSERT INTO logs_new (from_id, to_id, action, msg, created_at, action_type)
 SELECT
     CAST(`mod` AS SIGNED) as from_id,
@@ -668,26 +668,26 @@ SELECT
 FROM logs
 ORDER BY `time` ASC;
 
--- Step 3: Drop the old table;
+# -- Step 3: Drop the old table;
 DROP TABLE IF EXISTS logs;
 
--- Step 4: Rename the new table to logs;
+# -- Step 4: Rename the new table to logs;
 RENAME TABLE logs_new TO logs;
 
--- Remove users_ordr table (feature removed);
+# -- Remove users_ordr table (feature removed);
 DROP TABLE IF EXISTS users_ordr;
 
--- Remove r_replay_id column from scores table (feature removed);
+# -- Remove r_replay_id column from scores table (feature removed);
 ALTER TABLE scores DROP COLUMN r_replay_id;
 
--- Remove r_replay_id column from wiped_scores table (feature removed);
+# -- Remove r_replay_id column from wiped_scores table (feature removed);
 ALTER TABLE wiped_scores DROP COLUMN r_replay_id;
 
 
 # v5.3.2
--- Seasons System: Add season tracking and scheduling tables;
+# -- Seasons System: Add season tracking and scheduling tables;
 
--- Create season_schedules table for storing schedule configurations;
+# -- Create season_schedules table for storing schedule configurations;
 CREATE TABLE season_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
@@ -699,7 +699,7 @@ CREATE TABLE season_schedules (
     UNIQUE KEY idx_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Create seasons table for storing individual seasons;
+# -- Create seasons table for storing individual seasons;
 CREATE TABLE seasons (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
@@ -718,7 +718,7 @@ CREATE TABLE seasons (
     FOREIGN KEY (schedule_id) REFERENCES season_schedules(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Create season_config table for season-specific configuration;
+# -- Create season_config table for season-specific configuration;
 CREATE TABLE season_config (
     id INT AUTO_INCREMENT PRIMARY KEY,
     season_id INT NOT NULL,
@@ -728,48 +728,48 @@ CREATE TABLE season_config (
     FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Modify stats table to add season_id column and update primary key;
--- Remove AUTO_INCREMENT from id col to drop primary key;
+# -- Modify stats table to add season_id column and update primary key;
+# -- Remove AUTO_INCREMENT from id col to drop primary key;
 ALTER TABLE stats MODIFY COLUMN id INT NOT NULL;
--- Step 1: Drop the existing primary key (id, mode)
+# -- Step 1: Drop the existing primary key (id, mode);
 ALTER TABLE stats DROP PRIMARY KEY;
 
--- Step 2: Add season_id column with default 0 for all-time stats
+# -- Step 2: Add season_id column with default 0 for all-time stats;
 ALTER TABLE stats ADD COLUMN season_id INT UNSIGNED NOT NULL DEFAULT 0 AFTER mode;
 
--- Step 3: Add new composite primary key (id, mode, season_id)
+# -- Step 3: Add new composite primary key (id, mode, season_id);
 ALTER TABLE stats ADD PRIMARY KEY (id, mode, season_id);
 
--- Step 4: Add index on season_id for performance
+# -- Step 4: Add index on season_id for performance;
 ALTER TABLE stats ADD INDEX idx_season_id (season_id);
 
--- Add season preference column to users table;
+# -- Add season preference column to users table;
 ALTER TABLE users ADD COLUMN preferred_lb_view ENUM('all_time', 'seasonal') NOT NULL DEFAULT 'all_time';
--- Add preferred_schedule_id column to users table for schedule-based season system;
+# -- Add preferred_schedule_id column to users table for schedule-based season system;
 ALTER TABLE users ADD COLUMN preferred_schedule_id INT UNSIGNED NULL DEFAULT NULL AFTER preferred_lb_view;
 
--- Add recommended indexes for scores table for season filtering;
+# -- Add recommended indexes for scores table for season filtering;
 CREATE INDEX idx_scores_season_filter ON scores (play_time, status, mode);
 CREATE INDEX idx_scores_user_season ON scores (userid, play_time, mode);
 
--- Add default season configuration entries;
+# -- Add default season configuration entries;
 INSERT INTO server_data (type, value) VALUES ('seasons_enabled', '0');
 INSERT INTO server_data (type, value) VALUES ('seasons_default_mode', 'all_time');
 INSERT INTO server_data (type, value) VALUES ('seasons_active_type_id', '1');
 
 
--- Move pinned column from scoreinfo to scores table;
--- Step 1: Add pinned column to scores table;
+# -- Move pinned column from scoreinfo to scores table;
+# -- Step 1: Add pinned column to scores table;
 ALTER TABLE scores ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0 AFTER online_checksum;
 
--- Step 2: Copy pinned data from scoreinfo to scores;
+# -- Step 2: Copy pinned data from scoreinfo to scores;
 UPDATE scores s
 JOIN scoreinfo si ON s.id = si.scoreid
 SET s.pinned = si.pinned
 WHERE si.pinned = 1;
 
--- Step 3: Remove pinned column from scoreinfo table;
+# -- Step 3: Remove pinned column from scoreinfo table;
 ALTER TABLE scoreinfo DROP COLUMN pinned;
 
--- Step 4: Add index on pinned column;
+# -- Step 4: Add index on pinned column;
 CREATE INDEX scores_pinned_index ON scores (pinned);
