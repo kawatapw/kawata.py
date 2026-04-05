@@ -629,10 +629,12 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
         )
         return
 
-    # First check if there are any scores for this user/mode in the season date range
+    # Check if there are any scores for this user/mode in the season date range
     # This prevents the "Column 'mode' cannot be null" error when no scores exist
     check_query = """
-        SELECT COUNT(*) as score_count
+        SELECT
+            COUNT(*) as score_count,
+            SUM(CASE WHEN s.status = 2 THEN 1 ELSE 0 END) as ranked_count
         FROM scores s
         WHERE s.userid = :user_id AND s.mode = :mode
         AND s.play_time >= :start_date AND s.play_time < :end_date
@@ -653,12 +655,13 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
         return
 
     # Get best scores for weighted pp/accuracy calculation (ranked/approved maps only)
+    # Filter out scores with 0 PP (submitted before PP was calculated)
     best_scores = await app.state.services.database.fetch_all(
         """
         SELECT s.pp, s.acc FROM scores s
         INNER JOIN maps m ON s.map_md5 = m.md5
         WHERE s.userid = :user_id AND s.mode = :mode
-        AND s.status = 2 AND m.status IN (2, 3)
+        AND s.status = 2 AND m.status IN (2, 3) AND s.pp > 0
         AND s.play_time >= :start_date AND s.play_time < :end_date
         ORDER BY s.pp DESC
         """,
