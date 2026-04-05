@@ -2742,7 +2742,10 @@ async def recalc(ctx: Context) -> str | None:
     if not ctx.args:
         return "Usage: !season recalc <season_id> or !season recalc all"
 
+    import asyncio
     from app.bg_loops import calculate_season_stats_for_all_users
+
+    player = ctx.player
 
     if ctx.args[0].lower() == "all":
         all_seasons = await app.state.services.database.fetch_all(
@@ -2751,10 +2754,14 @@ async def recalc(ctx: Context) -> str | None:
         if not all_seasons:
             return "No seasons found."
 
-        ctx.player.send_bot(f"Recalculating stats for {len(all_seasons)} seasons... this may take a while.")
-        for s in all_seasons:
-            await calculate_season_stats_for_all_users(s["id"])
-        return f"Done! Recalculated stats for {len(all_seasons)} seasons."
+        async def _recalc_all() -> None:
+            for s in all_seasons:
+                player.send_bot(f"Recalculating season '{s['name']}' ({s['id']})...")
+                await calculate_season_stats_for_all_users(s["id"])
+            player.send_bot(f"Done! Recalculated stats for {len(all_seasons)} seasons.")
+
+        asyncio.create_task(_recalc_all())
+        return f"Started recalculating {len(all_seasons)} seasons in background. You'll get a message when done."
 
     if not ctx.args[0].isdecimal():
         return "Season ID must be a number, or 'all'."
@@ -2764,9 +2771,12 @@ async def recalc(ctx: Context) -> str | None:
     if season is None:
         return "Season not found."
 
-    ctx.player.send_bot(f"Recalculating stats for season '{season['name']}'...")
-    await calculate_season_stats_for_all_users(season_id)
-    return f"Done! Recalculated stats for season '{season['name']}'."
+    async def _recalc_one() -> None:
+        await calculate_season_stats_for_all_users(season_id)
+        player.send_bot(f"Done! Recalculated stats for season '{season['name']}'.")
+
+    asyncio.create_task(_recalc_one())
+    return f"Started recalculating season '{season['name']}' in background. You'll get a message when done."
 
 
 @season_commands.add(Privileges.UNRESTRICTED, hidden=True)
