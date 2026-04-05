@@ -709,7 +709,7 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
             LEAST(COALESCE(SUM(CASE WHEN s.status = 2 THEN s.score ELSE 0 END), 0), :bigint_max) as rscore,
             :pp as pp,
             LEAST(COUNT(*), :int32_max) as plays,
-            LEAST(COALESCE(SUM(s.time_elapsed), 0), :int32_max) as playtime,
+            LEAST(COALESCE(SUM(s.time_elapsed) DIV 1000, 0), :int32_max) as playtime,
             :acc as acc,
             LEAST(COALESCE(MAX(s.max_combo), 0), :int32_max) as max_combo,
             LEAST(COALESCE(SUM(s.n300 + s.n100 + s.n50), 0), :int32_max) as total_hits,
