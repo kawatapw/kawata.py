@@ -33,6 +33,7 @@ async def get_pp_records(
     cheat_type: str | None = Query(None),
     cheat_min: float | None = Query(None),
     cheat_max: float | None = Query(None),
+    season_id: int | None = Query(None),
 ) -> ORJSONResponse:
     # Validate cheat_type against whitelist (prevent JSON path injection)
     if cheat_type is not None and cheat_type not in VALID_CHEAT_TYPES:
@@ -44,6 +45,21 @@ async def get_pp_records(
     # Build WHERE clause
     where = "sc.mode = :mode AND sc.status = 2 AND u.priv & 1 AND sc.pp > 0"
     where_params: dict[str, Any] = {"mode": mode}
+
+    # Season filter — scores table has no season_id, so filter by date range
+    if season_id is not None and season_id > 0:
+        season_row = await app.state.services.database.fetch_one(
+            "SELECT start_date, end_date FROM seasons WHERE id = :sid",
+            {"sid": season_id},
+        )
+        if season_row is None:
+            return ORJSONResponse(
+                {"status": "error", "message": "Season not found"},
+                status_code=404,
+            )
+        where += " AND sc.play_time >= :season_start AND sc.play_time < :season_end"
+        where_params["season_start"] = season_row["start_date"]
+        where_params["season_end"] = season_row["end_date"]
 
     if cheat_type is not None:
         where += (
