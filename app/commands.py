@@ -2728,6 +2728,47 @@ async def season_end(ctx: Context) -> str | None:
     return f"Season '{season['name']}' deactivated."
 
 
+@season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+async def recalc(ctx: Context) -> str | None:
+    """Recalculate stats for a season (or all seasons).
+
+    Usage:
+        !season recalc <season_id> - Recalculate stats for a specific season
+        !season recalc all         - Recalculate stats for all seasons
+    """
+    if not await _is_seasons_enabled():
+        return "Seasons are not enabled."
+
+    if not ctx.args:
+        return "Usage: !season recalc <season_id> or !season recalc all"
+
+    from app.bg_loops import calculate_season_stats_for_all_users
+
+    if ctx.args[0].lower() == "all":
+        all_seasons = await app.state.services.database.fetch_all(
+            "SELECT id, name FROM seasons ORDER BY id",
+        )
+        if not all_seasons:
+            return "No seasons found."
+
+        ctx.player.send_bot(f"Recalculating stats for {len(all_seasons)} seasons... this may take a while.")
+        for s in all_seasons:
+            await calculate_season_stats_for_all_users(s["id"])
+        return f"Done! Recalculated stats for {len(all_seasons)} seasons."
+
+    if not ctx.args[0].isdecimal():
+        return "Season ID must be a number, or 'all'."
+
+    season_id = int(ctx.args[0])
+    season = await seasons_repo.fetch_one(id=season_id)
+    if season is None:
+        return "Season not found."
+
+    ctx.player.send_bot(f"Recalculating stats for season '{season['name']}'...")
+    await calculate_season_stats_for_all_users(season_id)
+    return f"Done! Recalculated stats for season '{season['name']}'."
+
+
 @season_commands.add(Privileges.UNRESTRICTED, hidden=True)
 async def season_list(ctx: Context) -> str | None:
     """List all seasons."""
