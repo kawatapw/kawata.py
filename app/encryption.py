@@ -4,12 +4,15 @@ Encryption Module - AES Encryption for Score Data Security
 This module provides AES encryption and decryption functionality for securing
 score data transmission between the osu! client and server. It implements
 Rijndael CBC encryption with PKCS7 padding to protect sensitive gameplay
-data and prevent tampering or interception.
+data from interception.
 
 The module handles the encryption and decryption of score submission data
 using a combination of osu! version-specific keys and initialization vectors.
-This ensures that score data remains confidential and tamper-proof during
-transmission between the client and server.
+This ensures that score data remains confidential during transmission
+between the client and server. Note that CBC mode provides confidentiality
+only, NOT integrity or authentication — it does not prevent tampering
+(e.g., bit-flipping attacks). If tamper-protection is required, HMAC
+verification should be added on top of the encrypted payload.
 
 Key Features:
     - AES encryption using Rijndael CBC mode
@@ -40,8 +43,11 @@ Decryption Process:
     5. Both values are returned for processing
 
 Security Considerations:
-    - Version-specific keys prevent cross-version data manipulation
-    - Initialization vectors ensure unique encryption for each submission
+    - CBC mode provides confidentiality only, NOT integrity or authentication.
+      It is vulnerable to bit-flipping attacks. HMAC verification should be
+      added if tamper-protection is required.
+    - Version-specific keys prevent cross-version data reuse
+    - Initialization vectors ensure unique ciphertext for each submission
     - PKCS7 padding provides proper block alignment
     - Base64 encoding ensures safe transmission over HTTP
 

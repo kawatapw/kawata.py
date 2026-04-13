@@ -629,10 +629,12 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
         )
         return
 
-    # First check if there are any scores for this user/mode in the season date range
+    # Check if there are any scores for this user/mode in the season date range
     # This prevents the "Column 'mode' cannot be null" error when no scores exist
     check_query = """
-        SELECT COUNT(*) as score_count
+        SELECT
+            COUNT(*) as score_count,
+            SUM(CASE WHEN s.status = 2 THEN 1 ELSE 0 END) as ranked_count
         FROM scores s
         WHERE s.userid = :user_id AND s.mode = :mode
         AND s.play_time >= :start_date AND s.play_time < :end_date
@@ -653,12 +655,13 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
         return
 
     # Get best scores for weighted pp/accuracy calculation (ranked/approved maps only)
+    # Filter out scores with 0 PP (submitted before PP was calculated)
     best_scores = await app.state.services.database.fetch_all(
         """
         SELECT s.pp, s.acc FROM scores s
         INNER JOIN maps m ON s.map_md5 = m.md5
         WHERE s.userid = :user_id AND s.mode = :mode
-        AND s.status = 2 AND m.status IN (2, 3)
+        AND s.status = 2 AND m.status IN (2, 3) AND s.pp > 0
         AND s.play_time >= :start_date AND s.play_time < :end_date
         ORDER BY s.pp DESC
         """,
@@ -706,7 +709,7 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
             LEAST(COALESCE(SUM(CASE WHEN s.status = 2 THEN s.score ELSE 0 END), 0), :bigint_max) as rscore,
             :pp as pp,
             LEAST(COUNT(*), :int32_max) as plays,
-            LEAST(COALESCE(SUM(s.time_elapsed), 0), :int32_max) as playtime,
+            LEAST(COALESCE(SUM(s.time_elapsed) DIV 1000, 0), :int32_max) as playtime,
             :acc as acc,
             LEAST(COALESCE(MAX(s.max_combo), 0), :int32_max) as max_combo,
             LEAST(COALESCE(SUM(s.n300 + s.n100 + s.n50), 0), :int32_max) as total_hits,
@@ -774,8 +777,17 @@ async def calculate_stats(season_id: int, user_id: int, mode: int) -> None:
                 level=logging.DEBUG,
             )
 
+            # Fetch user's country for leaderboard
+            user_country = await app.state.services.database.fetch_val(
+                "SELECT country FROM users WHERE id = :user_id",
+                {"user_id": user_id},
+            )
+
             # Update Redis leaderboard for this season
-            await update_season_leaderboard(season_id, user_id, mode, pp)
+            if user_country:
+                await update_season_leaderboard(
+                    season_id, user_id, mode, pp, user_country
+                )
 
     except Exception as e:
         log(
@@ -792,6 +804,7 @@ async def update_season_leaderboard(
     user_id: int,
     mode: int,
     pp: int,
+    country: str,
 ) -> None:
     """Update the Redis leaderboard for a specific season.
 
@@ -800,10 +813,17 @@ async def update_season_leaderboard(
         user_id: The ID of the user.
         mode: The game mode.
         pp: The performance points to set on the leaderboard.
+        country: The user's country code for country-specific leaderboards.
     """
     try:
+        # Global season leaderboard
         await app.state.services.redis.zadd(
             f"bancho:leaderboard:{mode}:season:{season_id}",
+            {str(user_id): pp},
+        )
+        # Country-specific season leaderboard
+        await app.state.services.redis.zadd(
+            f"bancho:leaderboard:{mode}:{country}:season:{season_id}",
             {str(user_id): pp},
         )
     except Exception as e:

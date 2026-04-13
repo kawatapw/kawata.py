@@ -24,17 +24,17 @@ logs:
 	docker compose logs -f bancho mysql redis --tail ${last}
 
 shell:
-	uv run --active python
+	uv run python
 
 test:
 	docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test
 	docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
 
 lint:
-	uv run --active pre-commit run --all-files
+	uv run pre-commit run --all-files
 
 type-check:
-	uv run --active mypy .
+	uv run mypy .
 
 install:
 	uv sync --all-extras --dev
@@ -47,4 +47,4 @@ uninstall:
 # (DO NOT USE IF YOU DON'T KNOW WHAT YOU'RE DOING)
 # https://python-poetry.org/docs/cli/#version
 bump:
-	uv run --active bump2version $(version)
+	uv run bump2version $(version)

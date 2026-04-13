@@ -86,6 +86,7 @@ from app.objects.group import Group
 from app.objects.match import Match
 from app.objects.player import Player
 from app.repositories import channels as channels_repo
+from app.repositories import clans as clans_repo
 from app.repositories import users as users_repo
 from app.utils import make_safe_name
 
@@ -339,9 +340,11 @@ class Players(list[Player]):
 
         clan_id: int | None = None
         clan_priv: ClanPrivileges | None = None
+        clan: clans_repo.Clan | None = None
         if player["clan_id"] != 0:
             clan_id = player["clan_id"]
             clan_priv = ClanPrivileges(player["clan_priv"])
+            clan = await clans_repo.fetch_one(id=clan_id)
 
         return Player(
             id=player["id"],
@@ -351,6 +354,7 @@ class Players(list[Player]):
             token=Player.generate_token(),
             clan_id=clan_id,
             clan_priv=clan_priv,
+            clan=clan,
             geoloc={
                 "latitude": 0.0,
                 "longitude": 0.0,
@@ -415,6 +419,7 @@ class Players(list[Player]):
             return
 
         super().append(player)
+        player._cache_token = player.token
         self._by_token[player.token] = player
         self._by_id[player.id] = player
         self._by_name[player.safe_name] = player
@@ -427,12 +432,12 @@ class Players(list[Player]):
                 log(f"{player} removed from player list when not online?")
             return
 
-        super().remove(player)
         # Use original_token if provided (for logout case), otherwise use player.token
         token_to_remove = original_token if original_token is not None else player.token
-        del self._by_token[token_to_remove]
-        del self._by_id[player.id]
-        del self._by_name[player.safe_name]
+        self._by_token.pop(token_to_remove, None)
+        self._by_id.pop(player.id, None)
+        self._by_name.pop(player.safe_name, None)
+        super().remove(player)
 
 
 @error_catcher

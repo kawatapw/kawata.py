@@ -16,28 +16,60 @@ create table achievements
 
 create table badges
 (
-	id int(11) not null,
+	id int not null auto_increment,
 	name varchar(64) not null,
 	description varchar(256) not null,
-	priority int(11) not null,
+	priority int not null,
 	primary key (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 create table badge_styles
 (
-	id int(11) not null,
-	badge_id int(11) not null,
+	id int not null auto_increment,
+	badge_id int not null,
 	type varchar(32) not null,
 	value varchar(256) not null,
 	primary key (id),
 	key badge_id (badge_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+# -- Beatmap review work items queue;
+CREATE TABLE IF NOT EXISTS beatmap_work_items (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    set_id        INT NOT NULL,
+    request_id    INT DEFAULT NULL,
+    review_state  VARCHAR(16) NOT NULL DEFAULT 'pending',
+    assigned_to   INT DEFAULT NULL,
+    assigned_at   DATETIME DEFAULT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    resolved_at   DATETIME DEFAULT NULL,
+    resolution    VARCHAR(32) DEFAULT NULL,
+    checklist     JSON DEFAULT NULL,
+    priority      TINYINT NOT NULL DEFAULT 0,
+    INDEX idx_bwi_set_id (set_id),
+    INDEX idx_bwi_review_state (review_state),
+    INDEX idx_bwi_assigned (assigned_to),
+    INDEX idx_bwi_created (created_at),
+    INDEX idx_bwi_state_priority (review_state, priority, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+# -- Beatmap review discussion comments;
+CREATE TABLE IF NOT EXISTS beatmap_review_comments (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    work_item_id  INT NOT NULL,
+    user_id       INT NOT NULL,
+    body          TEXT NOT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_brc_work_item (work_item_id),
+    INDEX idx_brc_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 create table changelog
 (
-	id int(64) not null auto_increment,
-	type int(16) not null default 0 comment 'Change Type, Determines if change is for Frontend, Backend, or Client .',
-	poster int(32) not null comment 'ID of User that posted/made this change.',
+	id int not null auto_increment,
+	type int not null default 0 comment 'Change Type, Determines if change is for Frontend, Backend, or Client .',
+	poster int not null comment 'ID of User that posted/made this change.',
 	category varchar(256) default null,
 	content varchar(4096) not null,
 	time datetime not null,
@@ -179,12 +211,12 @@ create table maps
 	plays int default 0 not null,
 	passes int default 0 not null,
 	mode tinyint(1) default 0 not null,
-	bpm float(12,2) default 0.00 not null,
-	cs float(4,2) default 0.00 not null,
-	ar float(4,2) default 0.00 not null,
-	od float(4,2) default 0.00 not null,
-	hp float(4,2) default 0.00 not null,
-	diff float(6,3) default 0.000 not null,
+	bpm float default 0.00 not null,
+	cs float default 0.00 not null,
+	ar float default 0.00 not null,
+	od float default 0.00 not null,
+	hp float default 0.00 not null,
+	diff float default 0.000 not null,
 	primary key (server, id),
 	constraint maps_id_uindex
 		unique (id),
@@ -226,8 +258,8 @@ create table map_requests
 
 create table newly_ranked
 (
-	map_id int(64) not null,
-	mod_id int(16) not null,
+	map_id int not null,
+	mod_id int not null,
 	time datetime not null,
 	unique key map_id (map_id),
 	key mod_id (mod_id)
@@ -235,7 +267,7 @@ create table newly_ranked
 
 create table performance_reports
 (
-	scoreid bigint(20) unsigned not null,
+	scoreid bigint unsigned not null,
 	mod_mode enum('vanilla', 'relax', 'autopilot') default 'vanilla' not null,
 	os varchar(64) not null,
 	fullscreen tinyint(1) not null,
@@ -255,9 +287,9 @@ create table performance_reports
 
 create table privileges_groups
 (
-	id int(11) not null auto_increment,
+	id int not null auto_increment,
 	name varchar(256) not null,
-	privileges bigint(32) not null,
+	privileges bigint not null,
 	color varchar(32) not null,
 	primary key (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
@@ -266,7 +298,7 @@ create table ratings
 (
 	userid int not null,
 	map_md5 char(32) not null,
-	rating tinyint(2) not null,
+	rating tinyint not null,
 	primary key (userid, map_md5)
 );
 
@@ -283,8 +315,8 @@ create table scores
 		primary key,
 	map_md5 char(32) not null,
 	score int not null,
-	pp float(8,3) not null,
-	acc float(6,3) not null,
+	pp float not null,
+	acc float not null,
 	max_combo int not null,
 	mods int not null,
 	n300 int not null,
@@ -414,7 +446,7 @@ create table stats
 	pp int unsigned default 0 not null,
 	plays int unsigned default 0 not null,
 	playtime int unsigned default 0 not null,
-	acc float(6,3) default 0.000 not null,
+	acc float default 0.000 not null,
 	max_combo int unsigned default 0 not null,
 	total_hits int unsigned default 0 not null,
 	replay_views int unsigned default 0 not null,
@@ -473,16 +505,16 @@ create index user_achievements_userid_index
 
 create table user_badges
 (
-	userid int(11) not null,
-	badge_id int(11) not null,
+	userid int not null,
+	badge_id int not null,
 	key userid (userid),
 	key badge (badge_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 create table user_customisations
 (
-	userid int(32) not null,
-	hue int(3) not null default 180,
+	userid int not null,
+	hue int not null default 180,
 	has_banner tinyint(1) not null default 0,
 	has_background tinyint(1) not null default 0,
 	unique key userid (userid)
@@ -495,7 +527,7 @@ create table users
 	name varchar(32) charset utf8 not null,
 	safe_name varchar(32) charset utf8 not null,
 	email varchar(254) not null,
-	priv bigint(20) default 1,
+	priv bigint default 1,
 	pw_bcrypt char(60) not null,
 	country char(2) default 'xx' not null,
 	silence_end int default 0 not null,
@@ -536,8 +568,8 @@ create table wiped_scores
 		primary key,
 	map_md5 char(32) not null,
 	score int not null,
-	pp float(8,3) not null,
-	acc float(6,3) not null,
+	pp float not null,
+	acc float not null,
 	max_combo int not null,
 	mods int not null,
 	n300 int not null,

@@ -61,9 +61,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.param_functions import Query
+from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
+from fastapi.security import HTTPBearer
 
+import app.state
 from app.api.v2.common import responses
 from app.api.v2.common.responses import Failure, Success
 from app.api.v2.models.seasons import Season, SeasonStats
@@ -72,6 +75,7 @@ from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 
 router = APIRouter()
+http_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @router.get("/seasons")
@@ -174,8 +178,15 @@ async def get_season_preference(
 async def update_season_preference(
     player_id: int,
     preferred_lb_view: str,
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
 ) -> Success[dict[str, Any]] | Failure:
     """Update a player's season view preference."""
+    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+        return responses.failure(
+            message="Invalid API key.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
     if preferred_lb_view not in ("all_time", "seasonal"):
         return responses.failure(
             message="Invalid preference. Must be 'all_time' or 'seasonal'.",
@@ -193,6 +204,11 @@ async def update_season_preference(
         id=player_id,
         preferred_lb_view=preferred_lb_view,
     )
+
+    # Also update the live session if the player is online
+    online_player = app.state.sessions.players.get(id=player_id)
+    if online_player is not None:
+        online_player.preferred_lb_view = preferred_lb_view
 
     return responses.success(
         {
@@ -285,6 +301,7 @@ async def get_active_season_for_schedule(
 async def set_preferred_schedule(
     player_id: int,
     schedule_id: int,
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
 ) -> Success[dict[str, Any]] | Failure:
     """Set a player's preferred schedule type.
 
@@ -292,6 +309,12 @@ async def set_preferred_schedule(
         player_id: The player's ID
         schedule_id: The schedule ID to set as preferred, or None to clear preference
     """
+    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+        return responses.failure(
+            message="Invalid API key.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
     data = await users_repo.fetch_one(id=player_id)
     if data is None:
         return responses.failure(
@@ -312,6 +335,11 @@ async def set_preferred_schedule(
         id=player_id,
         preferred_schedule_id=schedule_id,
     )
+
+    # Also update the live session if the player is online
+    online_player = app.state.sessions.players.get(id=player_id)
+    if online_player is not None:
+        online_player.preferred_schedule_id = schedule_id
 
     return responses.success(
         {

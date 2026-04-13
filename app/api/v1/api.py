@@ -85,8 +85,10 @@ Related Files:
 
 # from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import random
 import struct
 from pathlib import Path as SystemPath
 from typing import Any, Literal
@@ -153,15 +155,15 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 @error_catcher
 async def api_calculate_pp(
     token: HTTPCredentials | None = api_key_dependency,  # noqa: B008
-    beatmap_id: int = Query(None, alias="id", min=0, max=2_147_483_647),  # noqa: B008
-    nkatu: int = Query(None, max=2_147_483_647),  # noqa: B008
-    ngeki: int = Query(None, max=2_147_483_647),  # noqa: B008
-    n100: int = Query(None, max=2_147_483_647),  # noqa: B008
-    n50: int = Query(None, max=2_147_483_647),  # noqa: B008
-    misses: int = Query(0, max=2_147_483_647),  # noqa: B008
-    mods: int = Query(0, min=0, max=2_147_483_647),  # noqa: B008
-    mode: int = Query(0, min=0, max=11),  # noqa: B008
-    combo: int = Query(None, max=2_147_483_647),  # noqa: B008
+    beatmap_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),  # noqa: B008
+    nkatu: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    ngeki: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    n100: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    n50: int | None = Query(None, le=2_147_483_647),  # noqa: B008
+    misses: int = Query(0, le=2_147_483_647),  # noqa: B008
+    mods: int = Query(0, ge=0, le=2_147_483_647),  # noqa: B008
+    mode: int = Query(0, ge=0, le=11),  # noqa: B008
+    combo: int | None = Query(None, le=2_147_483_647),  # noqa: B008
     acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),  # noqa: B008
 ) -> ORJSONResponse:
     """Calculates the PP of a specified map with specified score parameters."""
@@ -232,6 +234,122 @@ async def api_calculate_pp(
     )
 
 
+@router.get("/calculate_pp_batch")
+@error_catcher
+async def api_calculate_pp_batch(
+    token: HTTPCredentials = Depends(http_bearer_scheme),
+    beatmap_ids: list[int] = Query([], alias="id"),
+    mods: int = Query(0, min=0, max=2_147_483_647),
+    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
+) -> Response:
+    """Calculate PP for multiple beatmap diffs in a single request.
+
+    Each diff auto-detects its game mode from the database.
+    Returns results keyed by beatmap ID.
+    """
+
+    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+        return ORJSONResponse(
+            {"status": "Invalid API key."},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if len(beatmap_ids) == 0:
+        return ORJSONResponse(
+            {"status": "error", "message": "No beatmap IDs provided."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(beatmap_ids) > 20:
+        return ORJSONResponse(
+            {"status": "error", "message": "A maximum of 20 beatmap IDs is allowed."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Fetch map metadata directly from DB (avoids osu! API race conditions)
+    placeholders = ", ".join(
+        [f":id_{i}" for i in range(len(beatmap_ids))]
+    )
+    params = {f"id_{i}": bid for i, bid in enumerate(beatmap_ids)}
+    rows = await app.state.services.database.fetch_all(
+        f"SELECT id, md5, mode FROM maps WHERE id IN ({placeholders})",
+        params,
+    )
+
+    # Build lookup: beatmap_id -> {md5, mode}
+    db_maps: dict[int, dict[str, Any]] = {}
+    if rows:
+        for row in rows:
+            db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
+
+    # Ensure .osu files are available in parallel
+    maps_to_check = [
+        (bid, db_maps[bid]) for bid in beatmap_ids if bid in db_maps
+    ]
+    if maps_to_check:
+        osu_results = await asyncio.gather(
+            *[
+                ensure_osu_file_is_available(bid, expected_md5=m["md5"])
+                for bid, m in maps_to_check
+            ],
+        )
+        file_ok_map = {
+            bid: ok for (bid, _), ok in zip(maps_to_check, osu_results)
+        }
+    else:
+        file_ok_map = {}
+
+    results: dict[str, dict[str, Any]] = {}
+
+    for bid in beatmap_ids:
+        if bid not in db_maps:
+            results[str(bid)] = {"error": "Beatmap not found."}
+            continue
+
+        if not file_ok_map.get(bid, False):
+            results[str(bid)] = {"error": "Beatmap file could not be fetched."}
+            continue
+
+        bmap_info = db_maps[bid]
+        vanilla_mode = GameMode(bmap_info["mode"]).as_vanilla
+
+        scores = [
+            ScoreParams(vanilla_mode, mods, acc=acc)
+            for acc in acclist
+        ]
+
+        try:
+            perf_results = app.usecases.performance.calculate_performances(
+                str(BEATMAPS_PATH / f"{bid}.osu"),
+                scores,
+            )
+        except Exception:
+            results[str(bid)] = {"error": "PP calculation failed."}
+            continue
+
+        pp_values = []
+        for perf, score in zip(perf_results, scores):
+            pp_values.append({
+                "accuracy": score.acc,
+                "pp": perf["performance"]["pp"],
+                "pp_aim": perf["performance"].get("pp_aim", 0),
+                "pp_speed": perf["performance"].get("pp_speed", 0),
+                "pp_flashlight": perf["performance"].get("pp_flashlight", 0),
+                "pp_acc": perf["performance"].get("pp_acc", 0),
+            })
+
+        difficulty_result = perf_results[0]["difficulty"] if perf_results else None
+        results[str(bid)] = {
+            "pp_values": pp_values,
+            "difficulty": difficulty_result,
+        }
+
+    return ORJSONResponse(
+        {"status": "success", "results": results},
+        status_code=status.HTTP_200_OK,
+    )
+
+
 @router.get("/search_players")
 @error_catcher
 async def api_search_players(
@@ -260,6 +378,12 @@ async def api_search_players(
 @error_catcher
 async def api_get_player_count() -> Response:
     """Get the current amount of online players."""
+    recent = await app.state.services.database.fetch_all(
+        "SELECT id FROM users WHERE priv & 1 ORDER BY id DESC LIMIT 5",
+    )
+    scores_count = await app.state.services.database.fetch_val(
+        "SELECT COUNT(*) FROM scores",
+    )
     return ORJSONResponse(
         {
             "status": "success",
@@ -267,6 +391,8 @@ async def api_get_player_count() -> Response:
                 # -1 for the bot, who is always online
                 "online": len(app.state.sessions.players.unrestricted) - 1,
                 "total": await users_repo.fetch_count(),
+                "total_scores": scores_count or 0,
+                "recent_users": [row["id"] for row in recent] if recent else [],
             },
         },
     )
@@ -334,14 +460,26 @@ async def api_get_player_info(
         )
 
         for mode_stats in all_stats:
-            rank = await app.state.services.redis.zrevrank(
-                f"bancho:leaderboard:{mode_stats['mode']}",
-                str(resolved_user_id),
-            )
-            country_rank = await app.state.services.redis.zrevrank(
-                f"bancho:leaderboard:{mode_stats['mode']}:{resolved_country}",
-                str(resolved_user_id),
-            )
+            if season_id is not None:
+                # Use season-specific leaderboard keys
+                rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}:season:{season_id}",
+                    str(resolved_user_id),
+                )
+                country_rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}:{resolved_country}:season:{season_id}",
+                    str(resolved_user_id),
+                )
+            else:
+                # Use global leaderboard keys
+                rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}",
+                    str(resolved_user_id),
+                )
+                country_rank = await app.state.services.redis.zrevrank(
+                    f"bancho:leaderboard:{mode_stats['mode']}:{resolved_country}",
+                    str(resolved_user_id),
+                )
 
             # NOTE: this dict-like return is intentional.
             #       but quite cursed.
@@ -429,6 +567,13 @@ async def api_get_player_status(
     else:
         return ORJSONResponse(
             {"status": "Must provide either ids or names."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Validate identifiers are non-empty
+    if not identifiers:
+        return ORJSONResponse(
+            {"status": "Must provide non-empty ids or names."},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -644,10 +789,14 @@ async def api_get_player_scores(
 
     if season_id is not None:
         season = await seasons_repo.fetch_one(id=season_id)
-        if season:
-            query.append("AND t.play_time >= :start_date AND t.play_time < :end_date")
-            params["start_date"] = season["start_date"]
-            params["end_date"] = season["end_date"]
+        if not season:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {season_id} not found."},
+                status_code=404,
+            )
+        query.append("AND t.play_time >= :start_date AND t.play_time < :end_date")
+        params["start_date"] = season["start_date"]
+        params["end_date"] = season["end_date"]
 
     if mods is not None:
         if strong_equality:
@@ -757,6 +906,7 @@ async def api_get_player_most_played(
     username: str | None = Query(None, alias="name", pattern=regexes.USERNAME.pattern),
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
     limit: int = Query(25, ge=1, le=100),
+    season_id: int | None = Query(None, alias="season_id"),
 ) -> Response:
     """Return the most played beatmaps of a given player."""
     # NOTE: this will almost certainly not scale well, lol.
@@ -791,19 +941,32 @@ async def api_get_player_most_played(
 
     mode = GameMode(mode_arg)
 
-    # fetch & return info from sql
-    rows = await app.state.services.database.fetch_all(
+    # build query
+    query = (
         "SELECT m.md5, m.id, m.set_id, m.status, "
         "m.artist, m.title, m.version, m.creator, COUNT(*) plays "
         "FROM scores s "
         "INNER JOIN maps m ON m.md5 = s.map_md5 "
         "WHERE s.userid = :user_id "
         "AND s.mode = :mode "
-        "GROUP BY s.map_md5 "
-        "ORDER BY plays DESC "
-        "LIMIT :limit",
-        {"user_id": player.id, "mode": mode, "limit": limit},
     )
+    params: dict[str, object] = {"user_id": player.id, "mode": mode, "limit": limit}
+
+    if season_id is not None:
+        season = await seasons_repo.fetch_one(id=season_id)
+        if not season:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {season_id} not found."},
+                status_code=404,
+            )
+        query += "AND s.play_time >= :start_date AND s.play_time < :end_date "
+        params["start_date"] = season["start_date"]
+        params["end_date"] = season["end_date"]
+
+    query += "GROUP BY s.map_md5 ORDER BY plays DESC LIMIT :limit"
+
+    # fetch & return info from sql
+    rows = await app.state.services.database.fetch_all(query, params)
 
     return ORJSONResponse(
         {
@@ -923,10 +1086,14 @@ async def api_get_map_scores(
 
     if season_id is not None:
         season = await seasons_repo.fetch_one(id=season_id)
-        if season:
-            query.append("AND s.play_time >= :start_date AND s.play_time < :end_date")
-            params["start_date"] = season["start_date"]
-            params["end_date"] = season["end_date"]
+        if not season:
+            return ORJSONResponse(
+                {"status": "error", "message": f"Season {season_id} not found."},
+                status_code=404,
+            )
+        query.append("AND s.play_time >= :start_date AND s.play_time < :end_date")
+        params["start_date"] = season["start_date"]
+        params["end_date"] = season["end_date"]
 
     if mods is not None:
         if strong_equality:
@@ -1184,9 +1351,9 @@ async def api_get_global_leaderboard(
     sort: Literal["tscore", "rscore", "pp", "acc", "plays", "playtime"] = "pp",
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
     limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, min=0, max=2_147_483_647),
+    offset: int = Query(0, ge=0, le=2_147_483_647),
     country: str | None = Query(None, min_length=2, max_length=2),
-    season_id: int = Query(0, alias="season"),
+    season_id: int | None = Query(None, alias="season"),
 ) -> Response:
     if mode_arg in (
         GameMode.RELAX_MANIA,
@@ -1208,9 +1375,11 @@ async def api_get_global_leaderboard(
         query_conditions.append("u.country = :country")
         query_parameters["country"] = country
 
-    if season_id is not None:
+    if season_id is not None and season_id != 0:
         query_conditions.append("s.season_id = :season_id")
         query_parameters["season_id"] = season_id
+    else:
+        query_conditions.append("s.season_id = 0")
 
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id as player_id, u.name, u.country, s.tscore, s.rscore, "
@@ -1254,7 +1423,7 @@ async def api_get_top_players() -> Response:
 
         mode = GameMode(mode_arg)
 
-        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0"]
+        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0", "s.season_id = 0"]
         query_parameters: dict[str, object] = {"mode": mode}
 
         rows = await app.state.services.database.fetch_all(
@@ -1431,11 +1600,11 @@ async def api_get_friends(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # get user info from username or id
+    # get user info from username or id (includes offline players via DB lookup)
     if username:
-        user_info = app.state.sessions.players.get(name=username)
+        user_info = await app.state.sessions.players.from_cache_or_sql(name=username)
     else:  # if userid
-        user_info = app.state.sessions.players.get(id=user_id)
+        user_info = await app.state.sessions.players.from_cache_or_sql(id=user_id)
     if user_info is None:
         return ORJSONResponse(
             {"status": "Player not found."},
@@ -1543,8 +1712,8 @@ async def api_get_badges(
 
         badges.append(badge)
 
-        # Sort the badges based on priority
-        badges.sort(key=lambda x: x["priority"], reverse=True)
+    # Sort the badges based on priority
+    badges.sort(key=lambda x: x["priority"], reverse=True)
 
     return ORJSONResponse(content={"badges": badges})
 
@@ -1555,24 +1724,26 @@ async def api_update_map_status(
     token: HTTPCredentials | None = api_key_dependency,
     map_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
     set_id: int | None = Query(None, alias="sid", ge=0, le=2_147_483_647),
-    status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
+    map_status: int = Query(..., alias="s", ge=0, le=2_147_483_647),
 ) -> Response:
     """Update the status of a given beatmap."""
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
+            status_code=401,
         )
     if token.credentials != app.settings.BOT_API_KEY:
         return ORJSONResponse(
             {
                 "status": "This endpoint is locked down and should only be used by the server.",
             },
+            status_code=403,
         )
     if map_id is None and set_id is None:
         return ORJSONResponse(
             {"status": "Must provide either id or sid!"},
         )
-    if status not in (0, 1, 2, 3, 4, 5):
+    if map_status not in (0, 1, 2, 3, 4, 5):
         return ORJSONResponse(
             {"status": "Invalid status!"},
         )
@@ -1582,12 +1753,17 @@ async def api_update_map_status(
     if not bmap:
         if set_id is None:
             raise HTTPException(status_code=404, detail="Beatmap not found")
-    new_status = RankedStatus(status)
+    new_status = RankedStatus(map_status)
     # Update the beatmap status
     if set_id is not None:
         try:
             # update all maps in the set
             beatmap_set = await maps_repo.fetch_many(set_id=set_id)
+            if not beatmap_set:
+                return ORJSONResponse(
+                    {"status": "error", "message": "Beatmap set not found."},
+                    status_code=status.HTTP_404_NOT_FOUND,
+                )
             for _bmap in beatmap_set:
                 await maps_repo.partial_update(
                     _bmap["id"],
@@ -1682,3 +1858,44 @@ async def api_update_map_status(
 #     # write to the avatar file
 #     (AVATARS_PATH / f"{player.id}.{ext}").write_bytes(ava_file)
 #     return JSON({"status": "success."})
+
+
+@router.get("/get_online_players_sample")
+@error_catcher
+async def api_get_online_players_sample(
+    limit: int = Query(12, ge=1, le=50),
+) -> Response:
+    """Return a sample of currently online players for home page display."""
+    # Get unrestricted online players (exclude bot, ID 1)
+    online = [
+        p for p in app.state.sessions.players.unrestricted
+        if p.id > 1
+    ]
+
+    # Sample random players (or return all if fewer than limit)
+    if len(online) > limit:
+        sample = random.sample(online, limit)
+    else:
+        sample = online
+
+    players = []
+    for p in sample:
+        players.append({
+            "id": p.id,
+            "name": p.name,
+            "country": p.geoloc["country"]["acronym"],
+            "clan_id": p.clan["id"] if p.clan else None,
+            "clan_tag": p.clan["tag"] if p.clan else None,
+            "pp": round(p.gm_stats.pp, 2) if p.gm_stats else 0,
+            "rank": p.gm_stats.rank if p.gm_stats else 0,
+            "status": {
+                "online": True,
+                "action": p.status.action.value if p.status else 0,
+                "info_text": p.status.info_text if p.status else "",
+            },
+        })
+
+    return ORJSONResponse({
+        "status": "success",
+        "players": players,
+    })

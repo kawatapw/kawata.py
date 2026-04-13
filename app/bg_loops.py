@@ -76,6 +76,7 @@ from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.schedule_types import get_provider_for_schedule_type
 from app.utils import DebugLevelWatcher
+from typing import Any
 
 OSU_CLIENT_MIN_PING_INTERVAL = 300000 // 1000  # defined by osu!
 

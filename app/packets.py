@@ -371,8 +371,8 @@ class MultiplayerMatch:
 
 
 class BasePacket(ABC):
-    @abstractmethod
-    def __init__(self, reader: BanchoPacketReader) -> None: ...
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass
 
     @abstractmethod
     async def handle(self, player: Player) -> None: ...
@@ -415,16 +415,14 @@ class BanchoPacketReader:
     def __next__(self) -> BasePacket:
         # do not break until we've read the
         # header of a packet we can handle.
-        i = 0
         p_type = ClientPackets.UNKNOWN_PACKET
         p_len = 0
         while self.body_view:  # len(self.view) < 7?
-            if len(self.body_view) < 7 and i < 1:
+            if len(self.body_view) < 7:
                 logging.log(
                     f"Packet too short to read header, skipping. {self.body_view}",
                 )
-                i += 1
-                continue
+                raise StopIteration
             p_type, p_len = self._read_header()
 
             if p_type not in self.packet_map:
@@ -525,7 +523,7 @@ class BanchoPacketReader:
         length = int.from_bytes(self.body_view[:2], "little")
         self.body_view = self.body_view[2:]
 
-        val = struct.unpack(f"<{'I' * length}", self.body_view[: length * 4])
+        val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
         return val
 
@@ -533,7 +531,7 @@ class BanchoPacketReader:
         length = int.from_bytes(self.body_view[:4], "little")
         self.body_view = self.body_view[4:]
 
-        val = struct.unpack(f"<{'I' * length}", self.body_view[: length * 4])
+        val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
         return val
 
@@ -812,6 +810,18 @@ _expand_types: dict[osuTypes, Callable[..., bytearray]] = {
 }
 
 
+_INT_BOUNDS: dict[osuTypes, tuple[int, int]] = {
+    osuTypes.i8: (-128, 127),
+    osuTypes.u8: (0, 255),
+    osuTypes.i16: (-32768, 32767),
+    osuTypes.u16: (0, 65535),
+    osuTypes.i32: (-2147483648, 2147483647),
+    osuTypes.u32: (0, 4294967295),
+    osuTypes.i64: (-9223372036854775808, 9223372036854775807),
+    osuTypes.u64: (0, 18446744073709551615),
+}
+
+
 def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
     """Write `args` into bytes."""
     ret = bytearray(struct.pack("<Hx", packid))
@@ -820,11 +830,12 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
         if p_type == osuTypes.raw:
             ret += p_args
         elif p_type in _noexpand_types:
-            if isinstance(p_args, int) and not -2147483648 <= p_args <= 2147483647:
+            bounds = _INT_BOUNDS.get(p_type)
+            if bounds is not None and isinstance(p_args, int) and not bounds[0] <= p_args <= bounds[1]:
                 logging.log(
-                    "Integer value out of range for 'i' format code",
+                    f"Integer value out of range for {p_type!r}",
                     level=logging.logLevel.WARNING,
-                    extra={"value": p_args},
+                    extra={"value": p_args, "bounds": bounds},
                 )
             ret += _noexpand_types[p_type](p_args)
         elif p_type in _expand_types:

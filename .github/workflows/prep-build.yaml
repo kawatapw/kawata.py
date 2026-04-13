@@ -1,0 +1,67 @@
+name: Prepare Build
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "The version from project"
+        value: ${{ jobs.prepare.outputs.version }}
+      tag_list:
+        description: "Space-separated list of tags"
+        value: ${{ jobs.prepare.outputs.tag_list }}
+      github_owner:
+        description: "The GitHub owner"
+        value: ${{ jobs.prepare.outputs.github_owner }}
+      github_repo:
+        description: "The GitHub repo"
+        value: ${{ jobs.prepare.outputs.github_repo }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set.outputs.version }}
+      tag_list: ${{ steps.set.outputs.tag_list }}
+      github_owner: ${{ steps.set.outputs.github_owner }}
+      github_repo: ${{ steps.set.outputs.github_repo }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - id: set
+        name: Prepare version + tags
+        run: |
+          set -euo pipefail
+          # Install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.cargo/bin:$PATH"
+          
+          # Get version from pyproject.toml using a single-line Python command
+          VERSION=$(python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); print(tomllib.load(f)['project']['version'])")
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=${GITHUB_REF#refs/heads/}
+          BRANCH_TAG=${BRANCH//\//-}
+          
+          # Define base tags
+          TAGS="$SHORT_SHA $BRANCH_TAG"
+          
+          # Add specific tags based on branch
+          if [ "$BRANCH" = "BE-Master" ]; then TAGS="$TAGS latest BE-Prod"; fi
+          if [ "$BRANCH" = "BE-Staging" ]; then TAGS="$TAGS BE-Staging"; fi
+          if [ "$BRANCH" = "BE-Dev" ]; then TAGS="$TAGS BE-Dev"; fi
+          if [ "$BRANCH" = "master" ]; then TAGS="$TAGS latest"; fi
+          
+          # Always add ci short sha
+          TAGS="$TAGS ci-${SHORT_SHA}"
+          
+          # Set outputs
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "tag_list=$TAGS" >> $GITHUB_OUTPUT
+          echo "tag_list=$TAGS" >> $GITHUB_STEP_SUMMARY
+          echo "github_owner=kawatapw" >> $GITHUB_OUTPUT
+          echo "github_owner=kawatapw" >> $GITHUB_STEP_SUMMARY
+          echo "github_repo=kawata.py" >> $GITHUB_OUTPUT
+          echo "github_repo=kawata.py" >> $GITHUB_STEP_SUMMARY

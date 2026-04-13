@@ -117,6 +117,7 @@ from app.logging import Ansi, log, logLevel
 from app.objects.channel import Channel
 from app.objects.match import Match, MatchTeams, MatchTeamTypes, Slot, SlotStatus
 from app.objects.score import Grade, Score
+from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
@@ -298,6 +299,7 @@ class Player:
         token: str,
         clan_id: int | None = None,
         clan_priv: ClanPrivileges | None = None,
+        clan: clans_repo.Clan | None = None,
         geoloc: Geolocation | None = None,
         utc_offset: int = 0,
         pm_private: bool = False,
@@ -330,6 +332,7 @@ class Player:
         self.token = token
         self.clan_id = clan_id
         self.clan_priv = clan_priv
+        self.clan = clan
         self.geoloc = geoloc
         self.utc_offset = utc_offset
         self.pm_private = pm_private
@@ -436,12 +439,6 @@ class Player:
                             season_id=season["id"],
                         )
                         if stat:
-                            # Update season rank in Redis first
-                            await self.update_season_rank(season["id"], mode)
-
-                            # Get the calculated rank
-                            rank = await self.get_season_rank(season["id"], mode)
-
                             # Convert Stat TypedDict to ModeData dataclass
                             mode_data = ModeData(
                                 tscore=stat["tscore"],
@@ -452,7 +449,7 @@ class Player:
                                 playtime=stat["playtime"],
                                 max_combo=stat["max_combo"],
                                 total_hits=stat["total_hits"],
-                                rank=rank,
+                                rank=0,
                                 grades={
                                     Grade.XH: stat["xh_count"],
                                     Grade.X: stat["x_count"],
@@ -461,7 +458,10 @@ class Player:
                                     Grade.A: stat["a_count"],
                                 },
                             )
+                            # Set stats first so update_season_rank can read them
                             self.set_season_stats(season["id"], mode, mode_data)
+                            await self.update_season_rank(season["id"], mode)
+                            mode_data.rank = await self.get_season_rank(season["id"], mode)
         except Exception as e:
             log(
                 f"Failed to load season stats for {self}: {e}",
@@ -744,6 +744,8 @@ class Player:
             await self.load_season_stats()
 
         for mode, stats in self.stats.items():
+            if stats.pp <= 0 and stats.plays == 0:
+                continue  # skip unplayed modes to avoid polluting leaderboards
             await app.state.services.redis.zadd(
                 f"bancho:leaderboard:{mode.value}",
                 {str(self.id): stats.pp},

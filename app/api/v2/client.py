@@ -98,6 +98,7 @@ async def get_changelog(
         query += accessor + " UNIX_TIMESTAMP(time) >= :unix_from "
 
         query += """
+                ORDER BY time DESC
                 LIMIT :limit
                 OFFSET :offset
             """
@@ -111,8 +112,31 @@ async def get_changelog(
                 message="An error occurred while fetching changelog.",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        # Build count query with same filters (excluding LIMIT/OFFSET)
+        count_query = "SELECT COUNT(*) AS cnt FROM changelog "
+        count_accessor = "WHERE"
+        count_params: dict[str, Any] = {}
+        if change_type is not None:
+            count_query += count_accessor + " type = :type "
+            count_accessor = "AND"
+            count_params["type"] = change_type
+        if category is not None:
+            count_query += count_accessor + " category = :category "
+            count_accessor = "AND"
+            count_params["category"] = category
+        count_query += count_accessor + " UNIX_TIMESTAMP(time) >= :unix_from "
+        count_params["unix_from"] = unix_from
+        total_row = await database.fetch_val(count_query, count_params)
+
+        if total_row is None:
+            return responses.failure(
+                message="An error occurred while counting changelog entries.",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         meta = {
-            "total": len(data),
+            "total": total_row,
             "page": page,
             "page_size": page_size,
             "type": change_type,

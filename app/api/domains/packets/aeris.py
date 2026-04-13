@@ -232,8 +232,8 @@ class inviteGroup(BasePacket):
             player.enqueue(app.packets.notification("Your group is invalid"))
             return
 
-        if self.target not in group.invites:
-            group.add_player(player)
+        if self.target in group.invites:
+            group.add_player(self.target)
 
 
 @register(ClientPackets.GROUP_KICK)
@@ -257,7 +257,7 @@ class kickGroup(BasePacket):
             return
 
         if self.target in group.players:
-            group.remove_user(player, True)
+            group.remove_user(self.target, True)
 
 
 @register(ClientPackets.GROUP_LEAVE)

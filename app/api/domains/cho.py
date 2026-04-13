@@ -85,13 +85,14 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import html
 import json
 import random
 import re
 import struct
 import time
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 from zoneinfo import ZoneInfo
@@ -146,6 +147,7 @@ from app.packets import (
     ClientPackets,
     LoginFailureReason,
 )
+from app.repositories import clans as clans_repo
 from app.repositories import client_hashes as client_hashes_repo
 from app.repositories import ingame_logins as logins_repo
 from app.repositories import mail as mail_repo
@@ -195,7 +197,7 @@ router: APIRouter = APIRouter(tags=["Bancho API"])
 async def health_check() -> Response:
     checks: dict[str, Any] = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "bancho.py",
         "checks": {},
     }
@@ -331,12 +333,12 @@ async def bancho_view_matches() -> Response:
 matches:
 {
             new_line.join(
-                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
+                f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {html.escape(m.name)}
 -- '''
                 + f"{new_line}-- ".join(
                     [
-                        f"{BEATMAP:<{max_properties_length}}: {m.map_name}",
-                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}",
+                        f"{BEATMAP:<{max_properties_length}}: {html.escape(m.map_name)}",
+                        f"{HOST:<{max_properties_length}}: <{m.host.id}> {html.escape(m.host.safe_name)}",
                     ]
                 )
                 for m in matches
@@ -360,12 +362,10 @@ async def bancho_handler(
         # the client is performing a login
         request._body = await request.body()  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
         log(
-            f"Login request from {ip}.\nRequest Body: {request._body.decode()}",
+            f"Login request from {ip}.",
             Ansi.LCYAN,
             extra={
                 "Client-IP": ip,
-                "Request-Headers": request.headers,
-                "Request": json.dumps(format_request(request)),
             },
         )
         login_data = await handle_osu_login_request(
@@ -912,7 +912,6 @@ async def handle_osu_login_request(
             extra={
                 "ip": ip,
                 "error": str(e),
-                "body": body,
                 "exception_type": type(e).__name__,
             },
         )
@@ -1059,7 +1058,7 @@ async def handle_osu_login_request(
     # with the exception of tourney spectator clients
     try:
         player = app.state.sessions.players.get(name=login_data["username"])
-        if player and osu_version.stream != "tourney":
+        if player and osu_version.stream != OsuStream.TOURNEY:
             # check if the existing session is still active
             if (login_time - player.last_recv_time) < 10:
                 log(
@@ -1268,10 +1267,12 @@ async def handle_osu_login_request(
     # get clan & clan priv if we're in a clan
     clan_id: int | None = None
     clan_priv: ClanPrivileges | None = None
+    clan: clans_repo.Clan | None = None
     try:
         if user_info["clan_id"] != 0:
             clan_id = user_info["clan_id"]
             clan_priv = ClanPrivileges(user_info["clan_priv"])
+            clan = await clans_repo.fetch_one(id=clan_id)
     except Exception as e:
         log(
             "Error processing clan information",
@@ -1388,6 +1389,7 @@ async def handle_osu_login_request(
             token=Player.generate_token(),
             clan_id=clan_id,
             clan_priv=clan_priv,
+            clan=clan,
             geoloc=geoloc,
             utc_offset=login_data["utc_offset"],
             pm_private=login_data["pm_private"],
@@ -1397,7 +1399,9 @@ async def handle_osu_login_request(
             login_time=login_time,
             is_tourney_client=osu_version.stream == "tourney",
             api_key=user_info["api_key"],
-            preferred_lb_view=user_info.get("preferred_lb_view", "all_time"),
+            preferred_lb_view=user_info.get("preferred_lb_view", "all_time")
+            if user_info.get("preferred_lb_view", "all_time") in ("all_time", "seasonal")
+            else "all_time",
         )
     except Exception as e:
         log(
