@@ -178,7 +178,7 @@ async def get_season_preference(
 async def update_season_preference(
     player_id: int,
     preferred_lb_view: str,
-    token: HTTPCredentials | None = Depends(http_bearer_scheme),
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),  # noqa: B008
 ) -> Success[dict[str, Any]] | Failure:
     """Update a player's season view preference."""
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
@@ -301,7 +301,7 @@ async def get_active_season_for_schedule(
 async def set_preferred_schedule(
     player_id: int,
     schedule_id: int,
-    token: HTTPCredentials | None = Depends(http_bearer_scheme),
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),  # noqa: B008
 ) -> Success[dict[str, Any]] | Failure:
     """Set a player's preferred schedule type.
 

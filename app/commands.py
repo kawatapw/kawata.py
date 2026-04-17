@@ -2729,7 +2729,7 @@ async def season_end(ctx: Context) -> str | None:
 
 
 @season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
-async def recalc(ctx: Context) -> str | None:
+async def recalc_season_stats(ctx: Context) -> str | None:
     """Recalculate stats for a season (or all seasons).
 
     Usage:
@@ -2743,6 +2743,7 @@ async def recalc(ctx: Context) -> str | None:
         return "Usage: !season recalc <season_id> or !season recalc all"
 
     import asyncio
+
     from app.bg_loops import calculate_season_stats_for_all_users
 
     player = ctx.player

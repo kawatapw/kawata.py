@@ -371,6 +371,7 @@ class MultiplayerMatch:
 
 
 class BasePacket(ABC):
+    @abstractmethod
     def __init__(self, reader: BanchoPacketReader) -> None:
         pass
 

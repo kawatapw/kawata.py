@@ -109,22 +109,6 @@ class BadgeUpdateFields(TypedDict, total=False):
     priority: int
     badge_styles: list[BadgeStyle]
 
-
-class Badge(TypedDict):
-    id: int
-    name: str
-    description: str
-    priority: int
-    badge_styles: list[BadgeStyle]
-
-
-class BadgeUpdateFields(TypedDict, total=False):
-    name: str
-    description: str
-    priority: int
-    badge_styles: list[BadgeStyle]
-
-
 async def create(
     name: str,
     description: str,

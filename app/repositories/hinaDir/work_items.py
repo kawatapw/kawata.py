@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
-from typing import TypedDict
-from typing import cast
+from typing import Any, TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import Text
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    func,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.mysql import TINYINT as TinyInt
 

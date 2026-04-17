@@ -1,17 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
-from typing import cast
+from typing import TypedDict, cast
 
-from sqlalchemy import Column
-from sqlalchemy import DateTime
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import Text
-from sqlalchemy import func
-from sqlalchemy import insert
-from sqlalchemy import select
+from sqlalchemy import Column, DateTime, Index, Integer, Text, func, insert, select
 
 import app.state.services
 from app.repositories import Base

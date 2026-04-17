@@ -92,7 +92,7 @@ import re
 import struct
 import time
 from collections.abc import Callable, Mapping
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 from zoneinfo import ZoneInfo
@@ -197,7 +197,7 @@ router: APIRouter = APIRouter(tags=["Bancho API"])
 async def health_check() -> Response:
     checks: dict[str, Any] = {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "service": "bancho.py",
         "checks": {},
     }

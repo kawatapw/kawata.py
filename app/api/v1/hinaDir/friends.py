@@ -4,18 +4,16 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import status
+from fastapi import APIRouter, Depends, status
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
-from app.logging import error_catcher
-from app.repositories import seasons as seasons_repo
 import app.settings
 import app.state
+from app.logging import error_catcher
+from app.repositories import seasons as seasons_repo
 
 router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
@@ -153,10 +151,10 @@ async def api_get_friends_status(
 @router.post("/set_relationship")
 @error_catcher
 async def api_set_relationship(
-    token: HTTPCredentials | None = Depends(oauth2_scheme),
-    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
-    target_id: int = Query(..., alias="target", ge=2, le=2_147_483_647),
-    action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(...),
+    token: HTTPCredentials | None = Depends(oauth2_scheme),  # noqa: B008
+    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),  # noqa: B008
+    target_id: int = Query(..., alias="target", ge=2, le=2_147_483_647),  # noqa: B008
+    action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(...),  # noqa: B008
 ) -> ORJSONResponse:
     """Add/remove friends or block/unblock users. Requires BOT_API_KEY."""
     if token is None or token.credentials != app.settings.BOT_API_KEY:

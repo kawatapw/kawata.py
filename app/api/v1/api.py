@@ -237,10 +237,10 @@ async def api_calculate_pp(
 @router.get("/calculate_pp_batch")
 @error_catcher
 async def api_calculate_pp_batch(
-    token: HTTPCredentials = Depends(http_bearer_scheme),
-    beatmap_ids: list[int] = Query([], alias="id"),
-    mods: int = Query(0, min=0, max=2_147_483_647),
-    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
+    token: HTTPCredentials = Depends(http_bearer_scheme),  # noqa: B008
+    beatmap_ids: list[int] = Query([], alias="id"),  # noqa: B008
+    mods: int = Query(0, min=0, max=2_147_483_647),  # noqa: B008
+    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),  # noqa: B008
 ) -> Response:
     """Calculate PP for multiple beatmap diffs in a single request.
 
@@ -294,7 +294,7 @@ async def api_calculate_pp_batch(
             ],
         )
         file_ok_map = {
-            bid: ok for (bid, _), ok in zip(maps_to_check, osu_results)
+            bid: ok for (bid, _), ok in zip(maps_to_check, osu_results, strict=False)
         }
     else:
         file_ok_map = {}
@@ -328,7 +328,7 @@ async def api_calculate_pp_batch(
             continue
 
         pp_values = []
-        for perf, score in zip(perf_results, scores):
+        for perf, score in zip(perf_results, scores, strict=False):
             pp_values.append({
                 "accuracy": score.acc,
                 "pp": perf["performance"]["pp"],

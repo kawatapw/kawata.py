@@ -30,11 +30,35 @@ test:
 	docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test
 	docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
 
+# Run ruff linter
 lint:
-	uv run pre-commit run --all-files
+	uv run ruff check . --fix
 
+# Format code with black and ruff
+format:
+	uv run black .
+	uv run ruff check . --fix
+
+# Check formatting without modifying
+format-check:
+	uv run black . --check
+	uv run ruff check .
+
+# Run ty type checker (primary)
 type-check:
+	uv run ty check . --exclude .venv
+
+# Run mypy type checker (fallback)
+type-check2:
 	uv run mypy .
+
+# Run pyright type checker (alternative)
+type-check3:
+	uv run pyright .
+
+# Run bandit security scanner
+security-check:
+	uv run bandit -r . -ll
 
 install:
 	uv sync --all-extras --dev

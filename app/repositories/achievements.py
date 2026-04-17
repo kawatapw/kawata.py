@@ -87,6 +87,18 @@ if TYPE_CHECKING:
     from app.objects.score import Score
 
 
+from sqlalchemy import (
+    Column,
+    Index,
+    Integer,
+    String,
+    delete,
+    func,
+    insert,
+    select,
+    update,
+)
+
 # Safe expression evaluator for achievement conditions.
 # Replaces eval() to prevent arbitrary code execution from DB content.
 
@@ -157,7 +169,7 @@ def _safe_eval_node(
     # Comparison operators: ==, !=, <, <=, >, >=
     if isinstance(node, ast.Compare):
         left = _safe_eval_node(node.left, score, mode_vn)
-        for op, comparator in zip(node.ops, node.comparators):
+        for op, comparator in zip(node.ops, node.comparators, strict=False):
             op_func = _SAFE_COMPARE_OPS.get(type(op))
             if op_func is None:
                 raise ValueError(f"Unsupported comparison: {type(op).__name__}")
@@ -241,19 +253,6 @@ def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
         return _safe_eval_node(tree, score, mode_vn)
 
     return evaluator
-
-from sqlalchemy import (
-    Column,
-    Index,
-    Integer,
-    String,
-    delete,
-    func,
-    insert,
-    select,
-    update,
-)
-
 
 class AchievementsTable(Base):
     __tablename__ = "achievements"
