@@ -8,7 +8,7 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "async-timeout==4.0.3",
     "bcrypt==4.1.2",
@@ -175,4 +175,9 @@ exclude_dirs = [
 skips = [
     "B101",  # assert_used - acceptable in tests
     "B105",  # hardcoded_password_string - many false positives in our codebase
+]
+
+[tool.uv]
+no-build-package = [
+    "akatsuki-pp-py",
 ]
