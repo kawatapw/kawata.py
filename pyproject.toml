@@ -80,6 +80,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["."]  # Include all files in the root directory
 
+[tool.uv]
+no-build-package = ["akatsuki-pp-py"]
+
 [tool.mypy]
 strict = true
 exclude = ["tests", "venv"]
