@@ -180,8 +180,3 @@ skips = [
     "B101",  # assert_used - acceptable in tests
     "B105",  # hardcoded_password_string - many false positives in our codebase
 ]
-
-[tool.uv]
-no-build-package = [
-    "akatsuki-pp-py",
-]
