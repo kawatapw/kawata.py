@@ -68,7 +68,7 @@ def start(
         now = datetime.now(UTC).isoformat()
 
         # Find existing job entry if any
-        job_entry = next((j for j in jobs_list if isinstance(j, dict) and j.get("job") == job_name), None)
+        job_entry = next((j for j in jobs_list if j.get("job") == job_name), None)
         job_state = {
             "job": job_name,
             "status": "running",
@@ -134,7 +134,7 @@ def finish(
         jobs_list = cast(list[dict[str, Any]], state.setdefault("jobs", []))
         now_iso = datetime.now(UTC).isoformat()
 
-        job_entry = next((j for j in jobs_list if isinstance(j, dict) and j.get("job") == job_name), None)
+        job_entry = next((j for j in jobs_list if j.get("job") == job_name), None)
         if job_entry is None:
             # Gracefully create a minimal job entry if start was never called
             job_entry = {
@@ -165,7 +165,13 @@ def finish(
 
         # Optionally keep workflow-level start_time in sync with earliest job
         if not state.get("start_time"):
-            job_starts = [j.get("start_time") for j in jobs_list if j.get("start_time")]
+            job_starts: list[str] = []
+            for j in jobs_list:
+                if isinstance(j, dict):
+                    start_time_val = j.get("start_time")
+                    if isinstance(start_time_val, str) and start_time_val:
+                        job_starts.append(start_time_val)
+
             if job_starts:
                 state["start_time"] = min(job_starts)
 
