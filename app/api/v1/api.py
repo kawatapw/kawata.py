@@ -173,7 +173,7 @@ async def api_calculate_pp(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
-    
+
     if app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
@@ -265,7 +265,7 @@ async def api_calculate_pp_batch(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
-    
+
     if app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
