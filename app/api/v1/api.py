@@ -290,7 +290,7 @@ async def api_calculate_pp_batch(
     )
     params = {f"id_{i}": bid for i, bid in enumerate(beatmap_ids)}
     rows = await app.state.services.database.fetch_all(
-        f"SELECT id, md5, mode FROM maps WHERE id IN ({placeholders})",
+        f"SELECT id, md5, mode FROM maps WHERE id IN ({placeholders})",  # nosec B608
         params,
     )
 

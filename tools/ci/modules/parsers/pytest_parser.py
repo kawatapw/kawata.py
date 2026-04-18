@@ -3,6 +3,7 @@
 import xml.etree.ElementTree as ET
 from typing import Any
 
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from .registry import Parser, register_parser
 
 
@@ -11,7 +12,7 @@ class PytestParser(Parser):
 
     def parse(self, content: str) -> dict[str, Any]:
         """Parse pytest XML content."""
-        root = ET.fromstring(content)
+        root = safe_fromstring(content)
 
         # Find the testsuite element (may be root or nested)
         testsuite: ET.Element = root

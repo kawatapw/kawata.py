@@ -91,7 +91,7 @@ async def get_pp_records(
         "INNER JOIN users u ON u.id = sc.userid "
         "INNER JOIN maps m ON m.md5 = sc.map_md5 "
         "LEFT JOIN scoreinfo si ON si.scoreid = sc.id "
-        f"WHERE {where}"
+        f"WHERE {where}"  # nosec B608
     )
     count_row = await app.state.services.database.fetch_one(count_sql, where_params)
     total = count_row["cnt"] if count_row else 0
@@ -109,7 +109,7 @@ async def get_pp_records(
         "INNER JOIN users u ON u.id = sc.userid "
         "INNER JOIN maps m ON m.md5 = sc.map_md5 "
         "LEFT JOIN scoreinfo si ON si.scoreid = sc.id "
-        f"WHERE {where} "
+        f"WHERE {where} "  # nosec B608
         "ORDER BY sc.pp DESC "
         "LIMIT :offset, :limit"
     )

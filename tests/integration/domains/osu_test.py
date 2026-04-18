@@ -23,7 +23,7 @@ async def test_score_submission(
     username = f"test-{secrets.token_hex(4)}"
     email_address = f"cmyui-{secrets.token_hex(4)}@akatsuki.pw"
     passwd_plaintext = "myPassword321$"
-    passwd_md5 = hashlib.md5(passwd_plaintext.encode()).hexdigest()
+    passwd_md5 = hashlib.md5(passwd_plaintext.encode()).hexdigest()  # nosec B324
 
     respx_mock.get("http://ip-api.com/line/").mock(
         return_value=httpx.Response(
@@ -52,11 +52,11 @@ async def test_score_submission(
     display_city = 1
     pm_private = 1
 
-    osu_path_md5 = hashlib.md5(b"lol123").hexdigest()
+    osu_path_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324
     adapters_str = ".".join(("1", "2", "3")) + "."
-    adapters_md5 = hashlib.md5(b"lol123").hexdigest()
-    uninstall_md5 = hashlib.md5(b"lol123").hexdigest()  # or uniqueid 1
-    disk_signature_md5 = hashlib.md5(b"lol123").hexdigest()  # or uniqueid 2
+    adapters_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324
+    uninstall_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324 # or uniqueid 1
+    disk_signature_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324 # or uniqueid 2
 
     client_hashes = (
         ":".join(
@@ -65,8 +65,8 @@ async def test_score_submission(
                 adapters_str,
                 adapters_md5,
                 # double md5 unique ids on login; single time on score submission
-                hashlib.md5(uninstall_md5.encode()).hexdigest(),
-                hashlib.md5(disk_signature_md5.encode()).hexdigest(),
+                hashlib.md5(uninstall_md5.encode()).hexdigest(),  # nosec B324
+                hashlib.md5(disk_signature_md5.encode()).hexdigest(),  # nosec B324
             ),
         )
         + ":"
@@ -129,9 +129,9 @@ async def test_score_submission(
     game_mode = 0
     client_time = datetime.now()
 
-    storyboard_md5 = hashlib.md5(b"lol123").hexdigest()
+    storyboard_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324
 
-    score_online_checksum = hashlib.md5(
+    score_online_checksum = hashlib.md5(  # nosec B324
         f"chickenmcnuggets{n100 + n300}o15{n50}{ngeki}smustard{nkatu}{nmiss}uu{beatmap_md5}{max_combo}{perfect}{username}{score}{grade}{mods}Q{passed}{game_mode}{client_hashes}{client_time:%y%m%d%H%M%S}{osu_version}{storyboard_md5}".encode(),
     ).hexdigest()
 

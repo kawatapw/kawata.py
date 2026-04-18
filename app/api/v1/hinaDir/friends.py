@@ -263,7 +263,7 @@ async def api_get_friends_leaderboard(
         "FROM users u "
         "LEFT JOIN stats s ON s.id = u.id AND s.mode = :mode AND s.season_id = :season_id "
         "LEFT JOIN clans c ON u.clan_id = c.id "
-        f"WHERE u.id IN ({placeholders}) "
+        f"WHERE u.id IN ({placeholders}) "  # nosec B608
         "AND u.priv & 1 "
         "ORDER BY pp DESC "
         "LIMIT 50",

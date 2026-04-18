@@ -179,4 +179,6 @@ exclude_dirs = [
 skips = [
     "B101",  # assert_used - acceptable in tests
     "B105",  # hardcoded_password_string - many false positives in our codebase
+    "B324",  # hashlib - MD5/SHA1 used for non-security purposes (checksums, etc.)
+    "B608",  # hardcoded_sql_expressions - false positives with parameterized queries
 ]

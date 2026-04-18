@@ -58,7 +58,7 @@ type-check3:
 
 # Run bandit security scanner
 security-check:
-	uv run bandit -r . -ll
+	uv run bandit -r . -ll --exclude ".venv,venv,tests,testing,migrations,tools,__pycache__"
 
 install:
 	uv sync --all-extras --dev

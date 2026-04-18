@@ -87,7 +87,7 @@ def create_check_run(
         data["output"] = output
 
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
         return cast(dict[str, Any] | None, response.json())
     except Exception as e:
@@ -133,7 +133,7 @@ def update_check_run(
         data["output"] = output
 
     try:
-        response = requests.patch(url, headers=headers, json=data)
+        response = requests.patch(url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
         return cast(dict[str, Any] | None, response.json())
     except Exception as e:

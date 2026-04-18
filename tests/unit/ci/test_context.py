@@ -20,7 +20,7 @@ def test_build_context_github_actions():
     os.environ["GITHUB_RUN_NUMBER"] = "1"
     os.environ["GITHUB_REPOSITORY"] = "owner/repo"
     os.environ["GITHUB_ACTOR"] = "test-user"
-    os.environ["GITHUB_STEP_SUMMARY"] = "/tmp/step-summary.md"
+    os.environ["GITHUB_STEP_SUMMARY"] = "/tmp/step-summary.md"  # nosec B108
 
     context = build_context()
 
@@ -32,7 +32,7 @@ def test_build_context_github_actions():
     assert context.repository == "owner/repo"
     assert context.actor == "test-user"
     assert context.is_github_actions is True
-    assert context.step_summary_path == "/tmp/step-summary.md"
+    assert context.step_summary_path == "/tmp/step-summary.md"  # nosec B108
     assert context.run_url == "https://github.com/owner/repo/actions/runs/123456"
 
     # Clean up environment variables

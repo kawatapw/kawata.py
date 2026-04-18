@@ -153,7 +153,7 @@ def generate(
 
     # Load and render template
     template_dir = Path(__file__).parent.parent.parent / "templates"
-    env = Environment(loader=FileSystemLoader(str(template_dir)))
+    env = Environment(loader=FileSystemLoader(str(template_dir)), autoescape=True)
     template = env.get_template("workflow_summary.md")
 
     summary = template.render(**template_data)
