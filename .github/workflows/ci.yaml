@@ -483,8 +483,8 @@ jobs:
             echo '```xml' >> $GITHUB_STEP_SUMMARY
             cat reports/ty.xml >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            # Check if ty found any errors
-            if grep -q "failure" reports/ty.xml; then
+            # Check if ty found any errors (look for <failure> elements, not "failures" attribute)
+            if grep -qE "<failure|failures=\"[1-9]" reports/ty.xml; then
               echo "Ty found type errors. Failing job."
               exit 1
             fi
