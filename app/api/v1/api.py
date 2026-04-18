@@ -168,10 +168,22 @@ async def api_calculate_pp(
 ) -> ORJSONResponse:
     """Calculates the PP of a specified map with specified score parameters."""
 
-    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+    if token is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    
+    if app.state.sessions.api_keys.get(token.credentials) is None:
+        return ORJSONResponse(
+            {"status": "Invalid API key."},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if beatmap_id is None:
+        return ORJSONResponse(
+            {"status": "Beatmap not found."},
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     beatmap = await Beatmap.from_bid(beatmap_id)
@@ -248,7 +260,13 @@ async def api_calculate_pp_batch(
     Returns results keyed by beatmap ID.
     """
 
-    if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
+    if token is None:
+        return ORJSONResponse(
+            {"status": "Invalid API key."},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    
+    if app.state.sessions.api_keys.get(token.credentials) is None:
         return ORJSONResponse(
             {"status": "Invalid API key."},
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1886,12 +1904,12 @@ async def api_get_online_players_sample(
             "country": p.geoloc["country"]["acronym"],
             "clan_id": p.clan["id"] if p.clan else None,
             "clan_tag": p.clan["tag"] if p.clan else None,
-            "pp": round(p.gm_stats.pp, 2) if p.gm_stats else 0,
-            "rank": p.gm_stats.rank if p.gm_stats else 0,
+            "pp": round(p.gm_stats.pp, 2) if hasattr(p.gm_stats, 'pp') else 0,
+            "rank": p.gm_stats.rank if hasattr(p.gm_stats, 'rank') else 0,
             "status": {
                 "online": True,
-                "action": p.status.action.value if p.status else 0,
-                "info_text": p.status.info_text if p.status else "",
+                "action": p.status.action.value if hasattr(p.status, 'action') else 0,
+                "info_text": p.status.info_text if hasattr(p.status, 'info_text') else "",
             },
         })
 

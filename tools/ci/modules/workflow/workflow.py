@@ -150,10 +150,13 @@ def finish(
 
         # Compute per-job duration if we have a start time
         try:
-            if job_entry.get("start_time"):
-                start_time = datetime.fromisoformat(job_entry["start_time"])
-                end_time = datetime.fromisoformat(job_entry["completed_time"])
-                job_entry["duration"] = (end_time - start_time).total_seconds()
+            start_time_val = job_entry.get("start_time")
+            if start_time_val is not None:
+                start_time = datetime.fromisoformat(start_time_val)
+                completed_time_val = job_entry["completed_time"]
+                if completed_time_val is not None:
+                    end_time = datetime.fromisoformat(completed_time_val)
+                    job_entry["duration"] = (end_time - start_time).total_seconds()
         except Exception:
             # Leave duration unset rather than failing the workflow
             job_entry["duration"] = None

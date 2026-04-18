@@ -298,7 +298,7 @@ def serialize_record(record: Any, seen: set[int] | None = None) -> dict[Any, Any
 
 
 class BytesJsonFormatter(jsonlogger.JsonFormatter):
-    def format(self, record: logging.LogRecord) -> bytes:  # type: ignore[override]
+    def format(self, record: logging.LogRecord) -> bytes:  # type: ignore[override]  # ty: ignore[invalid-method-override]
         # Convert only keys and values that are not of type str, int, float, bool, or None
         # Exclude exc_info as it needs to remain a tuple for proper exception formatting
         record.__dict__ = {
@@ -812,7 +812,7 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
 
                 log(
-                    f"Error in {func.__name__}: {e}",
+                    f"Error in {getattr(func, '__name__', 'unknown')}: {e}",
                     start_color=Ansi.LRED,
                     level=logging.ERROR,
                     extra={
@@ -827,16 +827,16 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
                         "exception_location": traceback.extract_tb(exc_traceback)[
                             -1
                         ],  # Last frame is where exception occurred
-                        "function_name": func.__name__,
-                        "function_module": func.__module__,
+                        "function_name": getattr(func, "__name__", "unknown"),
+                        "function_module": getattr(func, "__module__", "unknown"),
                     },
                 )
                 # Re-raise the exception to maintain expected behavior
                 raise
 
         # Preserve __globals__ for forward reference resolution
-        async_wrapper.__globals__.update(func.__globals__)
-        return async_wrapper  # type: ignore[return-value]
+        cast(Any, async_wrapper).__globals__.update(getattr(func, "__globals__", {}))
+        return cast(Callable[P, R], async_wrapper)
     else:
 
         @functools.wraps(func)
@@ -848,7 +848,7 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
 
                 log(
-                    f"Error in {func.__name__}: {e}",
+                    f"Error in {getattr(func, '__name__', 'unknown')}: {e}",
                     start_color=Ansi.LRED,
                     level=logging.ERROR,
                     extra={
@@ -863,13 +863,13 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
                         "exception_location": traceback.extract_tb(exc_traceback)[
                             -1
                         ],  # Last frame is where exception occurred
-                        "function_name": func.__name__,
-                        "function_module": func.__module__,
+                        "function_name": getattr(func, "__name__", "unknown"),
+                        "function_module": getattr(func, "__module__", "unknown"),
                     },
                 )
                 # Re-raise the exception to maintain expected behavior
                 raise
 
         # Preserve __globals__ for forward reference resolution
-        sync_wrapper.__globals__.update(func.__globals__)
-        return sync_wrapper
+        cast(Any, sync_wrapper).__globals__.update(getattr(func, "__globals__", {}))
+        return cast(Callable[P, R], sync_wrapper)

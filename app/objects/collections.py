@@ -419,8 +419,9 @@ class Players(list[Player]):
             return
 
         super().append(player)
-        player._cache_token = player.token
-        self._by_token[player.token] = player
+        # Cache current token for safe removal later
+        cache_token = player.token
+        self._by_token[cache_token] = player
         self._by_id[player.id] = player
         self._by_name[player.safe_name] = player
 

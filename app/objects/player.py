@@ -95,6 +95,7 @@ Related Files:
 
 from __future__ import annotations
 
+from typing import Callable, Protocol
 import asyncio
 import time
 import uuid
@@ -102,7 +103,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import IntEnum, StrEnum, unique
 from functools import cached_property
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import app.packets
 import app.settings
@@ -347,14 +348,6 @@ class Player:
         self.preferred_lb_view = preferred_lb_view
         self.preferred_schedule_id = preferred_schedule_id
         self.selected_season_id = selected_season_id
-
-        # avoid enqueuing packets to bot accounts.
-        if self.is_bot_client:
-
-            def _noop_enqueue(data: bytes) -> None:
-                pass
-
-            self.enqueue = _noop_enqueue  # type: ignore[method-assign]
 
         self.away_msg: str | None = None
         self.in_lobby = False
@@ -1282,7 +1275,13 @@ class Player:
 
     def enqueue(self, data: bytes) -> None:
         """Add data to be sent to the client."""
+        if self.is_bot_client:
+            return  # avoid enqueuing packets to bot accounts
         self._packet_queue.append(data)
+
+    def _bot_enqueue(self, data: bytes) -> None:
+        """No-op enqueue for bot accounts."""
+        pass
 
     def dequeue(self) -> bytes | None:
         """Get data from the queue to send to the client."""

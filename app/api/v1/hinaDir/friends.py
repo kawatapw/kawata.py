@@ -456,7 +456,8 @@ async def _get_player_stats(uid: int, mode: int, season_id: int = 0) -> dict[str
         str(entry["id"]),
     )
     entry["rank"] = (global_rank + 1) if global_rank is not None else 0
-    entry["acc"] = round(float(entry.get("acc", 0)), 2)
+    acc_value = entry.get("acc", 0)
+    entry["acc"] = round(float(acc_value if acc_value is not None else 0), 2)
 
     return entry
 

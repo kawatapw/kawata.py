@@ -166,7 +166,7 @@ class CommandSet:
                     # NOTE: this method assumes that functions without any
                     # triggers will be named like '{self.trigger}_{trigger}'.
                     triggers=(
-                        [f.__name__.removeprefix(f"{self.trigger}_").strip()]
+                        [getattr(f, "__name__", "unknown").removeprefix(f"{self.trigger}_").strip()]
                         + (aliases if aliases is not None else [])
                     ),
                     callback=f,
@@ -206,7 +206,7 @@ def command(
                 callback=f,
                 priv=priv,
                 hidden=hidden,
-                triggers=[f.__name__.strip("_")]
+                triggers=[getattr(f, "__name__", "unknown").strip("_")]
                 + (aliases if aliases is not None else []),
                 doc=f.__doc__,
             ),
@@ -1138,7 +1138,7 @@ async def debug_focus(ctx: Context) -> str | None:
     """Set the console's debug focus."""
     if len(ctx.args) < 1:
         return "Invalid syntax: !debugFocus <all/scores/leaderboards/messages/requests/client>"
-    app.settings.DEBUG_FOCUS = ctx.args[0]
+    app.settings.DEBUG_FOCUS = ctx.args[0]  # ty: ignore[invalid-assignment]
     return f"Set Debug Focus to {ctx.args[0]}."
 
 
@@ -1439,7 +1439,7 @@ def ensure_match(
         if not (
             ctx.player in match.refs
             or ctx.player.priv & Privileges.TOURNEY_MANAGER
-            or f is mp_help.__wrapped__  # type: ignore[attr-defined]
+            or f is getattr(mp_help, "__wrapped__", None)
         ):
             return None
 
@@ -2761,7 +2761,8 @@ async def recalc_season_stats(ctx: Context) -> str | None:
                 await calculate_season_stats_for_all_users(s["id"])
             player.send_bot(f"Done! Recalculated stats for {len(all_seasons)} seasons.")
 
-        asyncio.create_task(_recalc_all())
+        # Background task - intentionally not awaited
+        asyncio.create_task(_recalc_all())  # type: ignore[unused-awaitable]
         return f"Started recalculating {len(all_seasons)} seasons in background. You'll get a message when done."
 
     if not ctx.args[0].isdecimal():
@@ -2776,7 +2777,8 @@ async def recalc_season_stats(ctx: Context) -> str | None:
         await calculate_season_stats_for_all_users(season_id)
         player.send_bot(f"Done! Recalculated stats for season '{season['name']}'.")
 
-    asyncio.create_task(_recalc_one())
+        # Background task - intentionally not awaited
+        asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]
     return f"Started recalculating season '{season['name']}' in background. You'll get a message when done."
 
 

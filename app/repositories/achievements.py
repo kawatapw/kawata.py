@@ -162,7 +162,7 @@ def _safe_eval_node(
         obj = _safe_eval_node(node.value, score, mode_vn)
         if obj is not score:
             raise ValueError("Attribute access only allowed on 'score'")
-        if not isinstance(node.attr, str) or node.attr.startswith("_"):
+        if node.attr.startswith("_"):
             raise ValueError(f"Unsafe attribute: {node.attr!r}")
         return getattr(score, node.attr)
 
@@ -250,7 +250,7 @@ def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
             )
 
     def evaluator(score: Score, mode_vn: int) -> bool:
-        return _safe_eval_node(tree, score, mode_vn)
+        return cast(bool, _safe_eval_node(tree, score, mode_vn))
 
     return evaluator
 

@@ -80,7 +80,7 @@ class BeatmapWorkItem(TypedDict):
 async def create(
     set_id: int,
     request_id: int | None = None,
-    checklist: dict | None = None,
+    checklist: dict[str, Any] | None = None,
     priority: int = 0,
 ) -> BeatmapWorkItem:
     """Create a new beatmap work item."""

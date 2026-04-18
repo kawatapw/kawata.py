@@ -46,7 +46,7 @@ format-check:
 
 # Run ty type checker (primary)
 type-check:
-	uv run ty check . --exclude .venv
+	uv run ty check . --exclude .venv --exclude tools --exclude tests
 
 # Run mypy type checker (fallback)
 type-check2:

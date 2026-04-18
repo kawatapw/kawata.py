@@ -1318,7 +1318,7 @@ async def osuSubmitModularSelector(
                     )
                     if existing:
                         # Store a copy of the stats BEFORE update
-                        season_stats_before_map[season_id] = dict(existing)
+                        season_stats_before_map[season_id] = dict(existing.items())
                         log(
                             f"Stored season {season_id} stats BEFORE update for chart: pp={existing['pp']}, acc={existing['acc']}",
                             Ansi.LCYAN,

@@ -273,12 +273,15 @@ def is_running_as_admin() -> bool:
     except AttributeError:
         pass
 
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin() == 1  # type: ignore[attr-defined, no-any-return, unused-ignore]
-    except AttributeError:
-        raise Exception(
-            f"{sys.platform} is not currently supported on bancho.py, please create a github issue!",
-        ) from None
+    if sys.platform == "win32":
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin() == 1  # type: ignore[attr-defined, no-any-return, unused-ignore]
+        except AttributeError:
+            pass
+
+    raise Exception(
+        f"{sys.platform} is not currently supported on bancho.py, please create a github issue!",
+    ) from None
 
 
 def display_startup_dialog() -> None:
