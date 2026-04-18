@@ -46,7 +46,8 @@ dependencies = [
     "jsons==1.6.3",
     "python-rapidjson==1.17",
     "anyio==4.9.0",
-    "PyYAML==6.0.1"
+    "PyYAML==6.0.1",
+    "defusedxml>=0.7.1"
 ]
 
 [project.optional-dependencies]
@@ -64,8 +65,7 @@ dev = [
     "bandit==1.9.4",
     "ruff==0.15.5",
     "ty==0.0.29",
-    "safety==3.7.0",
-    "defusedxml>=0.7.1"
+    "safety==3.7.0"
 ]
 
 [dependency-groups]
@@ -107,6 +107,7 @@ module = [
     "timeago.*",
     "pytimeparse.*",
     "cpuinfo.*",
+    "defusedxml.*",
 ]
 ignore_missing_imports = true
 

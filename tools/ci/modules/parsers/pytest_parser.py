@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from typing import Any
 
 from defusedxml.ElementTree import fromstring as safe_fromstring
+
 from .registry import Parser, register_parser
 
 
