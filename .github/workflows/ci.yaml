@@ -439,6 +439,85 @@ jobs:
         run: |
           uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job ruff --status ${{ job.status }}
 
+  # Type checker - runs in parallel
+  ty:
+    needs: [initialization, build]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bootstrap CI tool
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+
+      - name: Start ty job
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow ci --job ty
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run ty
+        id: ty
+        run: |
+          mkdir -p reports
+          # Run ty check and capture output (JUnit XML format for parsing)
+          uv run ty check --output-format junit . > reports/ty.xml 2>&1 || true
+          # Display the output
+          if [ -f reports/ty.xml ]; then
+            echo "## Ty Results" >> $GITHUB_STEP_SUMMARY
+            echo '```xml' >> $GITHUB_STEP_SUMMARY
+            cat reports/ty.xml >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Check if ty found any errors
+            if grep -q "failure" reports/ty.xml; then
+              echo "Ty found type errors. Failing job."
+              exit 1
+            fi
+          else
+            echo "## Ty Results" >> $GITHUB_STEP_SUMMARY
+            echo "❌ No ty output file generated" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload ty report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ty-report
+          path: reports/ty.xml
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow ci \
+            --artifact-dir ./all-artifacts
+
+      - name: Finish ty job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow ci --job ty --status ${{ job.status }}
+
   # Security scan - runs in parallel
   bandit:
     needs: [initialization, build]

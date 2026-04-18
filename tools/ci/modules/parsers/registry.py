@@ -72,6 +72,7 @@ def detect_parser(file_path: str, content: str | None = None) -> str:
         "safety": ["safety"],
         "bandit": ["bandit"],
         "pytest": ["junit", "pytest", "test-results"],
+        "ty": ["ty"],
     }
 
     for parser_name, patterns in filename_patterns.items():
@@ -229,5 +230,10 @@ except ImportError:
 
 try:
     from . import safety_parser  # noqa: F401
+except ImportError:
+    pass
+
+try:
+    from . import ty_parser  # noqa: F401
 except ImportError:
     pass

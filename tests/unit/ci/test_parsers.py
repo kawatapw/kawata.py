@@ -17,6 +17,7 @@ from modules.parsers.registry import (
 from modules.parsers.ruff_parser import RuffParser
 from modules.parsers.safety_parser import SafetyParser
 from modules.parsers.trivy_parser import TrivyParser
+from modules.parsers.ty_parser import TyParser
 
 
 class TestParserRegistry:
@@ -313,3 +314,43 @@ class TestPytestParser:
         assert result["summary"]["failed"] == 1
         assert result["summary"]["skipped"] == 2
         assert len(result["test_cases"]) == 3
+
+
+class TestTyParser:
+    """Test ty parser."""
+
+    def test_parse_junit_xml(self):
+        """Test parsing ty JUnit XML output."""
+        content = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="ty" tests="3" errors="0" failures="1" skipped="0" time="1.5">
+    <testcase classname="ty" name="Type check: app/main.py" file="app/main.py" line="10" time="0.5"/>
+    <testcase classname="ty" name="Type check: app/utils.py" file="app/utils.py" line="20" time="0.3">
+      <failure message="Type error: Incompatible types in assignment">Expected 'int', got 'str'</failure>
+    </testcase>
+    <testcase classname="ty" name="Type check: app/models.py" file="app/models.py" line="15" time="0.7"/>
+  </testsuite>
+</testsuites>"""
+        parser = TyParser()
+        result = parser.parse(content)
+
+        assert result["type"] == "ty"
+        assert result["summary"]["total"] == 3
+        assert result["summary"]["failed"] == 1
+        assert result["summary"]["passed"] == 2
+        assert len(result["test_cases"]) == 3
+        
+        # Check the failed test case
+        failed_case = [tc for tc in result["test_cases"] if tc["status"] == "failed"][0]
+        assert failed_case["file"] == "app/utils.py"
+        assert failed_case["line"] == 20
+        assert "Type error" in failed_case["message"]
+
+    def test_parse_empty(self):
+        """Test parsing empty content."""
+        parser = TyParser()
+        result = parser.parse("")
+
+        assert result["type"] == "ty"
+        assert result["summary"]["total"] == 0
+        assert len(result["test_cases"]) == 0
