@@ -1,8 +1,8 @@
 """Workflow lifecycle management."""
 
 import argparse
-from datetime import datetime
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from core.context import Context
 from core.storage import get_backend
@@ -41,7 +41,7 @@ def start(
         state = {
             "workflow": workflow_name,
             "status": "running",
-            "start_time": datetime.utcnow().isoformat(),
+            "start_time": datetime.now(UTC).isoformat(),
             "commit": context.commit_sha,
             "run_id": context.run_id,
             "run_url": context.run_url,
@@ -52,7 +52,7 @@ def start(
     else:
         # Keep existing timing where possible but refresh contextual metadata
         state.setdefault("workflow", workflow_name)
-        state.setdefault("start_time", datetime.utcnow().isoformat())
+        state.setdefault("start_time", datetime.now(UTC).isoformat())
         state.setdefault("jobs", [])
         state.setdefault("reports", [])
         state.setdefault("errors", [])
@@ -64,11 +64,11 @@ def start(
     # Job-scoped start
     job_name = getattr(args, "job", None) or None
     if job_name:
-        jobs = state.setdefault("jobs", [])
-        now = datetime.utcnow().isoformat()
+        jobs_list = cast(list[dict[str, Any]], state.setdefault("jobs", []))
+        now = datetime.now(UTC).isoformat()
 
         # Find existing job entry if any
-        job_entry = next((j for j in jobs if j.get("job") == job_name), None)
+        job_entry = next((j for j in jobs_list if isinstance(j, dict) and j.get("job") == job_name), None)
         job_state = {
             "job": job_name,
             "status": "running",
@@ -80,8 +80,9 @@ def start(
         if job_entry is not None:
             job_entry.update(job_state)
         else:
-            jobs.append(job_state)
+            jobs_list.append(job_state)
 
+        state["jobs"] = jobs_list
         backend.save_state(key, state)
         return {
             "status": "job-started",
@@ -130,10 +131,10 @@ def finish(
 
     # Job-scoped finish
     if job_name:
-        jobs = state.setdefault("jobs", [])
-        now_iso = datetime.utcnow().isoformat()
+        jobs_list = cast(list[dict[str, Any]], state.setdefault("jobs", []))
+        now_iso = datetime.now(UTC).isoformat()
 
-        job_entry = next((j for j in jobs if j.get("job") == job_name), None)
+        job_entry = next((j for j in jobs_list if isinstance(j, dict) and j.get("job") == job_name), None)
         if job_entry is None:
             # Gracefully create a minimal job entry if start was never called
             job_entry = {
@@ -143,30 +144,32 @@ def finish(
                 "completed_time": None,
                 "duration": None,
             }
-            jobs.append(job_entry)
+            jobs_list.append(job_entry)
 
-        job_entry["status"] = args.status or "success"
-        job_entry["completed_time"] = now_iso
+        if isinstance(job_entry, dict):
+            job_entry["status"] = args.status or "success"
+            job_entry["completed_time"] = now_iso
 
-        # Compute per-job duration if we have a start time
-        try:
-            start_time_val = job_entry.get("start_time")
-            if start_time_val is not None:
-                start_time = datetime.fromisoformat(start_time_val)
-                completed_time_val = job_entry["completed_time"]
-                if completed_time_val is not None:
-                    end_time = datetime.fromisoformat(completed_time_val)
-                    job_entry["duration"] = (end_time - start_time).total_seconds()
-        except Exception:
-            # Leave duration unset rather than failing the workflow
-            job_entry["duration"] = None
+            # Compute per-job duration if we have a start time
+            try:
+                start_time_val = job_entry.get("start_time")
+                if start_time_val is not None:
+                    start_time = datetime.fromisoformat(start_time_val)
+                    completed_time_val = job_entry["completed_time"]
+                    if completed_time_val is not None:
+                        end_time = datetime.fromisoformat(completed_time_val)
+                        job_entry["duration"] = (end_time - start_time).total_seconds()
+            except Exception:
+                # Leave duration unset rather than failing the workflow
+                job_entry["duration"] = None
 
         # Optionally keep workflow-level start_time in sync with earliest job
         if not state.get("start_time"):
-            job_starts = [j.get("start_time") for j in jobs if j.get("start_time")]
+            job_starts = [j.get("start_time") for j in jobs_list if j.get("start_time")]
             if job_starts:
                 state["start_time"] = min(job_starts)
 
+        state["jobs"] = jobs_list
         backend.save_state(key, state)
         return {
             "status": "job-finished",
@@ -177,7 +180,7 @@ def finish(
 
     # Workflow-level finish
     state["status"] = args.status or "success"
-    state["completed_time"] = datetime.utcnow().isoformat()
+    state["completed_time"] = datetime.now(UTC).isoformat()
 
     # Calculate duration from workflow start/end
     start_time = datetime.fromisoformat(state["start_time"])

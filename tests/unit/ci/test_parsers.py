@@ -339,7 +339,7 @@ class TestTyParser:
         assert result["summary"]["failed"] == 1
         assert result["summary"]["passed"] == 2
         assert len(result["test_cases"]) == 3
-        
+
         # Check the failed test case
         failed_case = [tc for tc in result["test_cases"] if tc["status"] == "failed"][0]
         assert failed_case["file"] == "app/utils.py"

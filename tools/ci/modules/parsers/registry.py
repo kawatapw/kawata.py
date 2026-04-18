@@ -25,7 +25,7 @@ class Parser(ABC):
 _PARSERS: dict[str, type[Parser]] = {}
 
 
-def register_parser(name: str, parser_class: type) -> None:
+def register_parser(name: str, parser_class: type[Parser]) -> None:
     """Register a parser."""
     _PARSERS[name] = parser_class
 

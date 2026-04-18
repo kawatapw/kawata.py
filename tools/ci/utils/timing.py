@@ -5,7 +5,7 @@ render them in a consistent, human-readable form in logs and reports.
 """
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -100,4 +100,4 @@ def format_duration(seconds: float) -> str:
 
 def get_timestamp() -> str:
     """Return the current UTC timestamp in ISO 8601 format."""
-    return datetime.utcnow().isoformat()
+    return datetime.now(UTC).isoformat()
