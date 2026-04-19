@@ -1,0 +1,264 @@
+name: Lint
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow lint
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-lint-start
+          path: ci-data/
+          retention-days: 30
+
+  mypy:
+    needs: [start]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Fetch all history for proper diff analysis
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow lint --job mypy
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run mypy
+        id: mypy
+        run: |
+          mkdir -p reports
+          # Run mypy and capture both stdout and stderr
+          uv run mypy . > reports/mypy.txt 2>&1 || true
+          # Display the output
+          if [ -f reports/mypy.txt ]; then
+            echo "## Mypy Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/mypy.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Check if mypy found any errors
+            if grep -q "error:" reports/mypy.txt; then
+              echo "Mypy found errors. Failing job."
+              exit 1
+            fi
+          else
+            echo "## Mypy Results" >> $GITHUB_STEP_SUMMARY
+            echo "No mypy output file generated" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload mypy report
+        uses: actions/upload-artifact@v7
+        with:
+          name: mypy-report
+          path: reports/mypy.txt
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate --workflow lint
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-lint-mypy
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job mypy --status ${{ job.status }}
+
+  ruff:
+    needs: [start]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Fetch all history for proper diff analysis
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow lint --job ruff
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run ruff
+        id: ruff
+        run: |
+          mkdir -p reports
+          # Run ruff check and capture output
+          uv run ruff check . > reports/ruff.txt 2>&1 || true
+          # Run ruff format check and capture output
+          uv run ruff format . --check > reports/ruff-format.txt 2>&1 || true
+          # Display the output
+          if [ -f reports/ruff.txt ]; then
+            echo "## Ruff Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/ruff-format.txt ]; then
+            echo "## Ruff Format Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff-format.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          # Check if ruff found any errors
+          if grep -q "error\|E\|F" reports/ruff.txt || grep -q "would reformat\|error" reports/ruff-format.txt; then
+            echo "Ruff found errors. Failing job."
+            exit 1
+          fi
+
+      - name: Upload ruff reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: ruff-reports
+          path: |
+            reports/ruff.txt
+            reports/ruff-format.txt
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow lint \
+            --artifact-dir ./all-artifacts
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-lint-ruff
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --job ruff --status ${{ job.status }}
+
+  finish:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [start, mypy, ruff]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (mypy)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-mypy
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (ruff)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-lint-ruff
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Finish Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow lint --status ${{ job.status }}

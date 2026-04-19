@@ -1,0 +1,17 @@
+# Ty configuration for type checking
+# See: https://docs.astral.sh/ty/
+
+[environment]
+# Add tools/ci to the module search path for the CI tools
+extra-paths = ["tools/ci"]
+
+[rules]
+# Disable import resolution errors for the CI tools which use a separate package structure
+# This is similar to the mypy configuration that uses "ignore_missing_imports"
+unresolved-import = "ignore"
+
+# Disable unresolved attribute warnings which occur with union types
+unresolved-attribute = "ignore"
+
+# Disable deprecated function warnings (we handle these separately)
+deprecated = "ignore"

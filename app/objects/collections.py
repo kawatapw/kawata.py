@@ -1,23 +1,90 @@
+"""
+Collections Module - Global Data Collection Management
+
+This module defines collection classes for managing global server state including
+active players, chat channels, multiplayer matches, and player groups. These
+collections serve as the central data structures for the osu! server, providing
+efficient access patterns and maintaining consistency across the application.
+
+The module implements specialized list classes with enhanced functionality for
+fast lookups, automatic indexing, and integration with the caching system. Each
+collection class provides methods for adding, removing, and querying items while
+maintaining internal indexes for optimal performance.
+
+Key Features:
+    - Specialized collection classes for different entity types
+    - Fast lookup by multiple keys (ID, name, token)
+    - Automatic index maintenance on add/remove operations
+    - Integration with database and caching systems
+    - Privilege-based filtering and querying
+    - Error handling with logging integration
+    - Bulk operations for efficient data management
+
+Integration Points:
+    - Player session management in app/state/sessions.py
+    - Database operations in app/repositories/
+    - Cache management in app/state/cache.py
+    - Packet handling in app/packets.py
+    - Authentication in app/api/domains/cho.py
+
+Collection Types:
+    - Channels: Active chat channels with privilege-based access
+    - Matches: Multiplayer matches with slot management
+    - Groups: Player groups with invite and membership management
+    - Players: Online players with multi-key indexing
+
+Indexing Strategy:
+    - Players indexed by token, ID, and safe name
+    - Channels indexed by real name
+    - Matches indexed by slot position
+    - Groups indexed by leader name
+    - All indexes maintained automatically on mutations
+
+Usage Pattern:
+    - Collections are initialized during server startup
+    - Items are added/removed during player connections
+    - Lookups use the most efficient index available
+    - Bulk operations minimize database queries
+    - Error handling ensures data consistency
+
+Example Usage:
+    # Get player by different methods
+    player = players.get(token="abc123")
+    player = players.get(id=12345)
+    player = players.get(name="PlayerName")
+
+    # Get channel by name
+    channel = channels.get_by_name("#osu")
+
+    # Get free match slot
+    match_id = matches.get_free()
+
+    # Check player privileges
+    if player.priv & Privileges.STAFF:
+        staff_players = players.staff
+
+Related Files:
+    - app/state/sessions.py: Session management using collections
+    - app/objects/player.py: Player class stored in collections
+    - app/objects/channel.py: Channel class stored in collections
+    - app/objects/match.py: Match class stored in collections
+    - app/objects/group.py: Group class stored in collections
+"""
+
 from __future__ import annotations
 
-from collections.abc import Iterable
-from collections.abc import Iterator
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from typing import Any
-
-import databases.core
 
 import app.settings
 import app.state
 import app.utils
-from app.constants.privileges import ClanPrivileges
-from app.constants.privileges import Privileges
-from app.logging import Ansi
-from app.logging import log
+from app.constants.privileges import ClanPrivileges, Privileges
+from app.logging import Ansi, error_catcher, log
 from app.objects.channel import Channel
+from app.objects.group import Group
 from app.objects.match import Match
 from app.objects.player import Player
-from app.objects.group import Group
 from app.repositories import channels as channels_repo
 from app.repositories import clans as clans_repo
 from app.repositories import users as users_repo
@@ -42,8 +109,9 @@ class Channels(list[Channel]):
         # XXX: we use the "real" name, aka
         # #multi_1 instead of #multiplayer
         # #spect_1 instead of #spectator.
-        return f'[{", ".join(c.real_name for c in self)}]'
+        return f"[{', '.join(c.real_name for c in self)}]"
 
+    @error_catcher
     def get_by_name(self, name: str) -> Channel | None:
         """Get a channel from the list by `name`."""
         for channel in self:
@@ -52,6 +120,7 @@ class Channels(list[Channel]):
 
         return None
 
+    @error_catcher
     def append(self, channel: Channel) -> None:
         """Append `channel` to the list."""
         super().append(channel)
@@ -59,6 +128,7 @@ class Channels(list[Channel]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channel} added to channels list.")
 
+    @error_catcher
     def extend(self, channels: Iterable[Channel]) -> None:
         """Extend the list with `channels`."""
         super().extend(channels)
@@ -66,6 +136,7 @@ class Channels(list[Channel]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channels} added to channels list.")
 
+    @error_catcher
     def remove(self, channel: Channel) -> None:
         """Remove `channel` from the list."""
         super().remove(channel)
@@ -73,6 +144,7 @@ class Channels(list[Channel]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{channel} removed from channels list.")
 
+    @error_catcher
     async def prepare(self) -> None:
         """Fetch data from sql & return; preparing to run the server."""
         log("Fetching channels from sql.", Ansi.LCYAN)
@@ -99,8 +171,9 @@ class Matches(list[Match | None]):
         return super().__iter__()
 
     def __repr__(self) -> str:
-        return f'[{", ".join(match.name for match in self if match)}]'
+        return f"[{', '.join(match.name for match in self if match)}]"
 
+    @error_catcher
     def get_free(self) -> int | None:
         """Return the first free match id from `self`."""
         for idx, match in enumerate(self):
@@ -109,6 +182,7 @@ class Matches(list[Match | None]):
 
         return None
 
+    @error_catcher
     def remove(self, match: Match | None) -> None:
         """Remove `match` from the list."""
         for i, _m in enumerate(self):
@@ -119,13 +193,13 @@ class Matches(list[Match | None]):
         if app.settings.DEBUG_LEVEL >= 1:
             log(f"{match} removed from matches list.")
 
+
 class Groups(list[Group]):
     """Active groups present on the server"""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    
     def __iter__(self) -> Iterator[Group]:
         return super().__iter__()
 
@@ -133,45 +207,52 @@ class Groups(list[Group]):
         # allow us to either pass in the player
         # obj, or the player name as a string.
         if isinstance(player, str):
-            return player in (player.name for player in self)
+            return player in (group.lead.name for group in self)
         else:
             return super().__contains__(player)
 
     def __repr__(self) -> str:
-        return f'[{", ".join(map(repr, self))}]'
+        return f"[{', '.join(map(repr, self))}]"
 
+    @error_catcher
     def has_group(self, player: Player) -> bool:
         for group in self:
             if player in group.players:
                 return True
         return False
-    
-    def get_group(self, player: Player) -> Group:
+
+    @error_catcher
+    def get_group(self, player: Player) -> Group | None:
         for group in self:
             if player in group.players:
                 return group
         return None
-    
-    def player_invites(self, player:Player) -> [Group]:
-        groups : [Group] = []
+
+    @error_catcher
+    def player_invites(self, player: Player) -> list[Group]:
+        groups: list[Group] = []
         for group in self:
             if player in group.invites:
                 groups.append(group)
         return groups
-    
-    def show_invite_str(self, player:Player) -> str:
+
+    @error_catcher
+    def show_invite_str(self, player: Player) -> str:
         invites = self.player_invites(player)
-        base = "You have {} Pending invites\n".format(len(invites)) 
+        base = f"You have {len(invites)} Pending invites\n"
         for x in invites:
             base += f"type !accept {x.lead.safe_name} to join {x.lead.name}'s group\n"
         if self.has_group(player):
-            base += f"Warning !!! joining another group will make you leave the one you are in"
+            base += "Warning !!! joining another group will make you leave the one you are in"
+        return base
 
-    def check_token(self, token:str) -> bool:
+    @error_catcher
+    def check_token(self, token: str) -> bool:
         for group in self:
             if group.token == token:
                 return False
         return True
+
 
 class Players(list[Player]):
     """The currently active players on the server."""
@@ -192,34 +273,40 @@ class Players(list[Player]):
             return super().__contains__(player)
 
     def __repr__(self) -> str:
-        return f'[{", ".join(map(repr, self))}]'
+        return f"[{', '.join(map(repr, self))}]"
 
     @property
+    @error_catcher
     def ids(self) -> set[int]:
         """Return a set of the current ids in the list."""
         return {p.id for p in self}
 
     @property
+    @error_catcher
     def staff(self) -> set[Player]:
         """Return a set of the current staff online."""
         return {p for p in self if p.priv & Privileges.STAFF}
 
     @property
+    @error_catcher
     def restricted(self) -> set[Player]:
         """Return a set of the current restricted players."""
         return {p for p in self if not p.priv & Privileges.UNRESTRICTED}
 
     @property
+    @error_catcher
     def unrestricted(self) -> set[Player]:
         """Return a set of the current unrestricted players."""
         return {p for p in self if p.priv & Privileges.UNRESTRICTED}
 
+    @error_catcher
     def enqueue(self, data: bytes, immune: Sequence[Player] = []) -> None:
         """Enqueue `data` to all players, except for those in `immune`."""
         for player in self:
             if player not in immune:
                 player.enqueue(data)
 
+    @error_catcher
     def get(
         self,
         token: str | None = None,
@@ -235,6 +322,7 @@ class Players(list[Player]):
             return self._by_name.get(make_safe_name(name))
         return None
 
+    @error_catcher
     async def get_sql(
         self,
         id: int | None = None,
@@ -252,9 +340,11 @@ class Players(list[Player]):
 
         clan_id: int | None = None
         clan_priv: ClanPrivileges | None = None
+        clan: clans_repo.Clan | None = None
         if player["clan_id"] != 0:
             clan_id = player["clan_id"]
             clan_priv = ClanPrivileges(player["clan_priv"])
+            clan = await clans_repo.fetch_one(id=clan_id)
 
         return Player(
             id=player["id"],
@@ -264,12 +354,15 @@ class Players(list[Player]):
             token=Player.generate_token(),
             clan_id=clan_id,
             clan_priv=clan_priv,
+            clan=clan,
             geoloc={
                 "latitude": 0.0,
                 "longitude": 0.0,
                 "country": {
                     "acronym": player["country"],
-                    "numeric": app.state.services.country_codes[player["country"].lower()], # Fix API erroring due to uppercase country codes with .lower()
+                    "numeric": app.state.services.country_codes[
+                        player["country"].lower()
+                    ],  # Fix API erroring due to uppercase country codes with .lower()
                 },
             },
             silence_end=player["silence_end"],
@@ -277,6 +370,7 @@ class Players(list[Player]):
             api_key=player["api_key"],
         )
 
+    @error_catcher
     async def from_cache_or_sql(
         self,
         id: int | None = None,
@@ -292,6 +386,7 @@ class Players(list[Player]):
 
         return None
 
+    @error_catcher
     async def from_login(
         self,
         name: str,
@@ -315,6 +410,7 @@ class Players(list[Player]):
 
         return None
 
+    @error_catcher
     def append(self, player: Player) -> None:
         """Append `player` to the list."""
         if player in self:
@@ -323,23 +419,29 @@ class Players(list[Player]):
             return
 
         super().append(player)
-        self._by_token[player.token] = player
+        # Cache current token for safe removal later
+        cache_token = player.token
+        self._by_token[cache_token] = player
         self._by_id[player.id] = player
         self._by_name[player.safe_name] = player
 
-    def remove(self, player: Player) -> None:
+    @error_catcher
+    def remove(self, player: Player, original_token: str | None = None) -> None:
         """Remove `player` from the list."""
         if player not in self:
             if app.settings.DEBUG_LEVEL >= 1:
                 log(f"{player} removed from player list when not online?")
             return
 
+        # Use original_token if provided (for logout case), otherwise use player.token
+        token_to_remove = original_token if original_token is not None else player.token
+        self._by_token.pop(token_to_remove, None)
+        self._by_id.pop(player.id, None)
+        self._by_name.pop(player.safe_name, None)
         super().remove(player)
-        del self._by_token[player.token]
-        del self._by_id[player.id]
-        del self._by_name[player.safe_name]
 
 
+@error_catcher
 async def initialize_ram_caches() -> None:
     """Setup & cache the global collections before listening for connections."""
     # fetch channels, clans and pools from db
@@ -364,7 +466,10 @@ async def initialize_ram_caches() -> None:
     # static api keys
     app.state.sessions.api_keys = {
         row["api_key"]: row["id"]
-        for row in await app.state.services.database.fetch_all(
-            "SELECT id, api_key FROM users WHERE api_key IS NOT NULL",
+        for row in (
+            await app.state.services.database.fetch_all(
+                "SELECT id, api_key FROM users WHERE api_key IS NOT NULL",
+            )
+            or []
         )
     }

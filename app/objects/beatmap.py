@@ -1,16 +1,96 @@
+"""
+Beatmap Module - osu! Beatmap and BeatmapSet Data Models
+
+This module defines the Beatmap and BeatmapSet classes, which represent osu! beatmaps
+and beatmap sets respectively. These classes provide comprehensive data models for
+managing beatmap information, including metadata, difficulty attributes, ranked status,
+and caching mechanisms for efficient data retrieval.
+
+The module implements a sophisticated three-tier caching system (cache, database, osu!api)
+that prioritizes performance while maintaining data freshness. It handles beatmap updates,
+status changes, and provides high-level APIs for fetching beatmap data by MD5 hash or ID.
+
+Key Features:
+    - Comprehensive beatmap data model with all osu! attributes
+    - Three-tier caching system (RAM cache, database, osu!api)
+    - Automatic beatmap update detection and synchronization
+    - Ranked status management with multiple conversion utilities
+    - Beatmap set management with individual map tracking
+    - File management for .osu files with MD5 verification
+    - Retry logic for API requests with exponential backoff
+
+Integration Points:
+    - Score submission handling in app/api/domains/osu.py
+    - Leaderboard generation in app/api/v2/players.py
+    - Beatmap search in app/api/v2/maps.py
+    - Database operations in app/repositories/maps.py
+    - Cache management in app/state/cache.py
+
+Caching Strategy:
+    - Level 1: In-memory cache (fastest, limited by RAM)
+    - Level 2: Database storage (persistent, moderate speed)
+    - Level 3: osu!api requests (slowest, most up-to-date)
+    - Cache invalidation based on beatmap update timestamps
+    - Automatic cache population on first access
+
+Beatmap Attributes:
+    - md5: File hash for integrity verification
+    - id: Unique beatmap identifier
+    - set_id: Parent beatmap set identifier
+    - artist, title, version, creator: Metadata strings
+    - last_update: Timestamp of last modification
+    - total_length: Duration in seconds
+    - max_combo: Maximum possible combo
+    - status: Ranked status (Pending, Ranked, Approved, etc.)
+    - frozen: Whether status should be preserved during updates
+    - plays, passes: Play statistics
+    - mode: Game mode (osu!, taiko, catch, mania)
+    - bpm, cs, od, ar, hp, diff: Difficulty attributes
+
+Ranked Status Management:
+    - Multiple conversion utilities for different APIs
+    - Support for osu!api, osu!direct, and string formats
+    - Status preservation for frozen beatmaps
+    - Automatic status updates from official sources
+
+Usage Pattern:
+    - Use Beatmap.from_md5() or Beatmap.from_bid() for high-level access
+    - These methods handle caching and updates automatically
+    - BeatmapSet.from_bsid() for fetching entire beatmap sets
+    - Lower-level methods available for advanced use cases
+
+Example Usage:
+    # Fetch beatmap by MD5 hash
+    beatmap = await Beatmap.from_md5("abc123...")
+    if beatmap:
+        print(f"Beatmap: {beatmap.full_name}")
+        print(f"Status: {beatmap.status}")
+
+    # Fetch beatmap by ID
+    beatmap = await Beatmap.from_bid(12345)
+
+    # Fetch entire beatmap set
+    beatmap_set = await BeatmapSet.from_bsid(67890)
+    for bmap in beatmap_set.maps:
+        print(f"Map: {bmap.version}")
+
+Related Files:
+    - app/repositories/maps.py: Database operations for beatmaps
+    - app/state/cache.py: Cache management for beatmap data
+    - app/api/domains/osu.py: Score submission with beatmap validation
+    - app/api/v2/maps.py: Beatmap search and listing endpoints
+"""
+
 from __future__ import annotations
 
 import functools
 import hashlib
 from collections import defaultdict
 from collections.abc import Mapping
-from datetime import datetime
-from datetime import timedelta
-from enum import IntEnum
-from enum import unique
+from datetime import datetime, timedelta
+from enum import IntEnum, unique
 from pathlib import Path
-from typing import Any
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import httpx
 from tenacity import retry
@@ -20,11 +100,9 @@ import app.settings
 import app.state
 import app.utils
 from app.constants.gamemodes import GameMode
-from app.logging import Ansi
-from app.logging import log
+from app.logging import Ansi, log
 from app.repositories import maps as maps_repo
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 # from dataclasses import dataclass
 
@@ -81,7 +159,10 @@ def disk_has_expected_osu_file(
     osu_file_path = BEATMAPS_PATH / f"{beatmap_id}.osu"
     file_exists = osu_file_path.exists()
     if file_exists and expected_md5 is not None:
-        osu_file_md5 = hashlib.md5(osu_file_path.read_bytes()).hexdigest()
+        osu_file_md5 = hashlib.md5(
+            osu_file_path.read_bytes(),
+            usedforsecurity=False,
+        ).hexdigest()  # nosec B324
         return osu_file_md5 == expected_md5
     return file_exists
 
@@ -914,7 +995,9 @@ class BeatmapSet:
                 {"set_id": bsid},
             )
 
-            current_maps = {row["id"]: row["status"] for row in res}
+            current_maps = (
+                {row["id"]: row["status"] for row in res} if res is not None else {}
+            )
 
             for api_bmap in api_response:
                 # newer version available for this map

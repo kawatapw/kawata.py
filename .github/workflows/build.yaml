@@ -1,0 +1,73 @@
+name: Build Image
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    uses: ./.github/workflows/prep-build.yaml
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (build)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64, linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build single-arch image and save tar artifact
+        run: |
+          GITHUB_OWNER="${{ needs.prepare.outputs.github_owner }}"
+          GITHUB_REPO="${{ needs.prepare.outputs.github_repo }}"
+          # Use the first tag from prep-build (which is the short SHA)
+          FIRST_TAG=$(echo "${{ needs.prepare.outputs.tag_list }}" | awk '{print $1}')
+          IMAGE="${GITHUB_OWNER}/${GITHUB_REPO}:${FIRST_TAG}"
+          
+          # Build with all tags from prep-build
+          TAGS="${{ needs.prepare.outputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+          
+          docker build $TAG_ARGS .
+          
+          # Save the main image (short SHA) as artifact
+          mkdir -p /tmp/artifacts
+          docker save "${IMAGE}" -o /tmp/artifacts/docker-image-${GITHUB_SHA}.tar
+
+      - name: Upload docker image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: /tmp/artifacts/docker-image-${{ github.sha }}.tar
+
+      - name: Upload poetry version artifact
+        run: echo "${{ needs.prepare.outputs.version }}" > /tmp/poetry-version.txt
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: poetry-version
+          path: /tmp/poetry-version.txt
+
+  lint:
+    needs: build
+    uses: ./.github/workflows/lint.yaml
+    secrets: inherit
+
+  test:
+    needs: build
+    uses: ./.github/workflows/test.yaml
+    secrets: inherit

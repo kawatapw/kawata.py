@@ -13,7 +13,7 @@ Questa guida sarà orientata verso Ubuntu - altre distribuzioni potrebbero avere
 
 ## Requisiti
 
-**bancho.py** è una codebase di ~20.000 righe costruita sulle spalle di giganti.
+**kawata.py** è una codebase di ~20.000 righe costruita sulle spalle di giganti.
 
 Cerchiamo di minimizzare le nostre dipendenze, ma ci affidiamo comunque a strumenti come:
 

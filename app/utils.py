@@ -1,29 +1,92 @@
+"""
+Utility Functions Module - Common Utilities and Helper Functions
+
+This module provides a comprehensive collection of utility functions and helper
+methods used throughout the osu! server application. It includes functions for
+file handling, network operations, debugging, logging, and various other
+common operations that support the core functionality of the server.
+
+The module serves as a central repository for shared functionality, reducing
+code duplication and providing consistent implementations of common operations.
+It includes utilities for achievement image downloading, network connectivity
+checking, stack trace analysis, and various debugging and logging helpers.
+
+Key Features:
+    - Achievement image downloading from osu! servers
+    - Network connectivity checking
+    - Stack trace analysis and formatting
+    - Debug level monitoring and adjustment
+    - File type detection (JPEG, PNG)
+    - Request data extraction utilities
+    - Database encoding helpers
+    - Startup dialog and system checks
+    - Persistent volume management
+
+Integration Points:
+    - Achievement system in app/usecases/achievements.py
+    - Logging system in app/logging.py
+    - Settings configuration in app/settings.py
+    - Database operations in app/adapters/database.py
+    - API request handling in app/api/
+    - File system operations throughout the application
+
+Utility Categories:
+    - File Operations: Achievement downloads, avatar management
+    - Network Utilities: Connectivity checking, HTTP requests
+    - Debug Utilities: Stack traces, debug level management
+    - Request Utilities: Form data, body, and file extraction
+    - Database Utilities: Encoding helpers for MySQL
+    - System Utilities: Admin checks, startup dialogs
+
+Usage Pattern:
+    # Download achievement images
+    download_achievement_images(achievements_path)
+
+    # Check internet connectivity
+    if has_internet_connectivity():
+        # Perform online operations
+        pass
+
+    # Get stack trace for debugging
+    stack_info = get_appropriate_stacktrace()
+
+    # Extract request data
+    form_data = await get_form_data("SCORE", request)
+    body = await get_request_body("SCORE", request)
+    files = await get_request_files("SCORE", request)
+
+Related Files:
+    - app/logging.py: Logging utilities and formatters
+    - app/settings.py: Configuration settings
+    - app/api/: API request handling
+    - app/usecases/achievements.py: Achievement processing
+    - app/adapters/database.py: Database operations
+"""
+
 from __future__ import annotations
 
+import asyncio
 import ctypes
 import inspect
-import os, json
+import json
+import logging
+import os
 import socket
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import TypedDict
-from typing import TypeVar
+from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
 import httpx
 import pymysql
-
+from fastapi.datastructures import FormData
 from starlette.requests import Request
 
 import app.settings
-import logging
-import asyncio
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi, format_request, log, logLevel
 
 if TYPE_CHECKING:
-    from app.repositories.users import User
+    pass
 
 T = TypeVar("T")
 
@@ -145,7 +208,7 @@ class FrameInfo(TypedDict):
 def get_appropriate_stacktrace() -> list[FrameInfo]:
     """Return information of all frames related to cmyui_pkg and below."""
     stack = inspect.stack()[1:]
-    for idx, frame in enumerate(stack):
+    for _, frame in enumerate(stack):
         if frame.function == "run":
             break
     else:
@@ -162,7 +225,7 @@ def get_appropriate_stacktrace() -> list[FrameInfo]:
         # reverse for python-like stacktrace
         # ordering; puts the most recent
         # call closest to the command line
-        for frame in reversed(stack[:idx])
+        for frame in reversed(stack[:_])
     ]
 
 
@@ -210,28 +273,39 @@ def is_running_as_admin() -> bool:
     except AttributeError:
         pass
 
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin() == 1  # type: ignore[attr-defined, no-any-return, unused-ignore]
-    except AttributeError:
-        raise Exception(
-            f"{sys.platform} is not currently supported on bancho.py, please create a github issue!",
-        )
+    if sys.platform == "win32":
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin() == 1  # type: ignore[attr-defined, no-any-return, unused-ignore]
+        except AttributeError:
+            pass
+
+    raise Exception(
+        f"{sys.platform} is not currently supported on bancho.py, please create a github issue!",
+    ) from None
 
 
 def display_startup_dialog() -> None:
     """Print any general information or warnings to the console."""
     if app.settings.DEVELOPER_MODE:
         log("running in advanced mode", Ansi.LYELLOW)
-    log(f"running in debug mode at level {app.settings.DEBUG_LEVEL}", Ansi.LMAGENTA, extra={
+    log(
+        f"running in debug mode at level {app.settings.DEBUG_LEVEL}",
+        Ansi.LMAGENTA,
+        extra={
             "filter": {
                 "debugLevel": 1,
             },
-        })
-    log(f"current debug focus: {app.settings.DEBUG_FOCUS}", Ansi.LMAGENTA, extra={
+        },
+    )
+    log(
+        f"current debug focus: {app.settings.DEBUG_FOCUS}",
+        Ansi.LMAGENTA,
+        extra={
             "filter": {
                 "debugLevel": 1,
             },
-        })
+        },
+    )
 
     # running on root/admin grants the software potentally dangerous and
     # unnecessary power over the operating system and is not advised.
@@ -260,105 +334,131 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
         and data_view[-8:] == b"\x49END\xae\x42\x60\x82"
     )
 
-async def get_form_data(type, request: Request):
+
+async def get_form_data(type: str, request: Request) -> FormData | None:
     try:
         return await request.form()
-    except Exception as e:
+    except Exception:
         # Handle the exception here
-        log(f"Request has no Form Data", Ansi.GRAY, extra={
-            "filter": {
-                "debugLevel": 2,
-                "debugFocus": "requests"
+        log(
+            "Request has no Form Data",
+            Ansi.GRAY,
+            extra={
+                "filter": {"debugLevel": 2, "debugFocus": "requests"},
             },
-        }, level=14, logger="console.debug",)
+            level=14,
+            logger="console.debug",
+        )
         return None
 
-async def get_request_body(type, request: Request):
+
+async def get_request_body(type: str, request: Request) -> bytes | None:
     try:
         request._body = await request.body()
-        log(f"Request Body: {request._body}", Ansi.GRAY, level=16, logger="console.debug.requests",
+        log(
+            f"Request Body: {request._body!r}",
+            Ansi.GRAY,
+            level=16,
+            logger="console.debug.requests",
             extra={
-                "filter": {
-                    "debugLevel": 1,
-                    "debugFocus": "requests"
-                },
-            })
+                "filter": {"debugLevel": 1, "debugFocus": "requests"},
+            },
+        )
         return request._body
     except Exception as e:
         # Handle the exception here
-        log(f"Request has no Body", Ansi.GRAY, extra={
-            "filter": {
-                "debugLevel": 2,
-                "debugFocus": "requests"
+        log(
+            "Request has no Body",
+            Ansi.GRAY,
+            extra={
+                "filter": {"debugLevel": 2, "debugFocus": "requests"},
+                "Error": e,
+                "Request": json.dumps(format_request(request)),
             },
-            "Error": e,
-            "Request": request,
-        }, level=30, logger="console.debug.requests")
+            level=30,
+            logger="console.debug.requests",
+        )
         return None
 
-async def get_request_files(type, request: Request):
+
+async def get_request_files(type: str, request: Request) -> dict[str, Any] | None:
     try:
-        return await request.files()
+        form_data = await request.form()
+        # Extract files from form data
+        files: dict[str, Any] = {}
+        for key, value in form_data.items():
+            if hasattr(value, "filename"):  # It's a file
+                files[key] = value
+        return files if files else None
     except Exception as e:
         # Handle the exception here
-        log(f"Request Contains no Files", Ansi.GRAY, level=40,
+        log(
+            "Request Contains no Files",
+            Ansi.GRAY,
+            level=40,
             extra={
-                "filter": {
-                    "debugLevel": 2,
-                    "debugFocus": "requests"
-                },
+                "filter": {"debugLevel": 2, "debugFocus": "requests"},
                 "Error": e,
-                "Request": request,
-            })
+                "Request": json.dumps(format_request(request)),
+            },
+        )
         return None
 
-async def write_log_file(type, file_path, request):
-    log(f"Writing Log File for Old Client Submission", Ansi.GRAY, level=16, logger="console.debug")
-    with open(file_path, 'w') as file:
+
+async def write_log_file(type: str, file_path: str, request: Request) -> None:
+    log(
+        "Writing Log File for Old Client Submission",
+        Ansi.GRAY,
+        level=16,
+        logger="console.debug",
+    )
+    with open(file_path, "w") as file:
         if type == "SCORE":
             file.write("Old Client Score Submission:\n")
-        file.write(f"Request Headers:\n")
+        file.write("Request Headers:\n")
         for header, value in request.headers.items():
             file.write(f"{header}: {value}\n")
-        log(f"Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
+        log("Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
         form_data = await get_form_data(type, request)
-        log(f"Grabbed Form Data", Ansi.GRAY)
-        if form_data != None:
+        log("Grabbed Form Data", Ansi.GRAY)
+        if form_data is not None:
             # Extract the aliases and their values from the form data
             aliases = {alias: str(form_data.get(alias)) for alias in form_data}
             # Convert the aliases dictionary to JSON format
             aliases_json = json.dumps(aliases, indent=4)
             file.write("Request Forms: \n")
             file.write(aliases_json)
-            log(f"Form Data Written")
+            log("Form Data Written")
         # Read the request body as bytes and decode it
         body = await get_request_body(type, request)
-        if body != None:
+        if body is not None:
             try:
                 body_str = body.decode()
-            except Exception as e:
+            except Exception:
                 body_str = None
-            file.write(f"\nRequest Body:\n")
-            file.write(body_str)
+            file.write("\nRequest Body:\n")
+            # ...existing code...
+            file.write(body_str if body_str is not None else "Unable to decode body")
         files = await get_request_files(type, request)
-        if files != None:
-            file.write(f"\nFiles:\n")
+        if files is not None:
+            file.write("\nFiles:\n")
             for field, uploaded_file in files.items():
                 file.write(f"{field}: {uploaded_file.filename}\n")
         if type == "SCORE":
-            log(f"Log File for Old Client Submission written successfully", Ansi.GRAY)
+            log("Log File for Old Client Submission written successfully", Ansi.GRAY)
+
 
 class DebugLevelWatcher:
     @staticmethod
     async def watch(interval: int) -> None:
         """Watch app.settings.DEBUG_LEVEL for changes and execute something on change."""
         current_debug_level = app.settings.DEBUG_LEVEL
-        DebugLevelWatcher.set()
+        DebugLevelWatcher.set_debug_level()
 
         while True:
             if app.settings.DEBUG_LEVEL != current_debug_level:
                 # DEBUG_LEVEL has changed, execute something
-                DebugLevelWatcher.set()
+                DebugLevelWatcher.set_debug_level()
 
                 # Update current_debug_level
                 current_debug_level = app.settings.DEBUG_LEVEL
@@ -366,35 +466,39 @@ class DebugLevelWatcher:
             # Sleep for a short interval before checking again
             await asyncio.sleep(interval)
 
-    class set:
-        def __init__(self):
-            """Set debug level stuff."""
-            self.loggerLevel()
-            pass
-        def loggerLevel(self):
-            """Set debug level stuff."""
+    @staticmethod
+    def set_debug_level() -> None:
+        """Set debug level stuff."""
+        DebugLevelWatcher.loggerLevel()
 
-            try:
-                console_logger = logging.getLogger('console')
-                console_handlers = console_logger.handlers
-                for handler in console_handlers:
-                    # Sets Console Logger Level based on current DebugLevel
-                    if app.settings.DEBUG_LEVEL == 3:
-                        handler.setLevel(logLevel.VERBOSE)
-                    elif app.settings.DEBUG_LEVEL == 2:
-                        handler.setLevel(logLevel.DBGLV2)
-                    elif app.settings.DEBUG_LEVEL == 1:
-                        handler.setLevel(logLevel.DBGLV1)
-                    elif app.settings.DEBUG_LEVEL == 0:
-                        handler.setLevel(logLevel.INFO)
-                    else:
-                        handler.setLevel(logLevel.DEBUG)
-                pass
-            except Exception as e:
-                log(f"Failed to set logger level: {e}", Ansi.LRED, extra={
+    @staticmethod
+    def loggerLevel() -> None:
+        """Set debug level stuff."""
+
+        try:
+            console_logger = logging.getLogger("console")
+            console_handlers = console_logger.handlers
+            for handler in console_handlers:
+                # Sets Console Logger Level based on current DebugLevel
+                if app.settings.DEBUG_LEVEL == 3:
+                    handler.setLevel(logLevel.VERBOSE)
+                elif app.settings.DEBUG_LEVEL == 2:
+                    handler.setLevel(logLevel.DBGLV2)
+                elif app.settings.DEBUG_LEVEL == 1:
+                    handler.setLevel(logLevel.DBGLV1)
+                elif app.settings.DEBUG_LEVEL == 0:
+                    handler.setLevel(logLevel.INFO)
+                else:
+                    handler.setLevel(logLevel.DEBUG)
+            pass
+        except Exception as e:
+            log(
+                f"Failed to set logger level: {e}",
+                Ansi.LRED,
+                extra={
                     "message": "Failed to set logger level. Check the error message for more information.",
                     "error": str(e),
                     "traceback": f"{e.__traceback__}",
-                })
-                pass
-                
+                },
+            )
+            pass

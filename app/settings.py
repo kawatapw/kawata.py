@@ -1,3 +1,68 @@
+"""
+Settings Module - Application Configuration and Environment Management
+
+This module provides centralized configuration management for the osu! server
+application, loading and validating all environment variables and settings
+required for server operation. It serves as the single source of truth for
+all application configuration, ensuring consistent access to settings across
+the entire codebase.
+
+The module loads configuration from environment variables (typically from a
+.env file) and provides typed access to all settings with appropriate defaults
+and validation. It handles database connections, Redis configuration, API keys,
+debug settings, and various server operational parameters.
+
+Key Features:
+    - Centralized configuration management from environment variables
+    - Type-safe configuration access with automatic conversion
+    - Database and Redis connection string generation
+    - Debug and development mode configuration
+    - Security settings and restrictions
+    - External service integration (Discord, Datadog)
+    - Performance tuning parameters
+    - Version information from pyproject.toml
+
+Integration Points:
+    - Database connections in app/adapters/database.py
+    - Redis connections in app/state/services.py
+    - API authentication in app/api/
+    - Debug logging in app/logging.py
+    - External services in app/discord.py
+
+Configuration Categories:
+    - Application: Host, port, service name, container name
+    - Database: MySQL connection parameters and DSN
+    - Redis: Redis connection parameters and DSN
+    - API: osu! API key, bot API key, domain settings
+    - Debug: Debug level, focus, logging colors
+    - Security: Disallowed names, passwords, client restrictions
+    - External: Discord webhooks, Datadog monitoring
+    - Performance: Cached accuracies, mirror endpoints
+
+Usage Pattern:
+    # Access configuration values
+    from app import settings
+
+    # Database connection
+    db_dsn = settings.DB_DSN
+
+    # Debug settings
+    debug_level = settings.DEBUG_LEVEL
+
+    # API keys
+    api_key = settings.OSU_API_KEY
+
+    # Feature flags
+    if settings.DEVELOPER_MODE:
+        enable_developer_features()
+
+Related Files:
+    - app/settings_utils.py: Configuration parsing utilities
+    - app/adapters/database.py: Database connection using DB_DSN
+    - app/state/services.py: Service initialization using settings
+    - app/logging.py: Logging configuration using debug settings
+"""
+
 from __future__ import annotations
 
 import os
@@ -6,8 +71,7 @@ from urllib.parse import quote
 
 from dotenv import load_dotenv
 
-from app.settings_utils import read_bool
-from app.settings_utils import read_list
+from app.settings_utils import read_bool, read_list
 
 load_dotenv()
 
@@ -38,10 +102,14 @@ REDIS_AUTH_STRING = f"{REDIS_USER}:{REDIS_PASS}@" if REDIS_USER and REDIS_PASS e
 REDIS_DSN = f"redis://{REDIS_AUTH_STRING}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 OSU_API_KEY = os.environ.get("OSU_API_KEY") or None
-BOT_API_KEY = os.environ.get("BOT_API_KEY") or None # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
+BOT_API_KEY = (
+    os.environ.get("BOT_API_KEY") or None
+)  # used for authorization in requests to b.py for admin related tasks. Please use only for frontend admin panel.
 
 DOMAIN = os.environ["DOMAIN"]
-USINGROOTDOMAIN = read_bool(os.environ["USINGROOTDOMAIN"]) # if true, server will accept osu.domain requests from the root domain as well as osu.domain
+USINGROOTDOMAIN = read_bool(
+    os.environ["USINGROOTDOMAIN"],
+)  # if true, server will accept osu.domain requests from the root domain as well as osu.domain
 MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]
 MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 
@@ -81,7 +149,6 @@ LOG_WITH_COLORS = read_bool(os.environ["LOG_WITH_COLORS"])
 ##          you could put your server at risk.
 DEVELOPER_MODE = read_bool(os.environ["DEVELOPER_MODE"])
 
-DISCORD_LINK = os.environ["DISCORD_LINK"]
 
 with open("pyproject.toml", "rb") as f:
-    VERSION = tomllib.load(f)["tool"]["poetry"]["version"]
+    VERSION = tomllib.load(f)["project"]["version"]

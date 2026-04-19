@@ -4,18 +4,18 @@
     ├── app                   # il server - logica, classi e oggetti
     |   ├── api                 # codice relativo alla gestione delle richieste esterne
     |   |   ├── domains           # endpoint accessibili esternamente
-    |   |   |   ├── cho.py        # endpoint disponibili @ https://c.cmyui.xyz
-    |   |   |   ├── map.py        # endpoint disponibili @ https://b.cmyui.xyz
-    |   |   |   └── osu.py        # endpoint disponibili @ https://osu.cmyui.xyz
+    |   |   |   ├── cho.py        # endpoint disponibili @ https://c.kawata.pw
+    |   |   |   ├── map.py        # endpoint disponibili @ https://b.kawata.pw
+    |   |   |   └── osu.py        # endpoint disponibili @ https://osu.kawata.pw
     |   |   |
     |   |   ├── v1
-    |   |   |   └── api.py          # endpoint disponibili @ https://api.cmyui.xyz/v1
+    |   |   |   └── api.py          # endpoint disponibili @ https://api.kawata.pw/v1
     |   |   |
     |   |   ├── v2
-    |   |   |   ├── clans.py        # endpoint disponibili @ https://api.cmyui.xyz/v2/clans
-    |   |   |   ├── maps.py         # endpoint disponibili @ https://api.cmyui.xyz/v2/maps
-    |   |   |   ├── players.py      # endpoint disponibili @ https://api.cmyui.xyz/v2/players
-    |   |   |   └── scores.py       # endpoint disponibili @ https://api.cmyui.xyz/v2/scores
+    |   |   |   ├── clans.py        # endpoint disponibili @ https://api.kawata.pw/v2/clans
+    |   |   |   ├── maps.py         # endpoint disponibili @ https://api.kawata.pw/v2/maps
+    |   |   |   ├── players.py      # endpoint disponibili @ https://api.kawata.pw/v2/players
+    |   |   |   └── scores.py       # endpoint disponibili @ https://api.kawata.pw/v2/scores
     |   |   |
     |   |   ├── init_api.py       # logica per assemblare il server
     |   |   └── middlewares.py    # logica che avvolge gli endpoint
@@ -50,5 +50,5 @@
     |
     ├── ext                   # entità esterne utilizzate durante l'esecuzione del server
     ├── migrations            # migrazioni del database - aggiornamenti dello schema
-    ├── tools                 # vari strumenti creati nella storia di bancho.py
+    ├── tools                 # vari strumenti creati nella storia di kawata.py
     └── main.py               # un punto di ingresso (script) per eseguire il server

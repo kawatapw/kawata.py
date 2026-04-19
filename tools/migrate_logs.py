@@ -8,10 +8,10 @@ import sys
 
 import databases
 
+import app.settings
+
 sys.path.insert(0, os.path.abspath(os.pardir))
 os.chdir(os.path.abspath(os.pardir))
-
-import app.settings
 
 LOG_REGEX = re.compile(
     r"<(.*)\((.*)\)> (?P<action>unrestricted|restricted|unsilenced|silenced|added note) ?(\((.*)\))? ?(\: (?P<note>.*))? ?(?:for (?P<reason>.*))?",
@@ -36,7 +36,7 @@ async def main() -> int:
 
             # get all logs & change
             print("Getting all old logs")
-            for row in await select_conn.fetch_all(f"SELECT * FROM logs"):
+            for row in await select_conn.fetch_all("SELECT * FROM logs"):
                 note = row["msg"]
 
                 note_match = LOG_REGEX.match(row["msg"])

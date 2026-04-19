@@ -1,3 +1,69 @@
+"""
+Commands Module - In-Game Command Processing and Management
+
+This module implements the comprehensive command processing system for the osu!
+server application, providing a rich set of in-game commands for players,
+moderators, administrators, and developers. It handles command parsing, privilege
+validation, and execution of various server operations through chat commands.
+
+The module defines a flexible command framework with support for regular commands,
+command sets (like multiplayer commands), privilege-based access control, and
+extensive functionality covering user management, multiplayer operations,
+tournament management, and administrative tasks.
+
+Key Features:
+    - Flexible command registration with privilege levels
+    - Command sets for organized functionality (mp, pool, clan)
+    - Privilege-based access control for all commands
+    - Support for command aliases and hidden commands
+    - Comprehensive multiplayer match management
+    - Tournament pool and scrim management
+    - User moderation and administration tools
+    - Performance calculation and beatmap management
+    - Server monitoring and debugging utilities
+
+Integration Points:
+    - Player management in app/objects/player.py
+    - Match system in app/objects/match.py
+    - Beatmap system in app/objects/beatmap.py
+    - Repository layer in app/repositories/
+    - Performance calculation in app/usecases/performance.py
+    - Packet handling in app/packets.py
+    - Settings management in app/settings.py
+
+Command Categories:
+    - User Commands: help, roll, block, reconnect, recent, top
+    - Nominator Commands: map, request, requests
+    - Moderator Commands: silence, unsilence, notes, addnote
+    - Administrator Commands: restrict, unrestrict, alert, user
+    - Developer Commands: stealth, recalc, debug, reload, py
+    - Multiplayer Commands: mp start, mp abort, mp map, mp mods
+    - Tournament Commands: mp scrim, mp ban, mp loadpool
+
+Usage Pattern:
+    # Commands are registered using decorators
+    @command(Privileges.UNRESTRICTED)
+    async def my_command(ctx: Context) -> str | None:
+        '''Command documentation.'''
+        return "Command response"
+
+    # Command sets for grouped functionality
+    mp_commands = CommandSet("mp", "Multiplayer commands.")
+
+    @mp_commands.add(Privileges.UNRESTRICTED)
+    async def mp_start(ctx: Context, match: Match) -> str | None:
+        '''Start the match.'''
+        pass
+
+Related Files:
+    - app/objects/player.py: Player class and session management
+    - app/objects/match.py: Match management and multiplayer
+    - app/objects/beatmap.py: Beatmap data and operations
+    - app/repositories/: Database access layer
+    - app/usecases/performance.py: Performance calculation
+    - app/packets.py: Packet creation and handling
+"""
+
 from __future__ import annotations
 
 import importlib.metadata
@@ -9,22 +75,13 @@ import signal
 import time
 import traceback
 import uuid
-from collections.abc import Awaitable
-from collections.abc import Callable
-from collections.abc import Mapping
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from time import perf_counter_ns as clock_ns
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import NamedTuple
-from typing import NoReturn
-from typing import Optional
-from typing import TypedDict
+from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn, TypedDict
 from urllib.parse import urlparse
 
 import cpuinfo
@@ -40,26 +97,24 @@ import app.usecases.performance
 import app.utils
 from app.constants import regexes
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
-from app.constants.mods import SPEED_CHANGING_MODS
-from app.constants.mods import Mods
-from app.constants.privileges import ClanPrivileges
-from app.constants.privileges import Privileges
-from app.logging import Ansi
-from app.logging import log
-from app.objects.beatmap import Beatmap
-from app.objects.beatmap import RankedStatus
-from app.objects.beatmap import ensure_osu_file_is_available
-from app.objects.match import Match
-from app.objects.match import MatchTeams
-from app.objects.match import MatchTeamTypes
-from app.objects.match import MatchWinConditions
-from app.objects.match import SlotStatus
+from app.constants.mods import SPEED_CHANGING_MODS, Mods
+from app.constants.privileges import ClanPrivileges, Privileges
+from app.logging import Ansi, log
+from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
+from app.objects.match import (
+    Match,
+    MatchTeams,
+    MatchTeamTypes,
+    MatchWinConditions,
+    SlotStatus,
+)
 from app.objects.player import Player
 from app.objects.score import SubmissionStatus
 from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
 from app.repositories import map_requests as map_requests_repo
 from app.repositories import maps as maps_repo
+from app.repositories import seasons as seasons_repo
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
 from app.repositories import users as users_repo
@@ -81,7 +136,7 @@ class Context:
     recipient: Channel | Player
 
 
-Callback = Callable[[Context], Awaitable[Optional[str]]]
+Callback = Callable[[Context], Awaitable[str | None]]
 
 
 class Command(NamedTuple):
@@ -102,7 +157,7 @@ class CommandSet:
     def add(
         self,
         priv: Privileges,
-        aliases: list[str] = [],
+        aliases: list[str] | None = None,
         hidden: bool = False,
     ) -> Callable[[Callback], Callback]:
         def wrapper(f: Callback) -> Callback:
@@ -111,7 +166,8 @@ class CommandSet:
                     # NOTE: this method assumes that functions without any
                     # triggers will be named like '{self.trigger}_{trigger}'.
                     triggers=(
-                        [f.__name__.removeprefix(f"{self.trigger}_").strip()] + aliases
+                        [getattr(f, "__name__", "unknown").removeprefix(f"{self.trigger}_").strip()]
+                        + (aliases if aliases is not None else [])
                     ),
                     callback=f,
                     priv=priv,
@@ -128,18 +184,20 @@ class CommandSet:
 mp_commands = CommandSet("mp", "Multiplayer commands.")
 pool_commands = CommandSet("pool", "Mappool commands.")
 clan_commands = CommandSet("clan", "Clan commands.")
+season_commands = CommandSet("season", "Season management commands.")
 
 regular_commands = []
 command_sets = [
     mp_commands,
     pool_commands,
     clan_commands,
+    season_commands,
 ]
 
 
 def command(
     priv: Privileges,
-    aliases: list[str] = [],
+    aliases: list[str] | None = None,
     hidden: bool = False,
 ) -> Callable[[Callback], Callback]:
     def wrapper(f: Callback) -> Callback:
@@ -148,7 +206,8 @@ def command(
                 callback=f,
                 priv=priv,
                 hidden=hidden,
-                triggers=[f.__name__.strip("_")] + aliases,
+                triggers=[getattr(f, "__name__", "unknown").strip("_")]
+                + (aliases if aliases is not None else []),
                 doc=f.__doc__,
             ),
         )
@@ -168,22 +227,22 @@ def command(
 async def _help(ctx: Context) -> str | None:
     """Show all documented commands the player can access."""
     prefix = app.settings.COMMAND_PREFIX
-    l = ["Individual commands", "-----------"]
+    help_lines = ["Individual commands", "-----------"]
 
     for cmd in regular_commands:
         if not cmd.doc or ctx.player.priv & cmd.priv != cmd.priv:
             # no doc, or insufficient permissions.
             continue
 
-        l.append(f"{prefix}{cmd.triggers[0]}: {cmd.doc}")
+        help_lines.append(f"{prefix}{cmd.triggers[0]}: {cmd.doc}")
 
-    l.append("")  # newline
-    l.extend(["Command sets", "-----------"])
+    help_lines.append("")  # newline
+    help_lines.extend(["Command sets", "-----------"])
 
     for cmd_set in command_sets:
-        l.append(f"{prefix}{cmd_set.trigger}: {cmd_set.doc}")
+        help_lines.append(f"{prefix}{cmd_set.trigger}: {cmd_set.doc}")
 
-    return "\n".join(l)
+    return "\n".join(help_lines)
 
 
 @command(Privileges.UNRESTRICTED)
@@ -197,7 +256,7 @@ async def roll(ctx: Context) -> str | None:
     if max_roll == 0:
         return "Roll what?"
 
-    points = random.randrange(0, max_roll)
+    points = random.randrange(0, max_roll)  # nosec B311
     return f"{ctx.player.name} rolls {points} points!"
 
 
@@ -327,16 +386,16 @@ async def recent(ctx: Context) -> str | None:
     if score.bmap is None:
         return "We don't have a beatmap on file for your recent score."
 
-    l = [f"[{score.mode!r}] {score.bmap.embed}", f"{score.acc:.2f}%"]
+    score_lines = [f"[{score.mode!r}] {score.bmap.embed}", f"{score.acc:.2f}%"]
 
     if score.mods:
-        l.insert(1, f"+{score.mods!r}")
+        score_lines.insert(1, f"+{score.mods!r}")
 
-    l = [" ".join(l)]
+    score_lines = [" ".join(score_lines)]
 
     if score.passed:
         rank = score.rank if score.status == SubmissionStatus.BEST else "NA"
-        l.append(f"PASS {{{score.pp:.2f}pp #{rank}}}")
+        score_lines.append(f"PASS {{{score.pp:.2f}pp #{rank}}}")
     else:
         # XXX: prior to v3.2.0, bancho.py didn't parse total_length from
         # the osu!api, and thus this can do some zerodivision moments.
@@ -344,11 +403,11 @@ async def recent(ctx: Context) -> str | None:
         # replaced with a better system to fix the maps.
         if score.bmap.total_length != 0:
             completion = score.time_elapsed / (score.bmap.total_length * 1000)
-            l.append(f"FAIL {{{completion * 100:.2f}% complete}})")
+            score_lines.append(f"FAIL {{{completion * 100:.2f}% complete}})")
         else:
-            l.append("FAIL")
+            score_lines.append("FAIL")
 
-    return " | ".join(l)
+    return " | ".join(score_lines)
 
 
 TOP_SCORE_FMTSTR = "{idx}. ({pp:.2f}pp) [https://osu.{domain}/b/{map_id} {artist} - {title} [{version}]]"
@@ -363,7 +422,7 @@ async def top(ctx: Context) -> str | None:
         return "Invalid syntax: !top <mode> (player)"
 
     if ctx.args[0] not in GAMEMODE_REPR_LIST:
-        return f'Valid gamemodes: {", ".join(GAMEMODE_REPR_LIST)}.'
+        return f"Valid gamemodes: {', '.join(GAMEMODE_REPR_LIST)}."
 
     if ctx.args[0] in (
         "rx!mania",
@@ -599,7 +658,7 @@ async def requests(ctx: Context) -> str | None:
     if not grouped:
         return "The queue is clean! (0 map request(s))"
 
-    l = [f"Total requested beatmaps: {len(grouped)}"]
+    request_lines = [f"Total requested beatmaps: {len(grouped)}"]
     for map_id, reviews in grouped.items():
         assert len(reviews) != 0
 
@@ -610,11 +669,11 @@ async def requests(ctx: Context) -> str | None:
 
         first_review = min(reviews, key=lambda r: r["datetime"])
 
-        l.append(
+        request_lines.append(
             f"{len(reviews)}x request(s) starting {first_review['datetime']:%Y-%m-%d}: {bmap.embed}",
         )
 
-    return "\n".join(l)
+    return "\n".join(request_lines)
 
 
 _status_str_to_int_map = {"unrank": 0, "rank": 2, "love": 5}
@@ -635,12 +694,17 @@ async def _map(ctx: Context) -> str | None:
         return "Invalid syntax: !map <rank/unrank/love> <map/set>"
 
     if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
-        log(f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}", Ansi.LBLUE,
+        log(
+            f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}",
+            Ansi.LBLUE,
             extra={
-            "filter": {
-                "debugLevel": 2,
+                "filter": {
+                    "debugLevel": 2,
+                },
             },
-        }, level=14, logger="console.debug",)
+            level=14,
+            logger="console.debug",
+        )
         return "Please /np a map first!"
 
     bmap = ctx.player.last_np["bmap"]
@@ -762,11 +826,11 @@ async def addnote(ctx: Context) -> str | None:
         return f'"{ctx.args[0]}" not found.'
 
     await logs_repo.create(
-        _from=ctx.player.id,
-        to=target.id,
+        from_id=ctx.player.id,
+        to_id=target.id,
         action="note",
         msg=" ".join(ctx.args[1:]),
-        type=3,
+        action_type=3,
     )
 
     return f"Added note to {target}."
@@ -887,7 +951,7 @@ async def user(ctx: Context) -> str | None:
 
     return "\n".join(
         (
-            f'[{"Bot" if player.is_bot_client else "Player"}] {display_name} ({player.id})',
+            f"[{'Bot' if player.is_bot_client else 'Player'}] {display_name} ({player.id})",
             f"Privileges: {priv_list}",
             f"Donator: {donator_info}",
             f"Channels: {[c.real_name for c in player.channels]}",
@@ -1023,7 +1087,7 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
             # alert all online players of the reboot.
             alert_msg = (
                 f"The server will {ctx.trigger} in {ctx.args[0]}.\n\n"
-                f'Reason: {" ".join(ctx.args[1:])}'
+                f"Reason: {' '.join(ctx.args[1:])}"
             )
 
             app.state.sessions.players.enqueue(app.packets.notification(alert_msg))
@@ -1048,7 +1112,7 @@ async def stealth(ctx: Context) -> str | None:
     # half works; eventually it will be moved to the Admin level.
     ctx.player.stealth = not ctx.player.stealth
 
-    return f'Stealth {"enabled" if ctx.player.stealth else "disabled"}.'
+    return f"Stealth {'enabled' if ctx.player.stealth else 'disabled'}."
 
 
 @command(Privileges.DEVELOPER)
@@ -1068,12 +1132,13 @@ async def debug(ctx: Context) -> str | None:
     app.settings.DEBUG_LEVEL = int(ctx.args[0])
     return f"Set Debug Level to {int(ctx.args[0])}."
 
+
 @command(Privileges.DEVELOPER, hidden=True)
 async def debug_focus(ctx: Context) -> str | None:
     """Set the console's debug focus."""
     if len(ctx.args) < 1:
         return "Invalid syntax: !debugFocus <all/scores/leaderboards/messages/requests/client>"
-    app.settings.DEBUG_FOCUS = ctx.args[0]
+    app.settings.DEBUG_FOCUS = ctx.args[0]  # ty: ignore[invalid-assignment]
     return f"Set Debug Focus to {ctx.args[0]}."
 
 
@@ -1252,7 +1317,7 @@ async def server(ctx: Context) -> str | None:
     # output ram usage as `{bancho_used}MB / {sys_used}MB / {sys_total}MB`
     bancho_ram = proc.memory_info()[0]
     ram_values = (bancho_ram, sys_ram.used, sys_ram.total)
-    ram_info = " / ".join([f"{v // 1024 ** 2}MB" for v in ram_values])
+    ram_info = " / ".join([f"{v // 1024**2}MB" for v in ram_values])
 
     # current state of settings
     mirror_search_url = urlparse(app.settings.MIRROR_SEARCH_ENDPOINT).netloc
@@ -1334,7 +1399,7 @@ if app.settings.DEVELOPER_MODE:
         definition = "\n ".join(["async def __py(ctx):", " ".join(ctx.args)])
 
         try:  # def __py(ctx)
-            exec(definition, __py_namespace)  # add to namespace
+            exec(definition, __py_namespace)  # noqa: S102  # nosec B102  # add to namespace
             ret = await __py_namespace["__py"](ctx)  # await it's return
         except Exception as exc:  # return exception in osu! chat
             ret = f"{exc.__class__}: {exc}"
@@ -1374,7 +1439,7 @@ def ensure_match(
         if not (
             ctx.player in match.refs
             or ctx.player.priv & Privileges.TOURNEY_MANAGER
-            or f is mp_help.__wrapped__  # type: ignore[attr-defined]
+            or f is getattr(mp_help, "__wrapped__", None)
         ):
             return None
 
@@ -1419,8 +1484,8 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
             time_remaining = int(match.starting["time"] - time.time())
             return f"Match starting in {time_remaining} seconds."
 
-        if any([s.status == SlotStatus.not_ready for s in match.slots]):
-            return "Not all players are ready (`!mp start force` to override)."
+    if any(s.status == SlotStatus.not_ready for s in match.slots):
+        return "Not all players are ready (`!mp start force` to override)."
     else:
         if ctx.args[0].isdecimal():
             # !mp start N
@@ -1599,7 +1664,7 @@ async def mp_host(ctx: Context, match: Match) -> str | None:
     if len(ctx.args) != 1:
         return "Invalid syntax: !mp host <name>"
 
-    target = app.state.sessions.players.get(name=ctx.args[0])
+    target: Player | None = app.state.sessions.players.get(name=ctx.args[0])
     if not target:
         return "Could not find a user by that name."
 
@@ -1652,7 +1717,7 @@ async def mp_addref(ctx: Context, match: Match) -> str | None:
     if len(ctx.args) != 1:
         return "Invalid syntax: !mp addref <name>"
 
-    target = app.state.sessions.players.get(name=ctx.args[0])
+    target: Player | None = app.state.sessions.players.get(name=ctx.args[0])
     if not target:
         return "Could not find a user by that name."
 
@@ -1920,18 +1985,15 @@ async def mp_loadpool(ctx: Context, match: Match) -> str | None:
 
     name = ctx.args[0]
 
-    tourney_pool = await tourney_pools_repo.fetch_by_name(name)
-    if tourney_pool is None:
+    pool = await tourney_pools_repo.fetch_by_name(name)
+    if pool is None:
         return "Could not find a pool by that name!"
 
-    if (
-        match.tourney_pool is not None
-        and match.tourney_pool["id"] == tourney_pool["id"]
-    ):
-        return f"{tourney_pool['name']} already selected!"
+    if match.tourney_pool is not None and match.tourney_pool["id"] == pool["id"]:
+        return f"{pool['name']} already selected!"
 
-    match.tourney_pool = tourney_pool
-    return f"{tourney_pool['name']} selected."
+    match.tourney_pool = pool
+    return f"{pool['name']} selected."
 
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["ulp"])
@@ -2116,7 +2178,7 @@ async def pool_create(ctx: Context) -> str | None:
     if existing_pool is not None:
         return "Pool already exists by that name!"
 
-    tourney_pool = await tourney_pools_repo.create(
+    await tourney_pools_repo.create(
         name=name,
         created_by=ctx.player.id,
     )
@@ -2238,7 +2300,7 @@ async def pool_list(ctx: Context) -> str | None:
     if not tourney_pools:
         return "There are currently no pools!"
 
-    l = [f"Mappools ({len(tourney_pools)})"]
+    pool_lines = [f"Mappools ({len(tourney_pools)})"]
 
     for pool in tourney_pools:
         created_by = await users_repo.fetch_one(id=pool["created_by"])
@@ -2246,12 +2308,11 @@ async def pool_list(ctx: Context) -> str | None:
             log(f"Could not find pool creator (Id {pool['created_by']}).", Ansi.LRED)
             continue
 
-        l.append(
-            f"[{pool['created_at']:%Y-%m-%d}] "
-            f"{pool['name']}, by {created_by['name']}.",
+        pool_lines.append(
+            f"[{pool['created_at']:%Y-%m-%d}] {pool['name']}, by {created_by['name']}.",
         )
 
-    return "\n".join(l)
+    return "\n".join(pool_lines)
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["i"], hidden=True)
@@ -2269,7 +2330,7 @@ async def pool_info(ctx: Context) -> str | None:
     _time = tourney_pool["created_at"].strftime("%H:%M:%S%p")
     _date = tourney_pool["created_at"].strftime("%Y-%m-%d")
     datetime_fmt = f"Created at {_time} on {_date}"
-    l = [
+    lines = [
         f"{tourney_pool['id']}. {tourney_pool['name']}, by {tourney_pool['created_by']} | {datetime_fmt}.",
     ]
 
@@ -2281,9 +2342,11 @@ async def pool_info(ctx: Context) -> str | None:
         if bmap is None:
             log(f"Could not find beatmap {tourney_map['map_id']}.", Ansi.LRED)
             continue
-        l.append(f"{Mods(tourney_map['mods'])!r}{tourney_map['slot']}: {bmap.embed}")
+        lines.append(
+            f"{Mods(tourney_map['mods'])!r}{tourney_map['slot']}: {bmap.embed}",
+        )
 
-    return "\n".join(l)
+    return "\n".join(lines)
 
 
 """ Clan managment commands
@@ -2555,3 +2618,316 @@ async def process_commands(
                 return {"resp": None, "hidden": False}
 
     return None
+
+
+""" Season management commands
+# The commands below are for managing seasons.
+# Most commands are restricted to administrators.
+# Commands are only visible when seasons are enabled via server_data.
+"""
+
+
+async def _is_seasons_enabled() -> bool:
+    """Check if seasons are enabled via server_data."""
+    try:
+        enabled = await app.state.services.database.fetch_val(
+            "SELECT value FROM server_data WHERE type = 'seasons_enabled'",
+        )
+        return bool(enabled == "1")
+    except Exception:
+        return False
+
+
+@season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+async def season_create(ctx: Context) -> str | None:
+    """Create a new season."""
+    if not await _is_seasons_enabled():
+        return None
+
+    if len(ctx.args) < 2:
+        return "Invalid syntax: !season create <name> <schedule_id>"
+
+    name = ctx.args[0]
+    if not ctx.args[1].isdecimal():
+        return "Schedule ID must be a number."
+
+    schedule_id = int(ctx.args[1])
+
+    # verify schedule exists
+    schedule = await seasons_repo.fetch_schedule_by_id(schedule_id)
+    if schedule is None:
+        return "Schedule not found."
+
+    # get provider for schedule type
+    from app.schedule_types import get_provider_for_schedule_type
+
+    provider = get_provider_for_schedule_type(schedule["schedule_type"])
+    if provider is None:
+        return f"No provider found for schedule type: {schedule['schedule_type']}"
+
+    # calculate season dates based on schedule
+    current_time = datetime.now()
+    start_date, end_date = provider.calculate_next_season(
+        schedule["schedule_type"],
+        current_time,
+        schedule["config"],
+    )
+
+    # create season
+    season = await seasons_repo.create(
+        name=name,
+        schedule_id=schedule_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return f"Season '{name}' created with ID {season['id']}."
+
+
+@season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+async def season_start(ctx: Context) -> str | None:
+    """Start/activate a season."""
+    if not await _is_seasons_enabled():
+        return None
+
+    if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
+        return "Invalid syntax: !season start <season_id>"
+
+    season_id = int(ctx.args[0])
+
+    season = await seasons_repo.fetch_one(id=season_id)
+    if season is None:
+        return "Season not found."
+
+    if season["is_active"]:
+        return "Season is already active."
+
+    await seasons_repo.activate(season_id)
+    return f"Season '{season['name']}' activated."
+
+
+@season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+async def season_end(ctx: Context) -> str | None:
+    """End/deactivate a season."""
+    if not await _is_seasons_enabled():
+        return None
+
+    if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
+        return "Invalid syntax: !season end <season_id>"
+
+    season_id = int(ctx.args[0])
+
+    season = await seasons_repo.fetch_one(id=season_id)
+    if season is None:
+        return "Season not found."
+
+    if not season["is_active"]:
+        return "Season is not active."
+
+    await seasons_repo.deactivate(season_id)
+    return f"Season '{season['name']}' deactivated."
+
+
+@season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+async def recalc_season_stats(ctx: Context) -> str | None:
+    """Recalculate stats for a season (or all seasons).
+
+    Usage:
+        !season recalc <season_id> - Recalculate stats for a specific season
+        !season recalc all         - Recalculate stats for all seasons
+    """
+    if not await _is_seasons_enabled():
+        return "Seasons are not enabled."
+
+    if not ctx.args:
+        return "Usage: !season recalc <season_id> or !season recalc all"
+
+    import asyncio
+
+    from app.bg_loops import calculate_season_stats_for_all_users
+
+    player = ctx.player
+
+    if ctx.args[0].lower() == "all":
+        all_seasons = await app.state.services.database.fetch_all(
+            "SELECT id, name FROM seasons ORDER BY id",
+        )
+        if not all_seasons:
+            return "No seasons found."
+
+        async def _recalc_all() -> None:
+            for s in all_seasons:
+                player.send_bot(f"Recalculating season '{s['name']}' ({s['id']})...")
+                await calculate_season_stats_for_all_users(s["id"])
+            player.send_bot(f"Done! Recalculated stats for {len(all_seasons)} seasons.")
+
+        # Background task - intentionally not awaited
+        asyncio.create_task(_recalc_all())  # type: ignore[unused-awaitable]
+        return f"Started recalculating {len(all_seasons)} seasons in background. You'll get a message when done."
+
+    if not ctx.args[0].isdecimal():
+        return "Season ID must be a number, or 'all'."
+
+    season_id = int(ctx.args[0])
+    season = await seasons_repo.fetch_one(id=season_id)
+    if season is None:
+        return "Season not found."
+
+    async def _recalc_one() -> None:
+        await calculate_season_stats_for_all_users(season_id)
+        player.send_bot(f"Done! Recalculated stats for season '{season['name']}'.")
+
+        # Background task - intentionally not awaited
+        asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]
+    return f"Started recalculating season '{season['name']}' in background. You'll get a message when done."
+
+
+@season_commands.add(Privileges.UNRESTRICTED, hidden=True)
+async def season_list(ctx: Context) -> str | None:
+    """List all seasons."""
+    if not await _is_seasons_enabled():
+        return None
+
+    seasons = await seasons_repo.fetch_many(page=None, page_size=None)
+    if not seasons:
+        return "No seasons found."
+
+    msg = [f"Seasons ({len(seasons)} total):"]
+    for season in seasons:
+        status = "Active" if season["is_active"] else "Inactive"
+        msg.append(
+            f"[{status}] {season['id']}. {season['name']} ({season['start_date']:%Y-%m-%d} to {season['end_date']:%Y-%m-%d})",
+        )
+
+    return "\n".join(msg)
+
+
+@season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+async def season_schedule(ctx: Context) -> str | None:
+    """Manage season schedules."""
+    if not await _is_seasons_enabled():
+        return None
+
+    if not ctx.args:
+        return "Invalid syntax: !season schedule <create/list/info>"
+
+    action = ctx.args[0].lower()
+
+    if action == "create":
+        if len(ctx.args) < 3:
+            return "Invalid syntax: !season schedule create <name> <schedule_type>"
+
+        name = ctx.args[1]
+        schedule_type = ctx.args[2]
+
+        # get provider for schedule type to validate and get default config
+        from app.schedule_types import get_provider_for_schedule_type
+
+        provider = get_provider_for_schedule_type(schedule_type)
+        if provider is None:
+            return f"No provider found for schedule type: {schedule_type}"
+
+        # get default config from provider schema
+        config_schema = provider.get_config_schema(schedule_type)
+        default_config = {}
+        if "properties" in config_schema:
+            for prop_name, prop_schema in config_schema["properties"].items():
+                if "default" in prop_schema:
+                    default_config[prop_name] = prop_schema["default"]
+
+        # create schedule
+        schedule = await seasons_repo.create_schedule(
+            name=name,
+            schedule_type=schedule_type,
+            config=default_config,
+        )
+
+        return f"Schedule '{name}' created with ID {schedule['id']}."
+
+    elif action == "list":
+        schedules = await seasons_repo.fetch_many_schedules()
+        if not schedules:
+            return "No schedules found."
+
+        msg = [f"Schedules ({len(schedules)} total):"]
+        for schedule in schedules:
+            msg.append(
+                f"{schedule['id']}. {schedule['name']} ({schedule['schedule_type']})",
+            )
+
+        return "\n".join(msg)
+
+    else:
+        return "Invalid action. Use: create, list, or info"
+
+
+@command(Privileges.UNRESTRICTED)
+async def seasons(ctx: Context) -> str | None:
+    """Toggle between all-time and seasonal view, or view specific season stats.
+
+    Usage:
+        !seasons - Toggle between all-time and seasonal view
+        !seasons <season_id> - View stats for a specific season
+        !seasons all - Switch to all-time view
+    """
+    if not ctx.args:
+        # Toggle between all-time and seasonal view
+        if ctx.player.preferred_lb_view == "all_time":
+            ctx.player.preferred_lb_view = "seasonal"
+            await users_repo.partial_update(
+                id=ctx.player.id,
+                preferred_lb_view="seasonal",
+            )
+            return "Switched to seasonal view."
+        else:
+            ctx.player.preferred_lb_view = "all_time"
+            await users_repo.partial_update(
+                id=ctx.player.id,
+                preferred_lb_view="all_time",
+            )
+            return "Switched to all-time view."
+
+    # Handle specific season ID or "all"
+    arg = ctx.args[0].lower()
+
+    if arg == "all":
+        # Switch to all-time view
+        ctx.player.preferred_lb_view = "all_time"
+        ctx.player.selected_season_id = None
+        await users_repo.partial_update(
+            id=ctx.player.id,
+            preferred_lb_view="all_time",
+        )
+        return "Switched to all-time view."
+
+    # Try to parse as season ID
+    try:
+        season_id = int(arg)
+    except ValueError:
+        return "Invalid season ID. Use !seasons <season_id> or !seasons all."
+
+    # Verify season exists
+    season = await seasons_repo.fetch_one(id=season_id)
+    if not season:
+        return f"Season with ID {season_id} not found."
+
+    # Set the player's selected season
+    ctx.player.preferred_lb_view = "seasonal"
+    ctx.player.selected_season_id = season_id
+    await users_repo.partial_update(
+        id=ctx.player.id,
+        preferred_lb_view="seasonal",
+    )
+
+    return f"Switched to viewing season: {season['name']} (ID: {season_id})"
+
+
+@command(Privileges.UNRESTRICTED)
+async def seasons_all(ctx: Context) -> str | None:
+    """Switch to all-time view."""
+    ctx.player.preferred_lb_view = "all_time"
+    await users_repo.partial_update(
+        id=ctx.player.id,
+        preferred_lb_view="all_time",
+    )
+    return "Switched to all-time view."

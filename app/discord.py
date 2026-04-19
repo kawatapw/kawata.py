@@ -1,12 +1,77 @@
-"""Functionality related to Discord interactivity."""
+"""
+Discord Integration Module - Webhook and Embed Management
+
+This module provides Discord webhook functionality for the osu! server
+application, enabling automated notifications and rich embed messages to
+Discord channels. It implements Discord's webhook API for posting messages
+with embedded content, images, and other media.
+
+The module defines data classes for Discord embed components and a Webhook
+class that handles the construction and posting of webhook payloads. It
+includes retry logic for reliable message delivery and supports various
+embed types including text, images, videos, and custom fields.
+
+Key Features:
+    - Discord webhook message posting with retry logic
+    - Rich embed support with multiple component types
+    - Image, video, and thumbnail embedding
+    - Custom fields and footer support
+    - Author and provider information
+    - Color and timestamp customization
+    - File attachment support
+    - Automatic payload validation and formatting
+
+Integration Points:
+    - HTTP client in app/state/services.py
+    - Logging system in app/logging.py
+    - Settings configuration in app/settings.py
+    - Application state in app/state/__init__.py
+
+Discord Components:
+    - Embed: Rich message container with multiple content types
+    - Footer: Bottom section with text and optional icon
+    - Image: Full-size image display
+    - Thumbnail: Small preview image
+    - Video: Video content embedding
+    - Provider: Source information display
+    - Author: Message author information
+    - Field: Custom labeled content sections
+    - Webhook: Message delivery mechanism
+
+Usage Pattern:
+    # Create a webhook for posting to Discord
+    webhook = Webhook(url="https://discord.com/api/webhooks/...")
+
+    # Create an embed with content
+    embed = Embed(
+        title="Server Update",
+        description="New features have been added!",
+        color=0x00ff00
+    )
+
+    # Add fields to the embed
+    embed.add_field(name="Feature", value="New PP system", inline=True)
+    embed.add_field(name="Status", value="Active", inline=True)
+
+    # Add footer and image
+    embed.set_footer(text="osu! server", icon_url="https://...")
+    embed.set_image(url="https://...")
+
+    # Add embed to webhook and post
+    webhook.add_embed(embed)
+    await webhook.post()
+
+Related Files:
+    - app/state/services.py: HTTP client for webhook requests
+    - app/settings.py: Discord webhook URL configuration
+    - app/logging.py: Logging utilities for webhook errors
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from tenacity import retry
-from tenacity import stop_after_attempt
-from tenacity import wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.state import services
 
@@ -121,11 +186,11 @@ class Webhook:
     def json(self) -> Any:
         if not any([self.content, self.file, self.embeds]):
             raise Exception(
-                "Webhook must contain at least one " "of (content, file, embeds).",
+                "Webhook must contain at least one of (content, file, embeds).",
             )
 
         if self.content and len(self.content) > 2000:
-            raise Exception("Webhook content must be under " "2000 characters.")
+            raise Exception("Webhook content must be under 2000 characters.")
 
         payload: dict[str, Any] = {"embeds": []}
 

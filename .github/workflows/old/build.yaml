@@ -1,0 +1,196 @@
+name: Build Image
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: "The version from project"
+        required: true
+        type: string
+      tag_list:
+        description: "Space-separated list of tags"
+        required: true
+        type: string
+      github_owner:
+        description: "The GitHub owner"
+        required: true
+        type: string
+      github_repo:
+        description: "The GitHub repo"
+        required: true
+        type: string
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow build
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-build-start
+          path: ci-data/
+          retention-days: 30
+
+  build:
+    needs: start
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (build)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Start Job
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow start --workflow build --job build
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: linux/amd64, linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build single-arch image and save tar artifact
+        run: |
+          GITHUB_OWNER="${{ inputs.github_owner }}"
+          GITHUB_REPO="${{ inputs.github_repo }}"
+          # Use the first tag from prep-build (which is the short SHA)
+          FIRST_TAG=$(echo "${{ inputs.tag_list }}" | awk '{print $1}')
+          IMAGE="${GITHUB_OWNER}/${GITHUB_REPO}:${FIRST_TAG}"
+
+          # Build with all tags from prep-build
+          TAGS="${{ inputs.tag_list }}"
+          TAG_ARGS=""
+          for TAG in $TAGS; do
+            TAG_ARGS="$TAG_ARGS -t ${GITHUB_OWNER}/${GITHUB_REPO}:$TAG"
+          done
+
+          # Add --load to ensure the image is loaded into the local daemon for 'docker save'
+          docker build $TAG_ARGS . --load
+
+          # Save the main image (short SHA) as artifact
+          mkdir -p /tmp/artifacts
+          docker save "${IMAGE}" -o /tmp/artifacts/docker-image-${GITHUB_SHA}.tar
+
+      - name: Upload docker image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: /tmp/artifacts/docker-image-${{ github.sha }}.tar
+
+      - name: Parse Results
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py artifacts collect
+
+      - name: Upload poetry version artifact
+        run: echo "${{ inputs.version }}" > /tmp/poetry-version.txt
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: poetry-version
+          path: /tmp/poetry-version.txt
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py summary generate \
+            --workflow build \
+            --artifact-dir ./all-artifacts
+
+      - name: Upload CI State
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-state-build-build
+          path: ci-data/
+          retention-days: 30
+
+      - name: Finish Job
+        if: always()
+        run: |
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow build --job build --status ${{ job.status }}
+
+  finish:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [start, build]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Bootstrap Timing
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CI Tool
+        run: |
+          pip install -r tools/ci/requirements.txt
+      - name: Download CI State (start)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-start
+          path: ci-data/
+          if-no-artifact-found: warn
+
+      - name: Download CI State (build)
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-state-build-build
+          path: ci-data/
+          if-no-artifact-found: warn
+      - name: Finish Workflow
+        run: |
+          chmod +x tools/ci/scripts/ci-bootstrap.sh
+          tools/ci/scripts/ci-bootstrap.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv sync --only-group ci
+          uv run --only-group ci python tools/ci/ci.py workflow finish --workflow build --status ${{ job.status }}

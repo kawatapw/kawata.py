@@ -24,30 +24,51 @@ logs:
 	docker compose logs -f bancho mysql redis --tail ${last}
 
 shell:
-	poetry shell
+	uv run python
 
 test:
 	docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test
 	docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
 
+# Run ruff linter
 lint:
-	poetry run pre-commit run --all-files
+	uv run ruff check . --fix
 
+# Format code with black and ruff
+format:
+	uv run black .
+	uv run ruff check . --fix
+
+# Check formatting without modifying
+format-check:
+	uv run black . --check
+	uv run ruff check .
+
+# Run ty type checker (primary)
 type-check:
-	poetry run mypy .
+	uv run ty check . --exclude .venv --exclude tools --exclude tests
+
+# Run mypy type checker (fallback)
+type-check2:
+	uv run mypy .
+
+# Run pyright type checker (alternative)
+type-check3:
+	uv run pyright .
+
+# Run bandit security scanner
+security-check:
+	uv run bandit -r . -ll --exclude ".venv,venv,tests,testing,migrations,tools,__pycache__"
 
 install:
-	POETRY_VIRTUALENVS_IN_PROJECT=1 poetry install --no-root
-
-install-dev:
-	POETRY_VIRTUALENVS_IN_PROJECT=1 poetry install --no-root --with dev
-	poetry run pre-commit install
+	uv sync --all-extras --dev
 
 uninstall:
-	poetry env remove python
+	# uv doesn't have a direct uninstall command, but you can remove the virtual environment
+	rm -rf .venv
 
 # To bump the version number run `make bump version=<major/minor/patch>`
 # (DO NOT USE IF YOU DON'T KNOW WHAT YOU'RE DOING)
 # https://python-poetry.org/docs/cli/#version
 bump:
-	poetry version $(version)
+	uv run bump2version $(version)
