@@ -11,8 +11,9 @@ import app.state
 
 router = APIRouter()
 
-CACHE_KEY_PREFIX = "kawata:hero_banners:v1"
+CACHE_KEY_PREFIX = "kawata:hero_banners:v2"
 CACHE_TTL_SECONDS = 3600
+PLAYS_NOISE_FLOOR = 5
 
 HERO_SQL = """
 SELECT
@@ -21,6 +22,7 @@ SELECT
     MAX(m.title) AS title,
     MAX(m.creator) AS creator,
     MAX(m.mode) AS mode,
+    MAX(m.status) AS max_status,
     SUM(m.plays) AS total_plays,
     SUM(m.passes) AS total_passes,
     COUNT(m.id) AS diff_count,
@@ -32,9 +34,9 @@ LEFT JOIN (
     FROM favourites
     GROUP BY setid
 ) f ON f.setid = m.set_id
-WHERE m.status IN (2, 3, 4, 5)
-  AND m.plays > 0
+WHERE m.plays > :noise_floor
 GROUP BY m.set_id, f.fav_count
+HAVING SUM(m.plays) > :noise_floor
 ORDER BY hero_score DESC
 LIMIT :limit
 """
@@ -63,7 +65,7 @@ async def get_hero_banners(
 
     rows = await app.state.services.database.fetch_all(
         HERO_SQL,
-        {"limit": limit},
+        {"limit": limit, "noise_floor": PLAYS_NOISE_FLOOR},
     )
 
     banners: list[dict[str, Any]] = []
@@ -75,6 +77,7 @@ async def get_hero_banners(
             "title": row["title"],
             "creator": row["creator"],
             "mode": int(row["mode"]),
+            "status": int(row["max_status"]),
             "total_plays": int(row["total_plays"]),
             "total_passes": int(row["total_passes"]),
             "diff_count": int(row["diff_count"]),
