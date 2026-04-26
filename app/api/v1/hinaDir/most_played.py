@@ -8,6 +8,7 @@ from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 
 import app.state
+from app.api.v1.hinaDir._cover_urls import cover_urls
 
 router = APIRouter()
 
@@ -42,15 +43,6 @@ WHERE m.mode = :mode
 ORDER BY m.plays DESC
 LIMIT :limit
 """
-
-
-def _cover_urls(set_id: int) -> dict[str, str]:
-    base = f"https://assets.ppy.sh/beatmaps/{set_id}/covers"
-    return {
-        "cover_url": f"{base}/cover@2x.jpg",
-        "thumbnail_url": f"{base}/card@2x.jpg",
-        "list_url": f"{base}/list@2x.jpg",
-    }
 
 
 @router.get("/get_most_played")
@@ -92,7 +84,7 @@ async def get_most_played(
             "hp": float(row["hp"]),
             "max_combo": int(row["max_combo"]),
             "total_length": int(row["total_length"]),
-            **_cover_urls(set_id),
+            **cover_urls(set_id),
         })
 
     payload = {

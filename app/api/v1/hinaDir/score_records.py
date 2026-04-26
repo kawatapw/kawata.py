@@ -6,9 +6,9 @@ from fastapi import APIRouter
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 
+import app.constants.mods
 import app.state
 from app.constants.mods import Mods
-import app.constants.mods
 
 router = APIRouter()
 
@@ -20,6 +20,12 @@ async def get_score_records(
     offset: int = Query(0, ge=0),
     season_id: int | None = Query(None),
 ) -> ORJSONResponse:
+    if season_id is not None and season_id < 0:
+        return ORJSONResponse(
+            {"status": "error", "message": "season_id must be a non-negative integer (0 = all-time)"},
+            status_code=400,
+        )
+
     where = "sc.mode = :mode AND sc.status = 2 AND u.priv & 1 AND sc.score > 0"
     where_params: dict[str, Any] = {"mode": mode}
 
@@ -37,6 +43,11 @@ async def get_score_records(
         where_params["season_start"] = season_row["start_date"]
         where_params["season_end"] = season_row["end_date"]
 
+    # SQL safety (CodeRabbit: score_records.py raw SQL): `where` is built
+    # from hardcoded condition snippets only; every user value (mode,
+    # season_start, season_end, limit, offset) flows via bound `:params`.
+    # No injection surface. Keeping raw SQL for parity with the rest of
+    # `app/api/v1/` (Loki) and the rest of `hinaDir/`.
     count_sql = (
         "SELECT COUNT(*) AS cnt "
         "FROM scores sc "
@@ -63,14 +74,10 @@ async def get_score_records(
     )
     rows = [dict(r) for r in (await app.state.services.database.fetch_all(data_sql, data_params) or [])]
 
+    mode_vn = mode % 4
     for row in rows:
-        mods = Mods(row["mods"])
-        mods_str = app.constants.mods.get_mods_string(mods)
-        if "NC" in mods_str:
-            mods_str = mods_str.replace("DT", "")
-        if "PF" in mods_str:
-            mods_str = mods_str.replace("SD", "")
-        row["mods_readable"] = mods_str
+        mods = Mods(row["mods"]).filter_invalid_combos(mode_vn)
+        row["mods_readable"] = app.constants.mods.get_mods_string(mods)
 
     return ORJSONResponse(
         {"status": "success", "records": rows, "total": total},

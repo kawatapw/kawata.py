@@ -8,6 +8,7 @@ from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 
 import app.state
+from app.api.v1.hinaDir._cover_urls import cover_urls
 
 router = APIRouter()
 
@@ -26,8 +27,8 @@ SELECT
     SUM(m.plays) AS total_plays,
     SUM(m.passes) AS total_passes,
     COUNT(m.id) AS diff_count,
-    COALESCE(f.fav_count, 0) AS fav_count,
-    SUM(m.plays) + COALESCE(f.fav_count, 0) * 500 AS hero_score
+    COALESCE(MAX(f.fav_count), 0) AS fav_count,
+    SUM(m.plays) + COALESCE(MAX(f.fav_count), 0) * 500 AS hero_score
 FROM maps m
 LEFT JOIN (
     SELECT setid, COUNT(*) AS fav_count
@@ -35,22 +36,11 @@ LEFT JOIN (
     GROUP BY setid
 ) f ON f.setid = m.set_id
 WHERE m.plays > :noise_floor
-GROUP BY m.set_id, f.fav_count
+GROUP BY m.set_id
 HAVING SUM(m.plays) > :noise_floor
 ORDER BY hero_score DESC
 LIMIT :limit
 """
-
-
-def _cover_urls(set_id: int) -> dict[str, str]:
-    base = f"https://assets.ppy.sh/beatmaps/{set_id}/covers"
-    return {
-        "cover_url": f"{base}/cover@2x.jpg",
-        "cover_url_1x": f"{base}/cover.jpg",
-        "thumbnail_url": f"{base}/card@2x.jpg",
-        "list_url": f"{base}/list@2x.jpg",
-        "preview_url": f"https://b.ppy.sh/preview/{set_id}.mp3",
-    }
 
 
 @router.get("/get_hero_banners")
@@ -83,7 +73,7 @@ async def get_hero_banners(
             "diff_count": int(row["diff_count"]),
             "fav_count": int(row["fav_count"]),
             "hero_score": int(row["hero_score"]),
-            **_cover_urls(set_id),
+            **cover_urls(set_id),
         })
 
     payload = {

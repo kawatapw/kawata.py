@@ -4,6 +4,8 @@ These helpers are used to capture wall-clock timings for CI stages and
 render them in a consistent, human-readable form in logs and reports.
 """
 
+from __future__ import annotations
+
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -28,7 +30,7 @@ class Timer:
         self.start_time: float | None = None
         self.end_time: float | None = None
 
-    def __enter__(self) -> "Timer":
+    def __enter__(self) -> Timer:
         self.start_time = time.time()
         return self
 
@@ -49,7 +51,10 @@ class Timer:
         """
         if self.start_time is None:
             return 0.0
-        end = self.end_time or time.time()
+        # Coderabbit: explicit None check so a valid 0.0 epoch end_time
+        # isn't mistaken for "still running" (truthiness would call
+        # time.time() instead).
+        end = self.end_time if self.end_time is not None else time.time()
         return end - self.start_time
 
     def get_result(self) -> dict[str, Any]:
@@ -61,11 +66,11 @@ class Timer:
         """
         return {
             "name": self.name,
-            "start": datetime.fromtimestamp(self.start_time).isoformat()
-            if self.start_time
+            "start": datetime.fromtimestamp(self.start_time, tz=UTC).isoformat()
+            if self.start_time is not None
             else None,
-            "end": datetime.fromtimestamp(self.end_time).isoformat()
-            if self.end_time
+            "end": datetime.fromtimestamp(self.end_time, tz=UTC).isoformat()
+            if self.end_time is not None
             else None,
             "duration": self.duration,
         }

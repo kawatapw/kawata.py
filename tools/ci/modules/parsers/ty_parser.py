@@ -1,11 +1,15 @@
 """Ty type checker parser."""
 
-import xml.etree.ElementTree as ET
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from defusedxml.ElementTree import fromstring as safe_fromstring
 
 from .registry import Parser, register_parser
+
+if TYPE_CHECKING:
+    import xml.etree.ElementTree as ET
 
 
 class TyParser(Parser):
@@ -30,27 +34,43 @@ class TyParser(Parser):
 
         root = safe_fromstring(content)
 
-        # Find the testsuite element (may be root or nested)
-        testsuite: ET.Element = root
-        if root.tag == "testsuites":
-            # Root is testsuites, find first testsuite
-            found = root.find("testsuite")
-            if found is not None:
-                testsuite = found
-
-        # Extract test summary
+        # Coderabbit: aggregate counters across every <testsuite> when the
+        # root is <testsuites>. Reading only the first child caused the
+        # summary totals to disagree with the test_cases list (which is
+        # already collected from the whole tree below). Falls back to
+        # treating root itself as a single testsuite when the root tag
+        # is not <testsuites>.
         summary = {
-            "total": int(testsuite.get("tests", 0)),
-            "passed": int(testsuite.get("passed", 0)),
-            "failed": int(testsuite.get("failures", 0)),
-            "skipped": int(testsuite.get("skipped", 0)),
-            "errors": int(testsuite.get("errors", 0)),
-            "duration": float(testsuite.get("time", 0)),
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "duration": 0.0,
         }
 
-        # If passed is not in the XML, calculate it from total, failed, and skipped
+        if root.tag == "testsuites":
+            suites: list[ET.Element] = root.findall("testsuite")
+        else:
+            suites = [root]
+
+        for suite in suites:
+            summary["total"] += int(suite.get("tests", 0))
+            summary["passed"] += int(suite.get("passed", 0))
+            summary["failed"] += int(suite.get("failures", 0))
+            summary["skipped"] += int(suite.get("skipped", 0))
+            summary["errors"] += int(suite.get("errors", 0))
+            summary["duration"] += float(suite.get("time", 0))
+
+        # If passed is not in the XML, calculate it from total minus the other buckets
+        # (failed + skipped + errors). Previously omitted errors, which inflated passed.
         if summary["passed"] == 0 and summary["total"] > 0:
-            summary["passed"] = summary["total"] - summary["failed"] - summary["skipped"]
+            summary["passed"] = (
+                summary["total"]
+                - summary["failed"]
+                - summary["skipped"]
+                - summary.get("errors", 0)
+            )
 
         # Extract test cases (type errors)
         test_cases = []
