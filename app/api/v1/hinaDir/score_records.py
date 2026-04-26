@@ -20,9 +20,9 @@ async def get_score_records(
     offset: int = Query(0, ge=0),
     season_id: int | None = Query(None),
 ) -> ORJSONResponse:
-    if season_id is not None and season_id <= 0:
+    if season_id is not None and season_id < 0:
         return ORJSONResponse(
-            {"status": "error", "message": "season_id must be a positive integer"},
+            {"status": "error", "message": "season_id must be a non-negative integer (0 = all-time)"},
             status_code=400,
         )
 
