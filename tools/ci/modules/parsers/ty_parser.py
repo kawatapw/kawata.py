@@ -1,11 +1,13 @@
 """Ty type checker parser."""
 
-import xml.etree.ElementTree as ET
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from defusedxml.ElementTree import fromstring as safe_fromstring
 
 from .registry import Parser, register_parser
+
+if TYPE_CHECKING:
+    import xml.etree.ElementTree as ET
 
 
 class TyParser(Parser):
@@ -48,9 +50,15 @@ class TyParser(Parser):
             "duration": float(testsuite.get("time", 0)),
         }
 
-        # If passed is not in the XML, calculate it from total, failed, and skipped
+        # If passed is not in the XML, calculate it from total minus the other buckets
+        # (failed + skipped + errors). Previously omitted errors, which inflated passed.
         if summary["passed"] == 0 and summary["total"] > 0:
-            summary["passed"] = summary["total"] - summary["failed"] - summary["skipped"]
+            summary["passed"] = (
+                summary["total"]
+                - summary["failed"]
+                - summary["skipped"]
+                - summary.get("errors", 0)
+            )
 
         # Extract test cases (type errors)
         test_cases = []

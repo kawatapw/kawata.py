@@ -43,6 +43,11 @@ async def get_score_records(
         where_params["season_start"] = season_row["start_date"]
         where_params["season_end"] = season_row["end_date"]
 
+    # SQL safety (CodeRabbit: score_records.py raw SQL): `where` is built
+    # from hardcoded condition snippets only; every user value (mode,
+    # season_start, season_end, limit, offset) flows via bound `:params`.
+    # No injection surface. Keeping raw SQL for parity with the rest of
+    # `app/api/v1/` (Loki) and the rest of `hinaDir/`.
     count_sql = (
         "SELECT COUNT(*) AS cnt "
         "FROM scores sc "
@@ -69,14 +74,10 @@ async def get_score_records(
     )
     rows = [dict(r) for r in (await app.state.services.database.fetch_all(data_sql, data_params) or [])]
 
+    mode_vn = mode % 4
     for row in rows:
-        mods = Mods(row["mods"])
-        mods_str = app.constants.mods.get_mods_string(mods)
-        if "NC" in mods_str:
-            mods_str = mods_str.replace("DT", "")
-        if "PF" in mods_str:
-            mods_str = mods_str.replace("SD", "")
-        row["mods_readable"] = mods_str
+        mods = Mods(row["mods"]).filter_invalid_combos(mode_vn)
+        row["mods_readable"] = app.constants.mods.get_mods_string(mods)
 
     return ORJSONResponse(
         {"status": "success", "records": rows, "total": total},

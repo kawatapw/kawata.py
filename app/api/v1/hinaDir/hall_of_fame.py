@@ -59,6 +59,12 @@ async def get_hall_of_fame_podium(
 
     where_clause = " AND ".join(where_conditions)
 
+    # SQL safety (CodeRabbit: hall_of_fame.py raw SQL): `sort` is gated by
+    # Pydantic Literal so only the 6 whitelisted column names ever reach
+    # this f-string. `where_clause` only joins hardcoded condition snippets,
+    # never user input. All user values flow via bound `:params`. No
+    # injection surface — keeping raw SQL for parity with the rest of
+    # `app/api/v1/` (Loki) and the rest of `hinaDir/`.
     rows = await app.state.services.database.fetch_all(
         "SELECT u.id AS player_id, u.name, u.country, "
         f"CONCAT('https://a.{app.settings.DOMAIN}/', u.id) AS avatar_url, "

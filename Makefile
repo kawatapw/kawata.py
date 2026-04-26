@@ -27,12 +27,13 @@ shell:
 	uv run python
 
 test:
-	docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test
-	docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh
+	@bash -c 'set -e; trap "docker compose -f docker-compose.test.yml down --volumes --remove-orphans" EXIT; \
+	docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test; \
+	docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh'
 
-# Run ruff linter
+# Run ruff linter (read-only; use `make format` for autofix)
 lint:
-	uv run ruff check . --fix
+	uv run ruff check .
 
 # Format code with black and ruff
 format:

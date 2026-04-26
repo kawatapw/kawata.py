@@ -61,10 +61,10 @@ class Timer:
         """
         return {
             "name": self.name,
-            "start": datetime.fromtimestamp(self.start_time).isoformat()
+            "start": datetime.fromtimestamp(self.start_time, tz=UTC).isoformat()
             if self.start_time
             else None,
-            "end": datetime.fromtimestamp(self.end_time).isoformat()
+            "end": datetime.fromtimestamp(self.end_time, tz=UTC).isoformat()
             if self.end_time
             else None,
             "duration": self.duration,
