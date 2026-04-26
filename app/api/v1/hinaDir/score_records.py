@@ -6,9 +6,9 @@ from fastapi import APIRouter
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 
+import app.constants.mods
 import app.state
 from app.constants.mods import Mods
-import app.constants.mods
 
 router = APIRouter()
 
