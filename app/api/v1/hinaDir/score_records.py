@@ -20,6 +20,12 @@ async def get_score_records(
     offset: int = Query(0, ge=0),
     season_id: int | None = Query(None),
 ) -> ORJSONResponse:
+    if season_id is not None and season_id <= 0:
+        return ORJSONResponse(
+            {"status": "error", "message": "season_id must be a positive integer"},
+            status_code=400,
+        )
+
     where = "sc.mode = :mode AND sc.status = 2 AND u.priv & 1 AND sc.score > 0"
     where_params: dict[str, Any] = {"mode": mode}
 
