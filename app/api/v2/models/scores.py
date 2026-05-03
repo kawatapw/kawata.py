@@ -84,7 +84,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import BaseModel
-from .seasons import SeasonInfo
 
 # input models
 
