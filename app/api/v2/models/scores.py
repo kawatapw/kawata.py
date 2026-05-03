@@ -143,4 +143,3 @@ class Score(BaseModel):
     play_time: datetime
     time_elapsed: int
     perfect: bool
-    season: SeasonInfo | None = None
