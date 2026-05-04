@@ -94,7 +94,12 @@ def configure_test_logging():
 
     yield
 
-    # Cleanup if necessary
+    # Detach handler so re-running the fixture doesn't accumulate duplicates.
+    if handler in console_logger.handlers:
+        console_logger.removeHandler(handler)
+    if handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+    handler.close()
 
 pytest_plugins = []
 

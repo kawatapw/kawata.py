@@ -101,9 +101,9 @@ async def create(
     return cast(BeatmapWorkItem, item)
 
 
-async def fetch_one(id: int) -> BeatmapWorkItem | None:
+async def fetch_one(item_id: int) -> BeatmapWorkItem | None:
     """Fetch a single work item by ID."""
-    select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == id)
+    select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == item_id)
     item = await app.state.services.database.fetch_one(select_stmt)
     return cast(BeatmapWorkItem, item) if item else None
 
@@ -137,15 +137,15 @@ async def fetch_queue(
     return cast(list[BeatmapWorkItem], rows)
 
 
-async def partial_update(id: int, **kwargs: Any) -> BeatmapWorkItem | None:
+async def partial_update(item_id: int, **kwargs: Any) -> BeatmapWorkItem | None:
     """Update specific fields of a work item."""
     update_stmt = (
         update(BeatmapWorkItemTable)
-        .where(BeatmapWorkItemTable.id == id)
+        .where(BeatmapWorkItemTable.id == item_id)
         .values(**kwargs)
     )
     await app.state.services.database.execute(update_stmt)
 
-    select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == id)
+    select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == item_id)
     item = await app.state.services.database.fetch_one(select_stmt)
     return cast(BeatmapWorkItem, item) if item else None

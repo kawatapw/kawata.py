@@ -153,7 +153,10 @@ def generate(
 
     # Load and render template
     template_dir = Path(__file__).parent.parent.parent / "templates"
-    env = Environment(loader=FileSystemLoader(str(template_dir)), autoescape=True)
+    # autoescape=False because we render Markdown — HTML-escaping breaks
+    # links like [text](url) and code fences in the GitHub step summary.
+    # Template inputs come from CI artefacts under our control, not user input.
+    env = Environment(loader=FileSystemLoader(str(template_dir)), autoescape=False)  # noqa: S701
     template = env.get_template("workflow_summary.md")
 
     summary = template.render(**template_data)

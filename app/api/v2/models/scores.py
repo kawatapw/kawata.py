@@ -84,7 +84,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import BaseModel
-from .seasons import SeasonInfo
 
 # input models
 
@@ -143,4 +142,3 @@ class Score(BaseModel):
     play_time: datetime
     time_elapsed: int
     perfect: bool
-    season: SeasonInfo | None = None

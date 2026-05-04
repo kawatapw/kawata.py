@@ -101,6 +101,7 @@ from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 import app.packets
+import app.settings
 import app.state
 import app.usecases.performance
 from app.constants import regexes
@@ -1400,7 +1401,9 @@ async def api_get_global_leaderboard(
         query_conditions.append("s.season_id = 0")
 
     rows = await app.state.services.database.fetch_all(
-        "SELECT u.id as player_id, u.name, u.country, s.tscore, s.rscore, "
+        "SELECT u.id as player_id, u.name, u.country, "
+        f"CONCAT('https://a.{app.settings.DOMAIN}/', u.id) AS avatar_url, "
+        "s.tscore, s.rscore, "
         "s.pp, s.plays, s.playtime, s.acc, s.max_combo, "
         "s.xh_count, s.x_count, s.sh_count, s.s_count, s.a_count, "
         "c.id as clan_id, c.name as clan_name, c.tag as clan_tag "
@@ -1445,7 +1448,9 @@ async def api_get_top_players() -> Response:
         query_parameters: dict[str, object] = {"mode": mode}
 
         rows = await app.state.services.database.fetch_all(
-            "SELECT u.id as player_id, u.name, u.country, s.tscore, s.rscore, "
+            "SELECT u.id as player_id, u.name, u.country, "
+            f"CONCAT('https://a.{app.settings.DOMAIN}/', u.id) AS avatar_url, "
+            "s.tscore, s.rscore, "
             "s.pp, s.plays, s.playtime, s.acc, s.max_combo, "
             "s.xh_count, s.x_count, s.sh_count, s.s_count, s.a_count, "
             "c.id as clan_id, c.name as clan_name, c.tag as clan_tag "

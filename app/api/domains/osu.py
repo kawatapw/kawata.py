@@ -1394,12 +1394,16 @@ async def osuSubmitModularSelector(
                             level=logLevel.DEBUG,
                         )
                         season_best_scores = await app.state.services.database.fetch_all(
-                            "SELECT s.pp, s.acc FROM scores s "
+                            "SELECT pp, acc FROM ("
+                            "SELECT s.pp, s.acc, "
+                            "ROW_NUMBER() OVER (PARTITION BY s.map_md5 ORDER BY s.pp DESC) AS rn "
+                            "FROM scores s "
                             "INNER JOIN maps m ON s.map_md5 = m.md5 "
                             "WHERE s.userid = :user_id AND s.mode = :mode "
-                            "AND s.status = 2 AND m.status IN (2, 3) "  # ranked, approved
-                            "AND s.play_time >= :season_start AND s.play_time < :season_end "
-                            "ORDER BY s.pp DESC",
+                            "AND s.status >= 1 AND m.status IN (2, 3) "
+                            "AND s.play_time >= :season_start AND s.play_time < :season_end"
+                            ") ranked WHERE rn = 1 "
+                            "ORDER BY pp DESC",
                             {
                                 "user_id": score.player.id,
                                 "mode": score.mode,
