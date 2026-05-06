@@ -1812,6 +1812,9 @@ class StartSpectating(BasePacket):
 
 @register(ClientPackets.STOP_SPECTATING)
 class StopSpectating(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         host = player.spectating
 
@@ -1848,6 +1851,9 @@ class SpectateFrames(BasePacket):
 
 @register(ClientPackets.CANT_SPECTATE)
 class CantSpectate(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if not player.spectating:
             log(f"{player} sent can't spectate while not spectating?", Ansi.LRED)
@@ -2070,12 +2076,18 @@ class SendPrivateMessage(BasePacket):
 
 @register(ClientPackets.PART_LOBBY)
 class LobbyPart(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         player.in_lobby = False
 
 
 @register(ClientPackets.JOIN_LOBBY)
 class LobbyJoin(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         player.in_lobby = True
 
@@ -2217,6 +2229,9 @@ class MatchJoin(BasePacket):
 
 @register(ClientPackets.PART_MATCH)
 class MatchPart(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         player.update_latest_activity_soon()
         player.leave_match()
@@ -2251,6 +2266,9 @@ class MatchChangeSlot(BasePacket):
 
 @register(ClientPackets.MATCH_READY)
 class MatchReady(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2431,6 +2449,9 @@ class MatchChangeSettings(BasePacket):
 
 @register(ClientPackets.MATCH_START)
 class MatchStart(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2468,6 +2489,9 @@ class MatchScoreUpdate(BasePacket):
 
 @register(ClientPackets.MATCH_COMPLETE)
 class MatchComplete(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2549,6 +2573,9 @@ def is_playing(slot: Slot) -> bool:
 
 @register(ClientPackets.MATCH_LOAD_COMPLETE)
 class MatchLoadComplete(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2567,6 +2594,9 @@ class MatchLoadComplete(BasePacket):
 
 @register(ClientPackets.MATCH_NO_BEATMAP)
 class MatchNoBeatmap(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2580,6 +2610,9 @@ class MatchNoBeatmap(BasePacket):
 
 @register(ClientPackets.MATCH_NOT_READY)
 class MatchNotReady(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2593,6 +2626,9 @@ class MatchNotReady(BasePacket):
 
 @register(ClientPackets.MATCH_FAILED)
 class MatchFailed(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2607,6 +2643,9 @@ class MatchFailed(BasePacket):
 
 @register(ClientPackets.MATCH_HAS_BEATMAP)
 class MatchHasBeatmap(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2620,6 +2659,9 @@ class MatchHasBeatmap(BasePacket):
 
 @register(ClientPackets.MATCH_SKIP_REQUEST)
 class MatchSkipRequest(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
@@ -2788,6 +2830,9 @@ class FriendRemove(BasePacket):
 
 @register(ClientPackets.MATCH_CHANGE_TEAM)
 class MatchChangeTeam(BasePacket):
+    def __init__(self, reader: BanchoPacketReader) -> None:
+        pass  # No data to read for this packet
+
     async def handle(self, player: Player) -> None:
         if player.match is None:
             return
