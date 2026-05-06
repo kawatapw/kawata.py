@@ -99,7 +99,7 @@ from app.constants import regexes
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
 from app.constants.mods import SPEED_CHANGING_MODS, Mods
 from app.constants.privileges import ClanPrivileges, Privileges
-from app.logging import Ansi, log
+from app.logging import Ansi, error_catcher, log
 from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
 from app.objects.match import (
     Match,
@@ -224,6 +224,7 @@ def command(
 
 
 @command(Privileges.UNRESTRICTED, aliases=["", "h"], hidden=True)
+@error_catcher
 async def _help(ctx: Context) -> str | None:
     """Show all documented commands the player can access."""
     prefix = app.settings.COMMAND_PREFIX
@@ -246,6 +247,7 @@ async def _help(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+@error_catcher
 async def roll(ctx: Context) -> str | None:
     """Roll an n-sided die where n is the number you write (100 default)."""
     if ctx.args and ctx.args[0].isdecimal():
@@ -261,6 +263,7 @@ async def roll(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED, hidden=True)
+@error_catcher
 async def block(ctx: Context) -> str | None:
     """Block another user from communicating with you."""
     target = await app.state.sessions.players.from_cache_or_sql(name=" ".join(ctx.args))
@@ -282,6 +285,7 @@ async def block(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED, hidden=True)
+@error_catcher
 async def unblock(ctx: Context) -> str | None:
     """Unblock another user from communicating with you."""
     target = await app.state.sessions.players.from_cache_or_sql(name=" ".join(ctx.args))
@@ -300,6 +304,7 @@ async def unblock(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+@error_catcher
 async def reconnect(ctx: Context) -> str | None:
     """Disconnect and reconnect a given player (or self) to the server."""
     if ctx.args:
@@ -320,6 +325,7 @@ async def reconnect(ctx: Context) -> str | None:
 
 
 @command(Privileges.SUPPORTER)
+@error_catcher
 async def changename(ctx: Context) -> str | None:
     """Change your username."""
     name = " ".join(ctx.args).strip()
@@ -348,6 +354,7 @@ async def changename(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED, aliases=["bloodcat", "beatconnect", "chimu", "q"])
+@error_catcher
 async def maplink(ctx: Context) -> str | None:
     """Return a download link to the user's current map (situation dependant)."""
     bmap = None
@@ -370,6 +377,7 @@ async def maplink(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED, aliases=["last", "r"])
+@error_catcher
 async def recent(ctx: Context) -> str | None:
     """Show information about a player's most recent score."""
     if ctx.args:
@@ -414,6 +422,7 @@ TOP_SCORE_FMTSTR = "{idx}. ({pp:.2f}pp) [https://osu.{domain}/b/{map_id} {artist
 
 
 @command(Privileges.UNRESTRICTED, hidden=True)
+@error_catcher
 async def top(ctx: Context) -> str | None:
     """Show information about a player's top 10 scores."""
     # !top <mode> (player)
@@ -526,6 +535,7 @@ def parse__with__command_args(
 
 
 @command(Privileges.UNRESTRICTED, aliases=["w"], hidden=True)
+@error_catcher
 async def _with(ctx: Context) -> str | None:
     """Specify custom accuracy & mod combinations with `/np`."""
     if ctx.recipient is not app.state.sessions.bot:
@@ -586,6 +596,7 @@ async def _with(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED, aliases=["req"])
+@error_catcher
 async def request(ctx: Context) -> str | None:
     """Request a beatmap for nomination."""
     if ctx.args:
@@ -613,6 +624,7 @@ async def request(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+@error_catcher
 async def apikey(ctx: Context) -> str | None:
     """Generate a new api key & assign it to the player."""
     if ctx.recipient is not app.state.sessions.bot:
@@ -638,6 +650,7 @@ async def apikey(ctx: Context) -> str | None:
 
 
 @command(Privileges.NOMINATOR, aliases=["reqs"], hidden=True)
+@error_catcher
 async def requests(ctx: Context) -> str | None:
     """Check the nomination request queue."""
     if ctx.args:
@@ -684,6 +697,7 @@ def status_to_id(s: str) -> int:
 
 
 @command(Privileges.NOMINATOR)
+@error_catcher
 async def _map(ctx: Context) -> str | None:
     """Changes the ranked status of the most recently /np'ed map."""
     if (
@@ -773,6 +787,7 @@ ACTION_STRINGS = {
 
 
 @command(Privileges.MODERATOR, hidden=True)
+@error_catcher
 async def notes(ctx: Context) -> str | None:
     """Retrieve the logs of a specified player by name."""
     if len(ctx.args) != 2 or not ctx.args[1].isdecimal():
@@ -816,6 +831,7 @@ async def notes(ctx: Context) -> str | None:
 
 
 @command(Privileges.MODERATOR, hidden=True)
+@error_catcher
 async def addnote(ctx: Context) -> str | None:
     """Add a note to a specified player by name."""
     if len(ctx.args) < 2:
@@ -849,6 +865,7 @@ SHORTHAND_REASONS = {
 
 
 @command(Privileges.MODERATOR, hidden=True)
+@error_catcher
 async def silence(ctx: Context) -> str | None:
     """Silence a specified player with a specified duration & reason."""
     if len(ctx.args) < 3:
@@ -875,6 +892,7 @@ async def silence(ctx: Context) -> str | None:
 
 
 @command(Privileges.MODERATOR, hidden=True)
+@error_catcher
 async def unsilence(ctx: Context) -> str | None:
     """Unsilence a specified player."""
     if len(ctx.args) < 2:
@@ -903,6 +921,7 @@ async def unsilence(ctx: Context) -> str | None:
 
 
 @command(Privileges.ADMINISTRATOR, aliases=["u"], hidden=True)
+@error_catcher
 async def user(ctx: Context) -> str | None:
     """Return general information about a given user."""
     if not ctx.args:
@@ -968,6 +987,7 @@ async def user(ctx: Context) -> str | None:
 
 
 @command(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def restrict(ctx: Context) -> str | None:
     """Restrict a specified player's account, with a reason."""
     if len(ctx.args) < 2:
@@ -999,6 +1019,7 @@ async def restrict(ctx: Context) -> str | None:
 
 
 @command(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def unrestrict(ctx: Context) -> str | None:
     """Unrestrict a specified player's account, with a reason."""
     if len(ctx.args) < 2:
@@ -1030,6 +1051,7 @@ async def unrestrict(ctx: Context) -> str | None:
 
 
 @command(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def alert(ctx: Context) -> str | None:
     """Send a notification to all players."""
     if len(ctx.args) < 1:
@@ -1042,6 +1064,7 @@ async def alert(ctx: Context) -> str | None:
 
 
 @command(Privileges.ADMINISTRATOR, aliases=["alertu"], hidden=True)
+@error_catcher
 async def alertuser(ctx: Context) -> str | None:
     """Send a notification to a specified player by name."""
     if len(ctx.args) < 2:
@@ -1061,6 +1084,7 @@ async def alertuser(ctx: Context) -> str | None:
 # than the c[e4].ppy.sh domains; it exists on bancho as a tournament
 # server switch mechanism, perhaps we could leverage this in the future.
 @command(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def switchserv(ctx: Context) -> str | None:
     """Switch your client's internal endpoints to a specified IP address."""
     if len(ctx.args) != 1:
@@ -1073,6 +1097,7 @@ async def switchserv(ctx: Context) -> str | None:
 
 
 @command(Privileges.ADMINISTRATOR)
+@error_catcher
 async def shutdown(ctx: Context) -> str | None | NoReturn:
     """Gracefully shutdown the server."""
     if ctx.args:  # shutdown after a delay
@@ -1106,6 +1131,7 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
 
 
 @command(Privileges.DEVELOPER)
+@error_catcher
 async def stealth(ctx: Context) -> str | None:
     """Toggle the developer's stealth, allowing them to be hidden."""
     # NOTE: this command is a large work in progress and currently
@@ -1116,6 +1142,7 @@ async def stealth(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER)
+@error_catcher
 async def recalc(ctx: Context) -> str | None:
     """Recalculate pp for a given map, or all maps."""
     return (
@@ -1125,6 +1152,7 @@ async def recalc(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER, hidden=True)
+@error_catcher
 async def debug(ctx: Context) -> str | None:
     """Set the console's debug level."""
     if len(ctx.args) < 1:
@@ -1134,6 +1162,7 @@ async def debug(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER, hidden=True)
+@error_catcher
 async def debug_focus(ctx: Context) -> str | None:
     """Set the console's debug focus."""
     if len(ctx.args) < 1:
@@ -1160,6 +1189,7 @@ str_priv_dict = {
 
 
 @command(Privileges.DEVELOPER, hidden=True)
+@error_catcher
 async def addpriv(ctx: Context) -> str | None:
     """Set privileges for a specified player (by name)."""
     if len(ctx.args) < 2:
@@ -1185,6 +1215,7 @@ async def addpriv(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER, hidden=True)
+@error_catcher
 async def rmpriv(ctx: Context) -> str | None:
     """Set privileges for a specified player (by name)."""
     if len(ctx.args) < 2:
@@ -1215,6 +1246,7 @@ async def rmpriv(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER, hidden=True)
+@error_catcher
 async def givedonator(ctx: Context) -> str | None:
     """Give donator status to a specified player for a specified duration."""
     if len(ctx.args) < 2:
@@ -1245,6 +1277,7 @@ async def givedonator(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER)
+@error_catcher
 async def wipemap(ctx: Context) -> str | None:
     # (intentionally no docstring)
     if ctx.args:
@@ -1265,6 +1298,7 @@ async def wipemap(ctx: Context) -> str | None:
 
 
 @command(Privileges.DEVELOPER, aliases=["re"])
+@error_catcher
 async def reload(ctx: Context) -> str | None:
     """Reload a python module."""
     if len(ctx.args) != 1:
@@ -1293,6 +1327,7 @@ async def reload(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+@error_catcher
 async def server(ctx: Context) -> str | None:
     """Retrieve performance data about the server."""
 
@@ -1387,6 +1422,7 @@ if app.settings.DEVELOPER_MODE:
     }
 
     @command(Privileges.DEVELOPER)
+    @error_catcher
     async def py(ctx: Context) -> str | None:
         """Allow for (async) access to the python interpreter."""
         # This can be very good for getting used to bancho.py's API; just look
@@ -1450,6 +1486,7 @@ def ensure_match(
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["h"])
 @ensure_match
+@error_catcher
 async def mp_help(ctx: Context, match: Match) -> str | None:
     """Show all documented multiplayer commands the player can access."""
     prefix = app.settings.COMMAND_PREFIX
@@ -1467,6 +1504,7 @@ async def mp_help(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["st"])
 @ensure_match
+@error_catcher
 async def mp_start(ctx: Context, match: Match) -> str | None:
     """Start the current multiplayer match, with any players ready."""
     if len(ctx.args) > 1:
@@ -1479,71 +1517,76 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
     # !mp start cancel: cancel the current match start timer
 
     if not ctx.args:
-        # !mp start
+        # !mp start - no arguments provided
         if match.starting is not None:
             time_remaining = int(match.starting["time"] - time.time())
             return f"Match starting in {time_remaining} seconds."
 
-    if any(s.status == SlotStatus.not_ready for s in match.slots):
-        return "Not all players are ready (`!mp start force` to override)."
-    else:
-        if ctx.args[0].isdecimal():
-            # !mp start N
-            if match.starting is not None:
-                time_remaining = int(match.starting["time"] - time.time())
-                return f"Match starting in {time_remaining} seconds."
+        # No timer active, check if all players are ready and start
+        if any(s.status == SlotStatus.not_ready for s in match.slots):
+            return "Not all players are ready (`!mp start force` to override)."
 
-            # !mp start <seconds>
-            duration = int(ctx.args[0])
-            if not 0 < duration <= 300:
-                return "Timer range is 1-300 seconds."
+        match.start()
+        return "Good luck!"
 
-            def _start() -> None:
-                """Remove any pending timers & start the match."""
-                # remove start & alert timers
-                match.starting = None
+    # We have exactly one argument at this point
+    if ctx.args[0].isdecimal():
+        # !mp start N
+        if match.starting is not None:
+            time_remaining = int(match.starting["time"] - time.time())
+            return f"Match starting in {time_remaining} seconds."
 
-                # make sure player didn't leave the
-                # match since queueing this start lol...
-                if ctx.player not in {slot.player for slot in match.slots}:
-                    match.chat.send_bot("Player left match? (cancelled)")
-                    return
+        # !mp start <seconds>
+        duration = int(ctx.args[0])
+        if not 0 < duration <= 300:
+            return "Timer range is 1-300 seconds."
 
-                match.start()
-                match.chat.send_bot("Starting match.")
-
-            def _alert_start(t: int) -> None:
-                """Alert the match of the impending start."""
-                match.chat.send_bot(f"Match starting in {t} seconds.")
-
-            # add timers to our match object,
-            # so we can cancel them if needed.
-            match.starting = {
-                "start": app.state.loop.call_later(duration, _start),
-                "alerts": [
-                    app.state.loop.call_later(duration - t, lambda t=t: _alert_start(t))
-                    for t in (60, 30, 10, 5, 4, 3, 2, 1)
-                    if t < duration
-                ],
-                "time": time.time() + duration,
-            }
-
-            return f"Match will start in {duration} seconds."
-        elif ctx.args[0] in ("cancel", "c"):
-            # !mp start cancel
-            if match.starting is None:
-                return "Match timer not active!"
-
-            match.starting["start"].cancel()
-            for alert in match.starting["alerts"]:
-                alert.cancel()
-
+        def _start() -> None:
+            """Remove any pending timers & start the match."""
+            # remove start & alert timers
             match.starting = None
 
-            return "Match timer cancelled."
-        elif ctx.args[0] not in ("force", "f"):
-            return "Invalid syntax: !mp start <force/seconds>"
-        # !mp start force simply passes through
+            # make sure player didn't leave the
+            # match since queueing this start lol...
+            if ctx.player not in {slot.player for slot in match.slots}:
+                match.chat.send_bot("Player left match? (cancelled)")
+                return
+
+            match.start()
+            match.chat.send_bot("Starting match.")
+
+        def _alert_start(t: int) -> None:
+            """Alert the match of the impending start."""
+            match.chat.send_bot(f"Match starting in {t} seconds.")
+
+        # add timers to our match object,
+        # so we can cancel them if needed.
+        match.starting = {
+            "start": app.state.loop.call_later(duration, _start),
+            "alerts": [
+                app.state.loop.call_later(duration - t, lambda t=t: _alert_start(t))
+                for t in (60, 30, 10, 5, 4, 3, 2, 1)
+                if t < duration
+            ],
+            "time": time.time() + duration,
+        }
+
+        return f"Match will start in {duration} seconds."
+    elif ctx.args[0] in ("cancel", "c"):
+        # !mp start cancel
+        if match.starting is None:
+            return "Match timer not active!"
+
+        match.starting["start"].cancel()
+        for alert in match.starting["alerts"]:
+            alert.cancel()
+
+        match.starting = None
+
+        return "Match timer cancelled."
+    elif ctx.args[0] not in ("force", "f"):
+        return "Invalid syntax: !mp start <force/seconds>"
+    # !mp start force simply passes through
 
     match.start()
     return "Good luck!"
@@ -1551,6 +1594,7 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["a"])
 @ensure_match
+@error_catcher
 async def mp_abort(ctx: Context, match: Match) -> str | None:
     """Abort the current in-progress multiplayer match."""
     if not match.in_progress:
@@ -1567,6 +1611,7 @@ async def mp_abort(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_map(ctx: Context, match: Match) -> str | None:
     """Set the current match's current map by id."""
     if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
@@ -1593,6 +1638,7 @@ async def mp_map(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_mods(ctx: Context, match: Match) -> str | None:
     """Set the current match's mods, from string form."""
     if len(ctx.args) != 1 or len(ctx.args[0]) % 2 != 0:
@@ -1621,6 +1667,7 @@ async def mp_mods(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["fm", "fmods"])
 @ensure_match
+@error_catcher
 async def mp_freemods(ctx: Context, match: Match) -> str | None:
     """Toggle freemods status for the match."""
     if len(ctx.args) != 1 or ctx.args[0] not in ("on", "off"):
@@ -1659,6 +1706,7 @@ async def mp_freemods(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_host(ctx: Context, match: Match) -> str | None:
     """Set the current match's current host by id."""
     if len(ctx.args) != 1:
@@ -1683,6 +1731,7 @@ async def mp_host(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_randpw(ctx: Context, match: Match) -> str | None:
     """Randomize the current match's password."""
     match.passwd = secrets.token_hex(8)
@@ -1691,6 +1740,7 @@ async def mp_randpw(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["inv"])
 @ensure_match
+@error_catcher
 async def mp_invite(ctx: Context, match: Match) -> str | None:
     """Invite a player to the current match by name."""
     if len(ctx.args) != 1:
@@ -1712,6 +1762,7 @@ async def mp_invite(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_addref(ctx: Context, match: Match) -> str | None:
     """Add a referee to the current match by name."""
     if len(ctx.args) != 1:
@@ -1733,6 +1784,7 @@ async def mp_addref(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_rmref(ctx: Context, match: Match) -> str | None:
     """Remove a referee from the current match by name."""
     if len(ctx.args) != 1:
@@ -1754,6 +1806,7 @@ async def mp_rmref(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_listref(ctx: Context, match: Match) -> str | None:
     """List all referees from the current match."""
     return ", ".join(map(str, match.refs)) + "."
@@ -1761,6 +1814,7 @@ async def mp_listref(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_lock(ctx: Context, match: Match) -> str | None:
     """Lock all unused slots in the current match."""
     for slot in match.slots:
@@ -1773,6 +1827,7 @@ async def mp_lock(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_unlock(ctx: Context, match: Match) -> str | None:
     """Unlock locked slots in the current match."""
     for slot in match.slots:
@@ -1785,6 +1840,7 @@ async def mp_unlock(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_teams(ctx: Context, match: Match) -> str | None:
     """Change the team type for the current match."""
     if len(ctx.args) != 1:
@@ -1826,6 +1882,7 @@ async def mp_teams(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["cond"])
 @ensure_match
+@error_catcher
 async def mp_condition(ctx: Context, match: Match) -> str | None:
     """Change the win condition for the match."""
     if len(ctx.args) != 1:
@@ -1864,6 +1921,7 @@ async def mp_condition(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["autoref"])
 @ensure_match
+@error_catcher
 async def mp_scrim(ctx: Context, match: Match) -> str | None:
     """Start a scrim in the current match."""
     if len(ctx.args) != 1:
@@ -1907,6 +1965,7 @@ async def mp_scrim(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["end"])
 @ensure_match
+@error_catcher
 async def mp_endscrim(ctx: Context, match: Match) -> str | None:
     """End the current matches ongoing scrim."""
     if not match.is_scrimming:
@@ -1919,6 +1978,7 @@ async def mp_endscrim(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["rm"])
 @ensure_match
+@error_catcher
 async def mp_rematch(ctx: Context, match: Match) -> str | None:
     """Restart a scrim, or roll back previous match point."""
     if ctx.args:
@@ -1956,6 +2016,7 @@ async def mp_rematch(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.ADMINISTRATOR, aliases=["f"], hidden=True)
 @ensure_match
+@error_catcher
 async def mp_force(ctx: Context, match: Match) -> str | None:
     """Force a player into the current match by name."""
     # NOTE: this overrides any limits such as silences or passwd.
@@ -1975,6 +2036,7 @@ async def mp_force(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["lp"])
 @ensure_match
+@error_catcher
 async def mp_loadpool(ctx: Context, match: Match) -> str | None:
     """Load a mappool into the current match."""
     if len(ctx.args) != 1:
@@ -1998,6 +2060,7 @@ async def mp_loadpool(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED, aliases=["ulp"])
 @ensure_match
+@error_catcher
 async def mp_unloadpool(ctx: Context, match: Match) -> str | None:
     """Unload the current matches mappool."""
     if ctx.args:
@@ -2015,6 +2078,7 @@ async def mp_unloadpool(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_ban(ctx: Context, match: Match) -> str | None:
     """Ban a pick in the currently loaded mappool."""
     if len(ctx.args) != 1:
@@ -2051,6 +2115,7 @@ async def mp_ban(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_unban(ctx: Context, match: Match) -> str | None:
     """Unban a pick in the currently loaded mappool."""
     if len(ctx.args) != 1:
@@ -2087,6 +2152,7 @@ async def mp_unban(ctx: Context, match: Match) -> str | None:
 
 @mp_commands.add(Privileges.UNRESTRICTED)
 @ensure_match
+@error_catcher
 async def mp_pick(ctx: Context, match: Match) -> str | None:
     """Pick a map from the currently loaded mappool."""
     if len(ctx.args) != 1:
@@ -2151,6 +2217,7 @@ async def mp_pick(ctx: Context, match: Match) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["h"], hidden=True)
+@error_catcher
 async def pool_help(ctx: Context) -> str | None:
     """Show all documented mappool commands the player can access."""
     prefix = app.settings.COMMAND_PREFIX
@@ -2167,6 +2234,7 @@ async def pool_help(ctx: Context) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["c"], hidden=True)
+@error_catcher
 async def pool_create(ctx: Context) -> str | None:
     """Add a new mappool to the database."""
     if len(ctx.args) != 1:
@@ -2187,6 +2255,7 @@ async def pool_create(ctx: Context) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["del", "d"], hidden=True)
+@error_catcher
 async def pool_delete(ctx: Context) -> str | None:
     """Remove a mappool from the database."""
     if len(ctx.args) != 1:
@@ -2205,6 +2274,7 @@ async def pool_delete(ctx: Context) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["a"], hidden=True)
+@error_catcher
 async def pool_add(ctx: Context) -> str | None:
     """Add a new map to a mappool in the database."""
     if len(ctx.args) != 2:
@@ -2256,6 +2326,7 @@ async def pool_add(ctx: Context) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["rm", "r"], hidden=True)
+@error_catcher
 async def pool_remove(ctx: Context) -> str | None:
     """Remove a map from a mappool in the database."""
     if len(ctx.args) != 2:
@@ -2294,6 +2365,7 @@ async def pool_remove(ctx: Context) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["l"], hidden=True)
+@error_catcher
 async def pool_list(ctx: Context) -> str | None:
     """List all existing mappools information."""
     tourney_pools = await tourney_pools_repo.fetch_many(page=None, page_size=None)
@@ -2316,6 +2388,7 @@ async def pool_list(ctx: Context) -> str | None:
 
 
 @pool_commands.add(Privileges.TOURNEY_MANAGER, aliases=["i"], hidden=True)
+@error_catcher
 async def pool_info(ctx: Context) -> str | None:
     """Get all information for a specific mappool."""
     if len(ctx.args) != 1:
@@ -2356,6 +2429,7 @@ async def pool_info(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED, aliases=["h"])
+@error_catcher
 async def clan_help(ctx: Context) -> str | None:
     """Show all documented clan commands the player can access."""
     prefix = app.settings.COMMAND_PREFIX
@@ -2372,6 +2446,7 @@ async def clan_help(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED, aliases=["c"])
+@error_catcher
 async def clan_create(ctx: Context) -> str | None:
     """Create a clan with a given tag & name."""
     if len(ctx.args) < 2:
@@ -2425,6 +2500,7 @@ async def clan_create(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED, aliases=["delete", "d"])
+@error_catcher
 async def clan_disband(ctx: Context) -> str | None:
     """Disband a clan (admins may disband others clans)."""
     if ctx.args:
@@ -2470,6 +2546,7 @@ async def clan_disband(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED, aliases=["i"])
+@error_catcher
 async def clan_info(ctx: Context) -> str | None:
     """Lookup information of a clan by tag."""
     if not ctx.args:
@@ -2492,6 +2569,7 @@ async def clan_info(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED)
+@error_catcher
 async def clan_leave(ctx: Context) -> str | None:
     """Leaves the clan you're in."""
     if not ctx.player.clan_id:
@@ -2528,6 +2606,7 @@ async def clan_leave(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED, aliases=["l"])
+@error_catcher
 async def clan_list(ctx: Context) -> str | None:
     """List all existing clans' information."""
     if ctx.args:
@@ -2557,6 +2636,7 @@ class CommandResponse(TypedDict):
     hidden: bool
 
 
+@error_catcher
 async def process_commands(
     player: Player,
     target: Channel | Player,
@@ -2627,6 +2707,7 @@ async def process_commands(
 """
 
 
+@error_catcher
 async def _is_seasons_enabled() -> bool:
     """Check if seasons are enabled via server_data."""
     try:
@@ -2639,6 +2720,7 @@ async def _is_seasons_enabled() -> bool:
 
 
 @season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def season_create(ctx: Context) -> str | None:
     """Create a new season."""
     if not await _is_seasons_enabled():
@@ -2685,6 +2767,7 @@ async def season_create(ctx: Context) -> str | None:
 
 
 @season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def season_start(ctx: Context) -> str | None:
     """Start/activate a season."""
     if not await _is_seasons_enabled():
@@ -2707,6 +2790,7 @@ async def season_start(ctx: Context) -> str | None:
 
 
 @season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def season_end(ctx: Context) -> str | None:
     """End/deactivate a season."""
     if not await _is_seasons_enabled():
@@ -2729,6 +2813,7 @@ async def season_end(ctx: Context) -> str | None:
 
 
 @season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def recalc_season_stats(ctx: Context) -> str | None:
     """Recalculate stats for a season (or all seasons).
 
@@ -2783,6 +2868,7 @@ async def recalc_season_stats(ctx: Context) -> str | None:
 
 
 @season_commands.add(Privileges.UNRESTRICTED, hidden=True)
+@error_catcher
 async def season_list(ctx: Context) -> str | None:
     """List all seasons."""
     if not await _is_seasons_enabled():
@@ -2803,6 +2889,7 @@ async def season_list(ctx: Context) -> str | None:
 
 
 @season_commands.add(Privileges.ADMINISTRATOR, hidden=True)
+@error_catcher
 async def season_schedule(ctx: Context) -> str | None:
     """Manage season schedules."""
     if not await _is_seasons_enabled():
@@ -2862,6 +2949,7 @@ async def season_schedule(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+@error_catcher
 async def seasons(ctx: Context) -> str | None:
     """Toggle between all-time and seasonal view, or view specific season stats.
 
@@ -2923,6 +3011,7 @@ async def seasons(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+@error_catcher
 async def seasons_all(ctx: Context) -> str | None:
     """Switch to all-time view."""
     ctx.player.preferred_lb_view = "all_time"
