@@ -206,25 +206,38 @@ def _safe_eval_node(
     raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
-_ALLOWED_AST_TYPES: frozenset[type] = frozenset({
-    ast.Expression,
-    ast.Constant,
-    ast.Name,
-    ast.Attribute,
-    ast.Compare,
-    ast.BoolOp,
-    ast.UnaryOp,
-    ast.BinOp,
-    ast.Load,
-    # Comparison operator nodes
-    ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
-    # Boolean operator nodes
-    ast.And, ast.Or,
-    # Unary operator nodes
-    ast.Not, ast.USub,
-    # Binary operator nodes
-    ast.Add, ast.Sub, ast.Mult, ast.BitAnd, ast.BitOr,
-})
+_ALLOWED_AST_TYPES: frozenset[type] = frozenset(
+    {
+        ast.Expression,
+        ast.Constant,
+        ast.Name,
+        ast.Attribute,
+        ast.Compare,
+        ast.BoolOp,
+        ast.UnaryOp,
+        ast.BinOp,
+        ast.Load,
+        # Comparison operator nodes
+        ast.Eq,
+        ast.NotEq,
+        ast.Lt,
+        ast.LtE,
+        ast.Gt,
+        ast.GtE,
+        # Boolean operator nodes
+        ast.And,
+        ast.Or,
+        # Unary operator nodes
+        ast.Not,
+        ast.USub,
+        # Binary operator nodes
+        ast.Add,
+        ast.Sub,
+        ast.Mult,
+        ast.BitAnd,
+        ast.BitOr,
+    }
+)
 
 
 def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
@@ -253,6 +266,7 @@ def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
         return cast(bool, _safe_eval_node(tree, score, mode_vn))
 
     return evaluator
+
 
 class AchievementsTable(Base):
     __tablename__ = "achievements"
@@ -354,9 +368,9 @@ async def fetch_many(
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
-    achievements: (
-        list[dict[str, Any]] | None
-    ) = await app.state.services.database.fetch_all(select_stmt)
+    achievements: list[dict[str, Any]] | None = (
+        await app.state.services.database.fetch_all(select_stmt)
+    )
     if achievements is not None:
         for achievement in achievements:
             achievement["cond"] = _make_achievement_cond(achievement["cond"])

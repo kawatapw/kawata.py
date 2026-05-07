@@ -137,15 +137,18 @@ def response(flow: http.HTTPFlow) -> None:
         if (  # todo check host
             (
                 # jfif, jpe, jpeg, jpg graphics file
-                body_view[:4] == b"\xff\xd8\xff\xe0" and body_view[6:11] == b"JFIF\x00"
+                body_view[:4] == b"\xff\xd8\xff\xe0"
+                and body_view[6:11] == b"JFIF\x00"
             )
             or (
                 # exif digital jpg
-                body_view[:4] == b"\xff\xd8\xff\xe1" and body_view[6:11] == b"Exif\x00"
+                body_view[:4] == b"\xff\xd8\xff\xe1"
+                and body_view[6:11] == b"Exif\x00"
             )
             or (
                 # spiff still picture jpg
-                body_view[:4] == b"\xff\xd8\xff\xe8" and body_view[6:12] == b"SPIFF\x00"
+                body_view[:4] == b"\xff\xd8\xff\xe8"
+                and body_view[6:12] == b"SPIFF\x00"
             )
         ):
             sys.stdout.write(f"[{fmt_bytes(body_len)} jpeg file]\n\n")

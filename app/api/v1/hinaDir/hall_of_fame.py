@@ -28,7 +28,9 @@ _INVALID_MODES = {
 async def get_hall_of_fame_podium(
     mode: int = Query(0, ge=0, le=11),
     sort: Literal["pp", "rscore", "tscore", "acc", "plays", "playtime"] = "pp",
-    country: str | None = Query(None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$"),
+    country: str | None = Query(
+        None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$"
+    ),
 ) -> ORJSONResponse:
     if mode in _INVALID_MODES:
         return ORJSONResponse(

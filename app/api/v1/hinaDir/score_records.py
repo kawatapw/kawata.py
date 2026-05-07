@@ -22,7 +22,10 @@ async def get_score_records(
 ) -> ORJSONResponse:
     if season_id is not None and season_id < 0:
         return ORJSONResponse(
-            {"status": "error", "message": "season_id must be a non-negative integer (0 = all-time)"},
+            {
+                "status": "error",
+                "message": "season_id must be a non-negative integer (0 = all-time)",
+            },
             status_code=400,
         )
 
@@ -72,7 +75,12 @@ async def get_score_records(
         "ORDER BY sc.score DESC "
         "LIMIT :offset, :limit"
     )
-    rows = [dict(r) for r in (await app.state.services.database.fetch_all(data_sql, data_params) or [])]
+    rows = [
+        dict(r)
+        for r in (
+            await app.state.services.database.fetch_all(data_sql, data_params) or []
+        )
+    ]
 
     mode_vn = mode % 4
     for row in rows:

@@ -832,7 +832,11 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
             ret += p_args
         elif p_type in _noexpand_types:
             bounds = _INT_BOUNDS.get(p_type)
-            if bounds is not None and isinstance(p_args, int) and not bounds[0] <= p_args <= bounds[1]:
+            if (
+                bounds is not None
+                and isinstance(p_args, int)
+                and not bounds[0] <= p_args <= bounds[1]
+            ):
                 logging.log(
                     f"Integer value out of range for {p_type!r}",
                     level=logging.logLevel.WARNING,

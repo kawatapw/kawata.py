@@ -302,12 +302,16 @@ class BytesJsonFormatter(jsonlogger.JsonFormatter):
         # Convert only keys and values that are not of type str, int, float, bool, or None
         # Exclude exc_info as it needs to remain a tuple for proper exception formatting
         record.__dict__ = {
-            str(k)
-            if not isinstance(k, str | int | float | bool | type(None))  # type: ignore[redundant-expr]
-            else k: str(v)
-            if not isinstance(v, str | int | float | bool | type(None))
-            and k != "exc_info"
-            else v
+            (
+                str(k)
+                if not isinstance(k, str | int | float | bool | type(None))  # type: ignore[redundant-expr]
+                else k
+            ): (
+                str(v)
+                if not isinstance(v, str | int | float | bool | type(None))
+                and k != "exc_info"
+                else v
+            )
             for k, v in record.__dict__.items()
         }
 

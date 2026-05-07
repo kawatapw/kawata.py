@@ -18,7 +18,9 @@ class AdminV2LogTable(Base):
     to_id = Column("to_id", Integer, nullable=False)
     action = Column("action", String(32), nullable=False)
     msg = Column("msg", String(2048, collation="utf8"), nullable=True)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
+    created_at = Column(
+        "created_at", DateTime, nullable=False, server_default=func.now()
+    )
     action_type = Column("action_type", TinyInt, nullable=False, server_default="0")
 
     __table_args__ = (

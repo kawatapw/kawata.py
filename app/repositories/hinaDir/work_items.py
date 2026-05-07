@@ -27,11 +27,21 @@ class BeatmapWorkItemTable(Base):
     id = Column("id", Integer, nullable=False, primary_key=True, autoincrement=True)
     set_id = Column("set_id", Integer, nullable=False)
     request_id = Column("request_id", Integer, nullable=True)
-    review_state = Column("review_state", String(16), nullable=False, server_default="pending")
+    review_state = Column(
+        "review_state", String(16), nullable=False, server_default="pending"
+    )
     assigned_to = Column("assigned_to", Integer, nullable=True)
     assigned_at = Column("assigned_at", DateTime, nullable=True)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
-    updated_at = Column("updated_at", DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    created_at = Column(
+        "created_at", DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        "updated_at",
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
     resolved_at = Column("resolved_at", DateTime, nullable=True)
     resolution = Column("resolution", String(32), nullable=True)
     checklist = Column("checklist", JSON, nullable=True)
@@ -125,8 +135,7 @@ async def fetch_queue(
             BeatmapWorkItemTable.assigned_to == assigned_to,
         )
     select_stmt = (
-        select_stmt
-        .order_by(
+        select_stmt.order_by(
             BeatmapWorkItemTable.priority.desc(),
             BeatmapWorkItemTable.created_at.asc(),
         )

@@ -121,13 +121,13 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
             },
         )
 
-        expired_donors: (
-            list[dict[str, Any]] | None
-        ) = await app.state.services.database.fetch_all(
-            "SELECT id FROM users "
-            "WHERE donor_end <= UNIX_TIMESTAMP() "
-            "AND priv & :donor_priv",
-            {"donor_priv": Privileges.DONATOR.value},
+        expired_donors: list[dict[str, Any]] | None = (
+            await app.state.services.database.fetch_all(
+                "SELECT id FROM users "
+                "WHERE donor_end <= UNIX_TIMESTAMP() "
+                "AND priv & :donor_priv",
+                {"donor_priv": Privileges.DONATOR.value},
+            )
         )
 
         if expired_donors is not None:
@@ -210,9 +210,9 @@ async def check_season_schedules(interval: int = 60) -> None:
             log("Checking season schedules...", Ansi.LCYAN, level=logLevel.DEBUG)
 
             # Get all schedules that need checking
-            schedules: list[
-                seasons_repo.SeasonSchedule
-            ] = await seasons_repo.fetch_active_schedules()
+            schedules: list[seasons_repo.SeasonSchedule] = (
+                await seasons_repo.fetch_active_schedules()
+            )
 
             if not schedules:
                 log("No active schedules found", Ansi.LYELLOW, level=logLevel.DEBUG)
@@ -576,9 +576,9 @@ async def update_non_active_season_stats(interval: int = 300) -> None:
 
             current_time = datetime.now(UTC)
             non_active_seasons = await seasons_repo.fetch_non_active_seasons(
-                active_season_type_id=int(active_season_type_id)
-                if active_season_type_id
-                else None,
+                active_season_type_id=(
+                    int(active_season_type_id) if active_season_type_id else None
+                ),
                 current_time=current_time,
             )
 

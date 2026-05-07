@@ -360,7 +360,9 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
-        request._body = await request.body()  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
+        request._body = (
+            await request.body()
+        )  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
         log(
             f"Login request from {ip}.",
             Ansi.LCYAN,
@@ -1399,9 +1401,12 @@ async def handle_osu_login_request(
             login_time=login_time,
             is_tourney_client=osu_version.stream == "tourney",
             api_key=user_info["api_key"],
-            preferred_lb_view=user_info.get("preferred_lb_view", "all_time")
-            if user_info.get("preferred_lb_view", "all_time") in ("all_time", "seasonal")
-            else "all_time",
+            preferred_lb_view=(
+                user_info.get("preferred_lb_view", "all_time")
+                if user_info.get("preferred_lb_view", "all_time")
+                in ("all_time", "seasonal")
+                else "all_time"
+            ),
         )
     except Exception as e:
         log(

@@ -16,7 +16,9 @@ class BeatmapReviewCommentTable(Base):
     work_item_id = Column("work_item_id", Integer, nullable=False)
     user_id = Column("user_id", Integer, nullable=False)
     body = Column("body", Text, nullable=False)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
+    created_at = Column(
+        "created_at", DateTime, nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         Index("idx_brc_work_item", "work_item_id"),

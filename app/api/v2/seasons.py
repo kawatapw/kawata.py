@@ -232,9 +232,11 @@ async def get_schedules() -> Success[list[dict[str, Any]]] | Failure:
                 "description": schedule["description"],
                 "schedule_type": schedule["schedule_type"],
                 "is_default": schedule["is_default"],
-                "created_at": schedule["created_at"].isoformat()
-                if schedule["created_at"] is not None
-                else None,
+                "created_at": (
+                    schedule["created_at"].isoformat()
+                    if schedule["created_at"] is not None
+                    else None
+                ),
             },
         )
 
@@ -259,9 +261,11 @@ async def get_schedule(schedule_id: int) -> Success[dict[str, Any]] | Failure:
             "schedule_type": schedule["schedule_type"],
             "config": schedule["config"],
             "is_default": schedule["is_default"],
-            "created_at": schedule["created_at"].isoformat()
-            if schedule["created_at"] is not None
-            else None,
+            "created_at": (
+                schedule["created_at"].isoformat()
+                if schedule["created_at"] is not None
+                else None
+            ),
         },
     )
 

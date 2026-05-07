@@ -54,9 +54,9 @@ def aggregate(
         "total_workflows": total_workflows,
         "successful": successful,
         "failed": failed,
-        "success_rate": (successful / total_workflows * 100)
-        if total_workflows > 0
-        else 0,
+        "success_rate": (
+            (successful / total_workflows * 100) if total_workflows > 0 else 0
+        ),
     }
 
     # Save report

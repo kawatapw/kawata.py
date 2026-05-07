@@ -326,7 +326,9 @@ class Player:
         self.aeris_client: bool = (
             False  # Identified by the Specific packet dedicated to Kawata/Aeris clients
         )
-        self.aeris_client_features: int = AerisFeatures.None_  # by default the client don't take into account any Kawata/Aeris features, because it's another client
+        self.aeris_client_features: int = (
+            AerisFeatures.None_
+        )  # by default the client don't take into account any Kawata/Aeris features, because it's another client
         self.priv = priv
         self.pw_bcrypt = pw_bcrypt
         self.token = token
@@ -453,7 +455,9 @@ class Player:
                             # Set stats first so update_season_rank can read them
                             self.set_season_stats(season["id"], mode, mode_data)
                             await self.update_season_rank(season["id"], mode)
-                            mode_data.rank = await self.get_season_rank(season["id"], mode)
+                            mode_data.rank = await self.get_season_rank(
+                                season["id"], mode
+                            )
         except Exception as e:
             log(
                 f"Failed to load season stats for {self}: {e}",

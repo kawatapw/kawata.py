@@ -914,9 +914,7 @@ async def osuSubmitModularSelector(
             score.time_elapsed = (
                 int(score_time)
                 if score.passed and score_time is not None
-                else int(fail_time)
-                if fail_time is not None
-                else 0
+                else int(fail_time) if fail_time is not None else 0
             )
             log(f"Score time elapsed: {score.time_elapsed}ms", Ansi.LCYAN)
 
@@ -2896,8 +2894,9 @@ async def difficultyRatingHandler(request: Request) -> Response:
 @error_catcher
 async def checkAerisUpdates(
     request: Request,
-    action: Literal["check", "path", "error", "get-manifest"]
-    | None = None,  # "request-put", "put"
+    action: (
+        Literal["check", "path", "error", "get-manifest"] | None
+    ) = None,  # "request-put", "put"
     stream: Literal["cuttingedge", "stable40", "beta40", "stable", "dev"] | None = None,
     fileinfo: str | None = None,
     buildname: str | None = None,

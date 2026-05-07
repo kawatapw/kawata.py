@@ -19,7 +19,9 @@ router = APIRouter()
 oauth2_scheme = HTTPBearer(auto_error=False)
 
 
-async def _validate_season(season_id: int | None) -> tuple[int, seasons_repo.Season | None]:
+async def _validate_season(
+    season_id: int | None,
+) -> tuple[int, seasons_repo.Season | None]:
     """Validate season_id and return (sid, season_record).
 
     Returns (0, None) for all-time. Returns (sid, season) for valid seasons.
@@ -84,7 +86,9 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["mutuals"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
+        result["mutuals"] = (
+            [_enrich_with_status(dict(row)) for row in rows] if rows else []
+        )
 
     if scope in ("followers", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -100,7 +104,9 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["followers"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
+        result["followers"] = (
+            [_enrich_with_status(dict(row)) for row in rows] if rows else []
+        )
 
     if scope in ("blocked", "all"):
         rows = await app.state.services.database.fetch_all(
@@ -113,7 +119,9 @@ async def api_get_friends_detailed(
             "AND u.priv & 1 = 1",
             {"user_id": user_id},
         )
-        result["blocked"] = [_enrich_with_status(dict(row)) for row in rows] if rows else []
+        result["blocked"] = (
+            [_enrich_with_status(dict(row)) for row in rows] if rows else []
+        )
 
     result["status"] = "success"
     return ORJSONResponse(result)
@@ -154,7 +162,9 @@ async def api_set_relationship(
     token: HTTPCredentials | None = Depends(oauth2_scheme),  # noqa: B008
     user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),  # noqa: B008
     target_id: int = Query(..., alias="target", ge=2, le=2_147_483_647),  # noqa: B008
-    action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(...),  # noqa: B008
+    action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(
+        ...
+    ),  # noqa: B008
 ) -> ORJSONResponse:
     """Add/remove friends or block/unblock users. Requires BOT_API_KEY."""
     if token is None or token.credentials != app.settings.BOT_API_KEY:
@@ -278,7 +288,11 @@ async def api_get_friends_leaderboard(
 
             # Get global rank from Redis (season-aware)
             sid = params["season_id"]
-            lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
+            lb_key = (
+                f"bancho:leaderboard:{mode}"
+                if not sid
+                else f"bancho:leaderboard:{mode}:season:{sid}"
+            )
             global_rank = await app.state.services.redis.zrevrank(
                 lb_key,
                 str(entry["id"]),
@@ -355,9 +369,18 @@ async def api_get_player_quick_stats(
                 status_code=status.HTTP_404_NOT_FOUND,
             )
         stats = {
-            "pp": 0, "acc": 0.0, "plays": 0, "playtime": 0, "max_combo": 0,
-            "tscore": 0, "rscore": 0, "xh_count": 0, "x_count": 0,
-            "sh_count": 0, "s_count": 0, "a_count": 0,
+            "pp": 0,
+            "acc": 0.0,
+            "plays": 0,
+            "playtime": 0,
+            "max_combo": 0,
+            "tscore": 0,
+            "rscore": 0,
+            "xh_count": 0,
+            "x_count": 0,
+            "sh_count": 0,
+            "s_count": 0,
+            "a_count": 0,
         }
     else:
         stats = dict(stats_row)
@@ -367,7 +390,11 @@ async def api_get_player_quick_stats(
         stats["rscore"] = int(stats["rscore"])
 
     # Global rank from Redis (season-aware)
-    lb_key = f"bancho:leaderboard:{mode}" if not sid else f"bancho:leaderboard:{mode}:season:{sid}"
+    lb_key = (
+        f"bancho:leaderboard:{mode}"
+        if not sid
+        else f"bancho:leaderboard:{mode}:season:{sid}"
+    )
     global_rank = await app.state.services.redis.zrevrank(
         lb_key,
         str(user_id),
@@ -398,14 +425,18 @@ async def api_get_player_quick_stats(
         top["acc"] = round(float(top["acc"]), 2)
         top_play = top
 
-    return ORJSONResponse({
-        "status": "success",
-        "stats": stats,
-        "top_play": top_play,
-    })
+    return ORJSONResponse(
+        {
+            "status": "success",
+            "stats": stats,
+            "top_play": top_play,
+        }
+    )
 
 
-async def _get_player_stats(uid: int, mode: int, season_id: int = 0) -> dict[str, Any] | None:
+async def _get_player_stats(
+    uid: int, mode: int, season_id: int = 0
+) -> dict[str, Any] | None:
     """Fetch a single player's stats for a given mode and season."""
     row = await app.state.services.database.fetch_one(
         "SELECT s.id, u.name, u.country, "
@@ -450,7 +481,11 @@ async def _get_player_stats(uid: int, mode: int, season_id: int = 0) -> dict[str
         }
 
     # Global rank from Redis (season-aware)
-    lb_key = f"bancho:leaderboard:{mode}" if not season_id else f"bancho:leaderboard:{mode}:season:{season_id}"
+    lb_key = (
+        f"bancho:leaderboard:{mode}"
+        if not season_id
+        else f"bancho:leaderboard:{mode}:season:{season_id}"
+    )
     global_rank = await app.state.services.redis.zrevrank(
         lb_key,
         str(entry["id"]),

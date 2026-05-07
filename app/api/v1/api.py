@@ -156,7 +156,9 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 @error_catcher
 async def api_calculate_pp(
     token: HTTPCredentials | None = api_key_dependency,  # noqa: B008
-    beatmap_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),  # noqa: B008
+    beatmap_id: int | None = Query(
+        None, alias="id", ge=0, le=2_147_483_647
+    ),  # noqa: B008
     nkatu: int | None = Query(None, le=2_147_483_647),  # noqa: B008
     ngeki: int | None = Query(None, le=2_147_483_647),  # noqa: B008
     n100: int | None = Query(None, le=2_147_483_647),  # noqa: B008
@@ -286,9 +288,7 @@ async def api_calculate_pp_batch(
         )
 
     # Fetch map metadata directly from DB (avoids osu! API race conditions)
-    placeholders = ", ".join(
-        [f":id_{i}" for i in range(len(beatmap_ids))]
-    )
+    placeholders = ", ".join([f":id_{i}" for i in range(len(beatmap_ids))])
     params = {f"id_{i}": bid for i, bid in enumerate(beatmap_ids)}
     rows = await app.state.services.database.fetch_all(
         f"SELECT id, md5, mode FROM maps WHERE id IN ({placeholders})",  # nosec B608
@@ -302,9 +302,7 @@ async def api_calculate_pp_batch(
             db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
 
     # Ensure .osu files are available in parallel
-    maps_to_check = [
-        (bid, db_maps[bid]) for bid in beatmap_ids if bid in db_maps
-    ]
+    maps_to_check = [(bid, db_maps[bid]) for bid in beatmap_ids if bid in db_maps]
     if maps_to_check:
         osu_results = await asyncio.gather(
             *[
@@ -332,10 +330,7 @@ async def api_calculate_pp_batch(
         bmap_info = db_maps[bid]
         vanilla_mode = GameMode(bmap_info["mode"]).as_vanilla
 
-        scores = [
-            ScoreParams(vanilla_mode, mods, acc=acc)
-            for acc in acclist
-        ]
+        scores = [ScoreParams(vanilla_mode, mods, acc=acc) for acc in acclist]
 
         try:
             perf_results = app.usecases.performance.calculate_performances(
@@ -348,14 +343,16 @@ async def api_calculate_pp_batch(
 
         pp_values = []
         for perf, score in zip(perf_results, scores, strict=False):
-            pp_values.append({
-                "accuracy": score.acc,
-                "pp": perf["performance"]["pp"],
-                "pp_aim": perf["performance"].get("pp_aim", 0),
-                "pp_speed": perf["performance"].get("pp_speed", 0),
-                "pp_flashlight": perf["performance"].get("pp_flashlight", 0),
-                "pp_acc": perf["performance"].get("pp_acc", 0),
-            })
+            pp_values.append(
+                {
+                    "accuracy": score.acc,
+                    "pp": perf["performance"]["pp"],
+                    "pp_aim": perf["performance"].get("pp_aim", 0),
+                    "pp_speed": perf["performance"].get("pp_speed", 0),
+                    "pp_flashlight": perf["performance"].get("pp_flashlight", 0),
+                    "pp_acc": perf["performance"].get("pp_acc", 0),
+                }
+            )
 
         difficulty_result = perf_results[0]["difficulty"] if perf_results else None
         results[str(bid)] = {
@@ -1444,7 +1441,12 @@ async def api_get_top_players() -> Response:
 
         mode = GameMode(mode_arg)
 
-        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0", "s.season_id = 0"]
+        query_conditions = [
+            "s.mode = :mode",
+            "u.priv & 1",
+            "s.pp > 0",
+            "s.season_id = 0",
+        ]
         query_parameters: dict[str, object] = {"mode": mode}
 
         rows = await app.state.services.database.fetch_all(
@@ -1890,10 +1892,7 @@ async def api_get_online_players_sample(
 ) -> Response:
     """Return a sample of currently online players for home page display."""
     # Get unrestricted online players (exclude bot, ID 1)
-    online = [
-        p for p in app.state.sessions.players.unrestricted
-        if p.id > 1
-    ]
+    online = [p for p in app.state.sessions.players.unrestricted if p.id > 1]
 
     # Sample random players (or return all if fewer than limit)
     if len(online) > limit:
@@ -1903,22 +1902,30 @@ async def api_get_online_players_sample(
 
     players = []
     for p in sample:
-        players.append({
-            "id": p.id,
-            "name": p.name,
-            "country": p.geoloc["country"]["acronym"],
-            "clan_id": p.clan["id"] if p.clan else None,
-            "clan_tag": p.clan["tag"] if p.clan else None,
-            "pp": round(p.gm_stats.pp, 2) if hasattr(p.gm_stats, 'pp') else 0,
-            "rank": p.gm_stats.rank if hasattr(p.gm_stats, 'rank') else 0,
-            "status": {
-                "online": True,
-                "action": p.status.action.value if hasattr(p.status, 'action') else 0,
-                "info_text": p.status.info_text if hasattr(p.status, 'info_text') else "",
-            },
-        })
+        players.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "country": p.geoloc["country"]["acronym"],
+                "clan_id": p.clan["id"] if p.clan else None,
+                "clan_tag": p.clan["tag"] if p.clan else None,
+                "pp": round(p.gm_stats.pp, 2) if hasattr(p.gm_stats, "pp") else 0,
+                "rank": p.gm_stats.rank if hasattr(p.gm_stats, "rank") else 0,
+                "status": {
+                    "online": True,
+                    "action": (
+                        p.status.action.value if hasattr(p.status, "action") else 0
+                    ),
+                    "info_text": (
+                        p.status.info_text if hasattr(p.status, "info_text") else ""
+                    ),
+                },
+            }
+        )
 
-    return ORJSONResponse({
-        "status": "success",
-        "players": players,
-    })
+    return ORJSONResponse(
+        {
+            "status": "success",
+            "players": players,
+        }
+    )
