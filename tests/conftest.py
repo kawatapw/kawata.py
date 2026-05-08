@@ -142,11 +142,12 @@ def skip_if_no_db():
         if loop.is_running():
             # We're inside an async context, can't run the check
             return
-        if not loop.run_until_complete(_check_db()):
+        coro = _check_db()
+        if not loop.run_until_complete(coro):
             pytest.skip(
-                "Database not available - skipping test that requires DB connection"
+                msg="Database not available - skipping test that requires DB connection"
             )
     except Exception:
         pytest.skip(
-            "Database not available - skipping test that requires DB connection"
+            msg="Database not available - skipping test that requires DB connection"
         )
