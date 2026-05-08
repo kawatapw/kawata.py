@@ -141,9 +141,13 @@ class TestRequest:
             "timeout": 9999999999,
         }
 
-        result = await request.callback(mock_context)
+        with patch(
+            "app.commands.categories.nominator.map_requests_repo.fetch_all",
+            AsyncMock(return_value=[]),
+        ):
+            result = await request.callback(mock_context)
 
-        assert "Only pending maps may be requested" in result
+            assert "Only pending maps may be requested" in result
 
 
 class TestRequests:
@@ -258,6 +262,11 @@ class TestMap:
         mock_transaction.__aenter__ = AsyncMock(return_value=None)
         mock_transaction.__aexit__ = AsyncMock(return_value=None)
         mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+
+        # Set up cache for beatmapset (required for set ranking)
+        mock_beatmapset_cache = Mock()
+        mock_beatmapset_cache.maps = [mock_bmap]
+        mock_context.cache.beatmapset = {1: mock_beatmapset_cache}
 
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",

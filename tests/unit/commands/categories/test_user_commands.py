@@ -825,17 +825,20 @@ class TestRequestCommand:
 
         mock_bmap = Mock()
         mock_bmap.id = 123456
-        mock_bmap.status = Mock()
-        mock_bmap.status != "pending"
+        mock_bmap.status = RankedStatus.Ranked  # Not pending
 
         mock_player.last_np = {
             "bmap": mock_bmap,
             "timeout": 9999999999,
         }
 
-        result = await request.callback(mock_context)
+        with patch(
+            "app.commands.categories.user.map_requests_repo.fetch_all",
+            AsyncMock(return_value=[]),
+        ):
+            result = await request.callback(mock_context)
 
-        assert "Only pending maps may be requested" in result
+            assert "Only pending maps may be requested" in result
 
     @pytest.mark.asyncio
     async def test_request_already_exists(self, mock_context, mock_player):
