@@ -33,6 +33,7 @@ from app.usecases.performance import ScoreParams
 # Define BEATMAPS_PATH
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
+
 @user_command(
     name="roll",
     description="Roll an n-sided die where n is the number you write (100 default).",

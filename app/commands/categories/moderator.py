@@ -22,6 +22,7 @@ ACTION_STRINGS = {
     "note": "Note added:",
 }
 
+
 @moderator_command(
     name="notes",
     description="Retrieve the logs of a specified player by name.",

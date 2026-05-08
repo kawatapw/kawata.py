@@ -730,7 +730,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            _ = asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]  # noqa: RUF006
+            _ = asyncio.create_task(webhook.post())  # noqa: RUF006
 
         # refresh their client state
         if self.is_online:
@@ -770,7 +770,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            _ = asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]  # noqa: RUF006
+            _ = asyncio.create_task(webhook.post())  # noqa: RUF006
 
         if self.is_online:
             # log the user out if they're offline, this

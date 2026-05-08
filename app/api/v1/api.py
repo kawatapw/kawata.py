@@ -1702,7 +1702,9 @@ async def api_get_friends(
             {"status": "success", "friends": friends, "mutuals": mutuals},
         )
 
-    return ORJSONResponse({"status": "Invalid scope"}, status_code=status.HTTP_400_BAD_REQUEST)
+    return ORJSONResponse(
+        {"status": "Invalid scope"}, status_code=status.HTTP_400_BAD_REQUEST
+    )
 
 
 @router.get("/get_badges")

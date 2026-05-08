@@ -139,6 +139,7 @@ __all__ = [
     "recalc",
     "recalc_season_stats",
     "recent",
+    "reconnect",
     "reload",
     "request",
     "requests",

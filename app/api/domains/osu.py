@@ -803,6 +803,8 @@ async def osuSubmitModularSelector(
     )
 
     def _validate_score_checksums() -> None:
+        if player is None:
+            raise RuntimeError("Player not available")
         if player.client_details is None:
             raise RuntimeError("Player client details not available")
 
