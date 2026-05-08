@@ -44,6 +44,15 @@ def mock_context(mock_player):
     ctx.state.settings.COMMAND_PREFIX = "!"
     ctx.state.settings.REQUEST_PENDING_ONLY = False
 
+    # Mock services and database
+    ctx.state.services = Mock()
+    ctx.state.services.database = Mock()
+
+    # Mock cache
+    ctx.cache = Mock()
+    ctx.cache.beatmap = {}
+    ctx.cache.beatmapset = {}
+
     return ctx
 
 
@@ -200,33 +209,30 @@ class TestMap:
         mock_bmap.status = RankedStatus.Pending
         mock_bmap.set = Mock()
         mock_bmap.set.maps = [mock_bmap]
+        mock_bmap.md5 = "test_md5"
 
         mock_player.last_np = {
             "bmap": mock_bmap,
             "timeout": 9999999999,
         }
 
+        # Set up async context manager mock for transaction
+        mock_transaction = AsyncMock()
+        mock_transaction.__aenter__ = AsyncMock(return_value=None)
+        mock_transaction.__aexit__ = AsyncMock(return_value=None)
+        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",
             AsyncMock(),
         ):
             with patch(
-                "app.state.cache.beatmap",
-                {},
+                "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
+                AsyncMock(),
             ):
-                with patch(
-                    "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
-                    AsyncMock(),
-                ):
-                    with patch(
-                        "app.state.services.database.transaction",
-                    ) as mock_transaction:
-                        mock_transaction.return_value.__aenter__ = AsyncMock()
-                        mock_transaction.return_value.__aexit__ = AsyncMock()
+                result = await _map.callback(mock_context)
 
-                        result = await _map.callback(mock_context)
-
-                        assert "updated to Ranked" in result
+                assert "updated to Ranked" in result
 
     @pytest.mark.asyncio
     async def test_map_rank_set(self, mock_context, mock_player):
@@ -240,11 +246,18 @@ class TestMap:
         mock_bmap.status = RankedStatus.Pending
         mock_bmap.set = Mock()
         mock_bmap.set.maps = [mock_bmap]
+        mock_bmap.md5 = "test_md5"
 
         mock_player.last_np = {
             "bmap": mock_bmap,
             "timeout": 9999999999,
         }
+
+        # Set up async context manager mock for transaction
+        mock_transaction = AsyncMock()
+        mock_transaction.__aenter__ = AsyncMock(return_value=None)
+        mock_transaction.__aexit__ = AsyncMock(return_value=None)
+        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
 
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",
@@ -255,22 +268,12 @@ class TestMap:
                 AsyncMock(return_value=[{"id": 123}]),
             ):
                 with patch(
-                    "app.state.cache.beatmapset",
-                    {},
+                    "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
+                    AsyncMock(),
                 ):
-                    with patch(
-                        "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
-                        AsyncMock(),
-                    ):
-                        with patch(
-                            "app.state.services.database.transaction",
-                        ) as mock_transaction:
-                            mock_transaction.return_value.__aenter__ = AsyncMock()
-                            mock_transaction.return_value.__aexit__ = AsyncMock()
+                    result = await _map.callback(mock_context)
 
-                            result = await _map.callback(mock_context)
-
-                            assert "updated to Ranked" in result
+                    assert "updated to Ranked" in result
 
     @pytest.mark.asyncio
     async def test_map_unrank(self, mock_context, mock_player):
@@ -283,33 +286,30 @@ class TestMap:
         mock_bmap.status = RankedStatus.Ranked
         mock_bmap.set = Mock()
         mock_bmap.set.maps = [mock_bmap]
+        mock_bmap.md5 = "test_md5"
 
         mock_player.last_np = {
             "bmap": mock_bmap,
             "timeout": 9999999999,
         }
 
+        # Set up async context manager mock for transaction
+        mock_transaction = AsyncMock()
+        mock_transaction.__aenter__ = AsyncMock(return_value=None)
+        mock_transaction.__aexit__ = AsyncMock(return_value=None)
+        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",
             AsyncMock(),
         ):
             with patch(
-                "app.state.cache.beatmap",
-                {},
+                "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
+                AsyncMock(),
             ):
-                with patch(
-                    "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
-                    AsyncMock(),
-                ):
-                    with patch(
-                        "app.state.services.database.transaction",
-                    ) as mock_transaction:
-                        mock_transaction.return_value.__aenter__ = AsyncMock()
-                        mock_transaction.return_value.__aexit__ = AsyncMock()
+                result = await _map.callback(mock_context)
 
-                        result = await _map.callback(mock_context)
-
-                        assert "updated to Unranked" in result
+                assert "updated to Unranked" in result
 
     @pytest.mark.asyncio
     async def test_map_love(self, mock_context, mock_player):
@@ -322,33 +322,30 @@ class TestMap:
         mock_bmap.status = RankedStatus.Pending
         mock_bmap.set = Mock()
         mock_bmap.set.maps = [mock_bmap]
+        mock_bmap.md5 = "test_md5"
 
         mock_player.last_np = {
             "bmap": mock_bmap,
             "timeout": 9999999999,
         }
 
+        # Set up async context manager mock for transaction
+        mock_transaction = AsyncMock()
+        mock_transaction.__aenter__ = AsyncMock(return_value=None)
+        mock_transaction.__aexit__ = AsyncMock(return_value=None)
+        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",
             AsyncMock(),
         ):
             with patch(
-                "app.state.cache.beatmap",
-                {},
+                "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
+                AsyncMock(),
             ):
-                with patch(
-                    "app.commands.categories.nominator.map_requests_repo.mark_batch_as_inactive",
-                    AsyncMock(),
-                ):
-                    with patch(
-                        "app.state.services.database.transaction",
-                    ) as mock_transaction:
-                        mock_transaction.return_value.__aenter__ = AsyncMock()
-                        mock_transaction.return_value.__aexit__ = AsyncMock()
+                result = await _map.callback(mock_context)
 
-                        result = await _map.callback(mock_context)
-
-                        assert "updated to Loved" in result
+                assert "updated to Loved" in result
 
     @pytest.mark.asyncio
     async def test_map_invalid_syntax(self, mock_context):

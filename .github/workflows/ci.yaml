@@ -42,8 +42,8 @@ env:
   DATA_DIRECTORY: "/srv/root/.data"
   SSL_CERT_PATH: "/srv/root/certs/fullchain.crt"
   SSL_KEY_PATH: "/srv/root/certs/privkey.pem"
-  MIRROR_SEARCH_ENDPOINT: "https://catboy.best/api/search"
-  MIRROR_DOWNLOAD_ENDPOINT: "https://catboy.best/d"
+  MIRROR_SEARCH_ENDPOINT: "https://mirror.hinamizawa.ai/api/v1/hinai/search"
+  MIRROR_DOWNLOAD_ENDPOINT: "https://mirror.hinamizawa.ai/api/v1/hinai/d"
   COMMAND_PREFIX: "!"
   REQUEST_PENDING_ONLY: "True"
   SEASONAL_BGS: "https://akatsuki.pw/static/flower.png,https://i.cmyui.xyz/nrMT4V2RR3PR.jpeg"
@@ -722,7 +722,7 @@ jobs:
 
   # Release job - conditional on branch/tag
   release:
-    needs: [initialization, build, mypy, ruff, bandit, test]
+    needs: [initialization, build, mypy, ruff, ty, bandit, test]
     if: needs.initialization.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -763,7 +763,7 @@ jobs:
           if-no-artifact-found: warn
 
       - name: Generate source archive
-        run: tar -czf source-code.tar.gz --exclude='.git' --exclude='*.tar.gz' .
+        run: tar --verbose -czf source-code.tar.gz --exclude='.git' --exclude='.tar.gz' --exclude='.env' --exclude='./migrations/' --exclude='test-data/' --exclude='artifacts/' .
 
       - name: Collect optional artifacts into release-artifacts.tar.gz
         run: |
@@ -881,7 +881,7 @@ jobs:
 
   # Final summary - always runs
   final-summary:
-    needs: [initialization, build, mypy, ruff, bandit, test, release, publish]
+    needs: [initialization, build, mypy, ruff, ty, bandit, test, release, publish]
     if: always()
     runs-on: ubuntu-latest
     steps:

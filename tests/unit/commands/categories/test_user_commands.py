@@ -775,22 +775,21 @@ class TestWithCommand:
             "timeout": 9999999999,
         }
 
+        # Set up calculate_performances mock on the context's usecases
+        mock_context.state.usecases.performance.calculate_performances = Mock(
+            return_value=[
+                {
+                    "performance": {"pp": 250.5},
+                    "difficulty": {"stars": 5.5},
+                }
+            ]
+        )
+
         with patch(
             "app.commands.categories.user.ensure_osu_file_is_available",
             AsyncMock(return_value=True),
         ):
-            with patch(
-                "app.usecases.performance.calculate_performances",
-                Mock(
-                    return_value=[
-                        {
-                            "performance": {"pp": 250.5},
-                            "difficulty": {"stars": 5.5},
-                        }
-                    ]
-                ),
-            ):
-                result = await _with.callback(mock_context)
+            result = await _with.callback(mock_context)
 
         assert "pp" in result
         assert "*" in result

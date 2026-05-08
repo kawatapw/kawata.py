@@ -232,29 +232,28 @@ class TestRecalcSeasonStats:
         """Test recalculating stats for all seasons."""
         mock_context.args = ["all"]
 
+        # Set up the database fetch_all mock on the context object
+        mock_context.state.services.database.fetch_all = AsyncMock(
+            return_value=[
+                {"id": 1, "name": "Season1"},
+                {"id": 2, "name": "Season2"},
+            ]
+        )
+
         with patch(
             "app.commands.categories.season._is_seasons_enabled",
             AsyncMock(return_value=True),
         ):
             with patch(
-                "app.state.services.database.fetch_all",
-                AsyncMock(
-                    return_value=[
-                        {"id": 1, "name": "Season1"},
-                        {"id": 2, "name": "Season2"},
-                    ]
-                ),
+                "app.bg_loops.calculate_season_stats_for_all_users",
+                AsyncMock(),
             ):
                 with patch(
-                    "app.bg_loops.calculate_season_stats_for_all_users",
-                    AsyncMock(),
+                    "app.commands.categories.season.asyncio.create_task",
                 ):
-                    with patch(
-                        "app.commands.categories.season.asyncio.create_task",
-                    ):
-                        result = await recalc_season_stats.callback(mock_context)
+                    result = await recalc_season_stats.callback(mock_context)
 
-                        assert "Started recalculating 2 seasons" in result
+                    assert "Started recalculating 2 seasons" in result
 
     @pytest.mark.asyncio
     async def test_recalc_one(self, mock_context):
