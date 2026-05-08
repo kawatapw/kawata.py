@@ -54,7 +54,7 @@ class TestPoolHelp:
     """Test pool help command."""
 
     @pytest.mark.asyncio
-    async def test_help_success(self, mock_context, skip_if_no_db):
+    async def test_help_success(self, mock_context):
         """Test getting help for mappool commands."""
         mock_context.args = []
 
@@ -272,7 +272,7 @@ class TestPoolAdd:
 
     @pytest.mark.asyncio
     async def test_add_map_already_in_pool(
-        self, mock_context, mock_player, skip_if_no_db
+        self, mock_context, mock_player
     ):
         """Test adding a map that's already in the pool."""
         mock_context.args = ["TestPool", "HD2"]
@@ -377,7 +377,7 @@ class TestPoolList:
     """Test pool list command."""
 
     @pytest.mark.asyncio
-    async def test_list_success(self, mock_context, skip_if_no_db):
+    async def test_list_success(self, mock_context):
         """Test listing mappools."""
         mock_context.args = []
 
@@ -430,7 +430,7 @@ class TestPoolInfo:
     """Test pool info command."""
 
     @pytest.mark.asyncio
-    async def test_info_success(self, mock_context, skip_if_no_db):
+    async def test_info_success(self, mock_context):
         """Test getting mappool info."""
         mock_context.args = ["TestPool"]
 

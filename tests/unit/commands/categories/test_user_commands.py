@@ -359,7 +359,7 @@ class TestChangenameCommand:
     """Test changename command."""
 
     @pytest.mark.asyncio
-    async def test_changename_valid(self, mock_context, mock_player, skip_if_no_db):
+    async def test_changename_valid(self, mock_context, mock_player):
         """Test changing to a valid username."""
         mock_context.args = ["NewName"]
         mock_context.player.enqueue = Mock()
@@ -434,7 +434,7 @@ class TestChangenameCommand:
         assert "Disallowed username" in result
 
     @pytest.mark.asyncio
-    async def test_changename_taken(self, mock_context, skip_if_no_db):
+    async def test_changename_taken(self, mock_context):
         """Test changing to a username that's already taken."""
         mock_context.args = ["TakenName"]
 
@@ -651,7 +651,7 @@ class TestTopCommand:
     """Test top command."""
 
     @pytest.mark.asyncio
-    async def test_top_valid_syntax(self, mock_context, mock_player, skip_if_no_db):
+    async def test_top_valid_syntax(self, mock_context, mock_player):
         """Test top command with valid syntax."""
         mock_context.args = ["vn!std"]
 
@@ -711,7 +711,7 @@ class TestTopCommand:
         assert "Impossible gamemode combination" in result
 
     @pytest.mark.asyncio
-    async def test_top_with_player(self, mock_context, mock_player, skip_if_no_db):
+    async def test_top_with_player(self, mock_context, mock_player):
         """Test top command with specified player."""
         mock_context.args = ["vn!std", "OtherPlayer"]
 
@@ -739,7 +739,7 @@ class TestTopCommand:
         assert "Top 10 scores for" in result
 
     @pytest.mark.asyncio
-    async def test_top_no_scores(self, mock_context, mock_player, skip_if_no_db):
+    async def test_top_no_scores(self, mock_context, mock_player):
         """Test top command when no scores exist."""
         mock_context.args = ["vn!std"]
 

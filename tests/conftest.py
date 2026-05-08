@@ -114,15 +114,3 @@ def pytest_configure(config):
     )
 
 
-@pytest.fixture
-def skip_if_no_db(app):
-    """Skip test if database is not available.
-
-    Requires the app fixture to ensure the database connection is established
-    via the lifespan handler. In CI/test environments with Docker, the database
-    is always available. This fixture is a no-op when the database is present.
-    """
-    if services.database is None:
-        pytest.skip(
-            reason="Database not available - skipping test that requires DB connection"
-        )

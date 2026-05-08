@@ -58,7 +58,7 @@ class TestClanCreate:
     """Test clan create command."""
 
     @pytest.mark.asyncio
-    async def test_create_success(self, mock_context, skip_if_no_db):
+    async def test_create_success(self, mock_context):
         """Test creating a clan successfully."""
         mock_context.args = ["TAG", "Test Clan"]
 
@@ -132,7 +132,7 @@ class TestClanCreate:
             assert "already a member" in result
 
     @pytest.mark.asyncio
-    async def test_create_name_taken(self, mock_context, skip_if_no_db):
+    async def test_create_name_taken(self, mock_context):
         """Test creating a clan with taken name."""
         mock_context.args = ["TAG", "Test Clan"]
 
@@ -146,7 +146,7 @@ class TestClanCreate:
             assert "already been claimed" in result
 
     @pytest.mark.asyncio
-    async def test_create_tag_taken(self, mock_context, skip_if_no_db):
+    async def test_create_tag_taken(self, mock_context):
         """Test creating a clan with taken tag."""
         mock_context.args = ["TAG", "Test Clan"]
 
@@ -164,7 +164,7 @@ class TestClanDisband:
     """Test clan disband command."""
 
     @pytest.mark.asyncio
-    async def test_disband_own_clan(self, mock_context, mock_player, skip_if_no_db):
+    async def test_disband_own_clan(self, mock_context, mock_player):
         """Test disbanding own clan."""
         mock_context.args = []
         mock_player.clan_id = 1
@@ -188,7 +188,7 @@ class TestClanDisband:
 
     @pytest.mark.asyncio
     async def test_disband_other_clan_as_admin(
-        self, mock_context, mock_player, skip_if_no_db
+        self, mock_context, mock_player
     ):
         """Test admin disbanding another clan."""
         mock_context.args = ["OTHER"]
@@ -237,7 +237,7 @@ class TestClanInfo:
     """Test clan info command."""
 
     @pytest.mark.asyncio
-    async def test_info_success(self, mock_context, skip_if_no_db):
+    async def test_info_success(self, mock_context):
         """Test getting clan info."""
         mock_context.args = ["TAG"]
 

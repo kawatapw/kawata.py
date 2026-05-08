@@ -198,7 +198,7 @@ class TestRestrictCommand:
 
     @pytest.mark.asyncio
     async def test_restrict_success(
-        self, mock_context, mock_target_player, skip_if_no_db
+        self, mock_context, mock_target_player
     ):
         """Test restrict command success."""
         mock_context.args = ["TargetPlayer", "cheating"]
@@ -214,7 +214,7 @@ class TestRestrictCommand:
 
     @pytest.mark.asyncio
     async def test_restrict_with_shorthand_reason(
-        self, mock_context, mock_target_player, skip_if_no_db
+        self, mock_context, mock_target_player
     ):
         """Test restrict command with shorthand reason."""
         mock_context.args = ["TargetPlayer", "appeal"]
@@ -291,7 +291,7 @@ class TestUnrestrictCommand:
 
     @pytest.mark.asyncio
     async def test_unrestrict_success(
-        self, mock_context, mock_target_player, skip_if_no_db
+        self, mock_context, mock_target_player
     ):
         """Test unrestrict command success."""
         mock_target_player.restricted = True
@@ -322,7 +322,7 @@ class TestAlertCommand:
         assert "!alert <msg>" in result
 
     @pytest.mark.asyncio
-    async def test_alert_success(self, mock_context, skip_if_no_db):
+    async def test_alert_success(self, mock_context):
         """Test alert command success."""
         mock_context.args = ["Hello", "world"]
 
@@ -427,7 +427,7 @@ class TestShutdownCommand:
         assert "Invalid timespan." in result
 
     @pytest.mark.asyncio
-    async def test_shutdown_delay_too_short(self, mock_context, skip_if_no_db):
+    async def test_shutdown_delay_too_short(self, mock_context):
         """Test shutdown command with delay too short."""
         mock_context.args = ["5s"]
 
