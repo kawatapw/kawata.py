@@ -159,9 +159,9 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
         # add timers to our match object,
         # so we can cancel them if needed.
         match.starting = {
-            "start": state.loop.call_later(duration, _start),
+            "start": ctx.state.loop.call_later(duration, _start),
             "alerts": [
-                state.loop.call_later(duration - t, lambda t=t: _alert_start(t))
+                ctx.state.loop.call_later(duration - t, lambda t=t: _alert_start(t))
                 for t in (60, 30, 10, 5, 4, 3, 2, 1)
                 if t < duration
             ],

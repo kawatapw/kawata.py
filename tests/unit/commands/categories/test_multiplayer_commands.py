@@ -138,12 +138,18 @@ class TestMpHelp:
         mock_context.player.match = mock_match
 
         mock_command = Mock()
-        mock_command.doc = "Test command"
-        mock_command.triggers = ["test"]
-        mock_command.priv = Privileges.UNRESTRICTED
-        mock_match.commands = [mock_command]
+        mock_command.metadata = Mock()
+        mock_command.metadata.description = "Test command"
+        mock_command.metadata.triggers = ["test"]
+        mock_command.privileges = Privileges.UNRESTRICTED
 
-        result = await mp_help.callback(mock_context)
+        with patch(
+            "app.commands.get_registry",
+        ) as mock_registry:
+            mock_registry.return_value.get_by_category = Mock(
+                return_value=[mock_command],
+            )
+            result = await mp_help.callback(mock_context)
 
         assert "test:" in result
         assert "Test command" in result
