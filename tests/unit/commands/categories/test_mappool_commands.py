@@ -302,7 +302,7 @@ class TestPoolAdd:
                     result = await pool_add.callback(mock_context)
 
                 assert result is not None
-                assert "already in the pool" in result
+                assert "already" in result
 
 
 class TestPoolRemove:

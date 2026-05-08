@@ -149,9 +149,10 @@ class TestClanCreate:
             assert "already been claimed" in result
 
     @pytest.mark.asyncio
-    async def test_create_tag_taken(self, mock_context):
+    async def test_create_tag_taken(self, mock_context, mock_player):
         """Test creating a clan with taken tag."""
         mock_context.args = ["TAG", "Test Clan"]
+        mock_player.clan_id = 1
 
         with patch(
             "app.commands.categories.clan.clans_repo.fetch_one",

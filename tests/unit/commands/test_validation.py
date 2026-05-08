@@ -240,7 +240,7 @@ class TestDurationValidator:
         mock_context.args = ["-10m"]
         validator = DurationValidator(arg_index=0)
 
-        with pytest.raises(ValidationError, match='Invalid duration: "-10m"'):
+        with pytest.raises(ValidationError, match="Duration must be positive"):
             await validator(mock_context)
 
     @pytest.mark.asyncio
