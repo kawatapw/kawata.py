@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import signal
 import time
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, NoReturn, cast
 
 import timeago
 from pytimeparse.timeparse import timeparse
@@ -30,6 +30,8 @@ SHORTHAND_REASONS = {
 }
 
 if TYPE_CHECKING:
+    from asyncio import AbstractEventLoop
+
     from app.repositories import clans as clans_repo
 
 
@@ -135,7 +137,7 @@ async def restrict(ctx: Context) -> str:
     if target.is_online:
         target.logout()
 
-    return f"{target} was restricted."
+    return f"{target.name} was restricted."
 
 
 @administrator_command(
@@ -170,7 +172,7 @@ async def unrestrict(ctx: Context) -> str:
     if target.is_online:
         target.logout()
 
-    return f"{target} was unrestricted."
+    return f"{target.name} was unrestricted."
 
 
 @administrator_command(
@@ -254,7 +256,9 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
 
             ctx.state.sessions.players.enqueue(notification(alert_msg))
 
-        app.state.loop.call_later(delay, os.kill, os.getpid(), signal.SIGTERM)
+        cast("AbstractEventLoop", app.state.loop).call_later(
+            delay, os.kill, os.getpid(), signal.SIGTERM
+        )
         return f"Enqueued {ctx.trigger}."
     else:  # shutdown immediately
         os.kill(os.getpid(), signal.SIGTERM)

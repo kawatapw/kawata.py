@@ -1274,7 +1274,8 @@ class Player:
             id=self.id,
             latest_activity=int(time.time()),
         )
-        app.state.loop.create_task(task)  # type: ignore[unused-awaitable]
+        if app.state.loop is not None:
+            app.state.loop.create_task(task)  # type: ignore[unused-awaitable]
 
     def enqueue(self, data: bytes) -> None:
         """Add data to be sent to the client."""

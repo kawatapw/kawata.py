@@ -11,7 +11,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from app import packets, state
+from app import packets
 from app.commands.base import CommandCategory, multiplayer_command
 from app.commands.context import Context
 from app.constants import regexes
@@ -91,7 +91,9 @@ async def mp_help(ctx: Context, match: Match) -> str:
             # no doc, or insufficient permissions.
             continue
 
-        cmds.append(f"{prefix}mp {cmd.metadata.triggers[0]}: {cmd.metadata.description}")
+        cmds.append(
+            f"{prefix}mp {cmd.metadata.triggers[0]}: {cmd.metadata.description}"
+        )
 
     return "\n".join(cmds)
 

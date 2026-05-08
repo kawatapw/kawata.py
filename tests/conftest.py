@@ -118,11 +118,35 @@ def pytest_configure(config):
 def skip_if_no_db():
     """Skip test if database is not available.
 
-    Checks if the global services.database is initialized.
+    Checks if the global services.database is initialized and can connect.
     In CI/test environments with Docker, the database is always available.
     This fixture is a no-op when the database is present.
     """
     if services.database is None:
+        pytest.skip(
+            "Database not available - skipping test that requires DB connection"
+        )
+
+    # Also verify the database is actually reachable
+    import asyncio
+
+    async def _check_db():
+        try:
+            await services.database.execute("SELECT 1")
+            return True
+        except Exception:
+            return False
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # We're inside an async context, can't run the check
+            return
+        if not loop.run_until_complete(_check_db()):
+            pytest.skip(
+                "Database not available - skipping test that requires DB connection"
+            )
+    except Exception:
         pytest.skip(
             "Database not available - skipping test that requires DB connection"
         )

@@ -72,7 +72,7 @@ if TYPE_CHECKING:
     from app.adapters.database import Database
     from app.packets import BasePacket, ClientPackets
 
-loop: AbstractEventLoop
+loop: AbstractEventLoop | None = None
 score_submission_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 packets: dict[Literal["all", "restricted"], dict[ClientPackets, type[BasePacket]]] = {
     "all": {},
@@ -89,6 +89,8 @@ class State:
     services: Any  # services module with database, http_client, etc.
     cache: Any  # cache module
     database: Database | None = None
+    loop: Any = None  # event loop for scheduling
+    usecases: Any = None  # usecases module for business logic
 
 
 # Create a global state instance for dependency injection

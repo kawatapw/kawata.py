@@ -628,7 +628,7 @@ class TestTopCommand:
     @pytest.mark.asyncio
     async def test_top_valid_syntax(self, mock_context, mock_player, skip_if_no_db):
         """Test top command with valid syntax."""
-        mock_context.args = ["std"]
+        mock_context.args = ["vn!std"]
 
         # Mock database response
         mock_scores = [
@@ -684,7 +684,7 @@ class TestTopCommand:
     @pytest.mark.asyncio
     async def test_top_with_player(self, mock_context, mock_player, skip_if_no_db):
         """Test top command with specified player."""
-        mock_context.args = ["std", "OtherPlayer"]
+        mock_context.args = ["vn!std", "OtherPlayer"]
 
         mock_scores = [
             {
@@ -711,7 +711,7 @@ class TestTopCommand:
     @pytest.mark.asyncio
     async def test_top_no_scores(self, mock_context, mock_player, skip_if_no_db):
         """Test top command when no scores exist."""
-        mock_context.args = ["std"]
+        mock_context.args = ["vn!std"]
 
         mock_context.state.services.database.fetch_all = AsyncMock(return_value=[])
 
@@ -822,7 +822,6 @@ class TestRequestCommand:
     async def test_request_pending_only(self, mock_context, mock_player):
         """Test request command with pending only setting."""
         mock_context.args = []
-        mock_context.settings.REQUEST_PENDING_ONLY = True
 
         mock_bmap = Mock()
         mock_bmap.id = 123456
@@ -830,12 +829,12 @@ class TestRequestCommand:
 
         mock_player.last_np = {
             "bmap": mock_bmap,
-            "timeout": 9999999999,
+            "timeout": 9999999999,  # Far future
         }
 
         with patch(
-            "app.commands.categories.user.map_requests_repo.fetch_all",
-            AsyncMock(return_value=[]),
+            "app.commands.categories.user.settings.REQUEST_PENDING_ONLY",
+            True,
         ):
             result = await request.callback(mock_context)
 

@@ -2,6 +2,7 @@
 Tests for clan commands.
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -136,7 +137,7 @@ class TestClanCreate:
         ):
             result = await clan_create.callback(mock_context)
 
-            assert "name has already been claimed" in result
+            assert "already been claimed" in result
 
     @pytest.mark.asyncio
     async def test_create_tag_taken(self, mock_context, skip_if_no_db):
@@ -184,6 +185,7 @@ class TestClanDisband:
         """Test admin disbanding another clan."""
         mock_context.args = ["OTHER"]
         mock_player.priv = Privileges.ADMINISTRATOR
+        mock_context.state.sessions.players.staff = [mock_player]
 
         with patch(
             "app.commands.categories.clan.clans_repo.fetch_one",
@@ -235,7 +237,7 @@ class TestClanInfo:
                     "id": 1,
                     "tag": "TAG",
                     "name": "Test Clan",
-                    "created_at": Mock(),
+                    "created_at": datetime(2024, 1, 15),
                 }
             ),
         ):

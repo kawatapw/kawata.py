@@ -63,7 +63,7 @@ class Context:
     parsed_durations: dict[int, float] | None = None
 
     # Helper methods
-    async def get_player(self, name: str) -> "Player | None":
+    async def get_player(self, name: str) -> Player | None:
         """
         Get a player by name with caching.
 
@@ -73,9 +73,12 @@ class Context:
         Returns:
             Player object if found, None otherwise
         """
-        return cast("Player | None", await self.state.sessions.players.from_cache_or_sql(name=name))
+        return cast(
+            "Player | None",
+            await self.state.sessions.players.from_cache_or_sql(name=name),
+        )
 
-    async def get_player_by_id(self, player_id: int) -> "Player | None":
+    async def get_player_by_id(self, player_id: int) -> Player | None:
         """
         Get a player by ID with caching.
 
@@ -85,7 +88,10 @@ class Context:
         Returns:
             Player object if found, None otherwise
         """
-        return cast("Player | None", await self.state.sessions.players.from_cache_or_sql(id=player_id))
+        return cast(
+            "Player | None",
+            await self.state.sessions.players.from_cache_or_sql(id=player_id),
+        )
 
     def reply(self, message: str, hidden: bool = False) -> CommandResponse:
         """

@@ -2,6 +2,7 @@
 Tests for mappool commands.
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -282,7 +283,11 @@ class TestPoolAdd:
                     return_value=[{"map_id": 123, "mods": Mods.HIDDEN, "slot": 2}]
                 ),
             ):
-                result = await pool_add.callback(mock_context)
+                with patch(
+                    "app.commands.categories.mappool.Beatmap.from_bid",
+                    AsyncMock(return_value=mock_bmap),
+                ):
+                    result = await pool_add.callback(mock_context)
 
                 assert "already in the pool" in result
 
@@ -363,8 +368,18 @@ class TestPoolList:
             "app.commands.categories.mappool.tourney_pools_repo.fetch_many",
             AsyncMock(
                 return_value=[
-                    {"id": 1, "name": "Pool1", "created_by": 1, "created_at": Mock()},
-                    {"id": 2, "name": "Pool2", "created_by": 1, "created_at": Mock()},
+                    {
+                        "id": 1,
+                        "name": "Pool1",
+                        "created_by": 1,
+                        "created_at": datetime(2024, 1, 15),
+                    },
+                    {
+                        "id": 2,
+                        "name": "Pool2",
+                        "created_by": 1,
+                        "created_at": datetime(2024, 2, 20),
+                    },
                 ]
             ),
         ):

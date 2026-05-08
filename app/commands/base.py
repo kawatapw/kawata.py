@@ -163,8 +163,10 @@ class CommandBuilder:
 
     def post_hook(
         self,
-        hook: Callable[[Context, str | None], Awaitable[None]]
-        | Callable[[Context], Awaitable[None]],
+        hook: (
+            Callable[[Context, str | None], Awaitable[None]]
+            | Callable[[Context], Awaitable[None]]
+        ),
     ) -> CommandBuilder:
         """Add a post-execution hook."""
         self.metadata.post_hooks.append(hook)

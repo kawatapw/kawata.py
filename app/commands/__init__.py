@@ -299,10 +299,9 @@ class CommandRegistry:
                 try:
                     # Check if the validator itself is a coroutine function
                     # or if its __call__ method is a coroutine function
-                    is_async = (
-                        inspect.iscoroutinefunction(validator)
-                        or inspect.iscoroutinefunction(validator.__call__)
-                    )
+                    is_async = inspect.iscoroutinefunction(
+                        validator
+                    ) or inspect.iscoroutinefunction(validator.__call__)
                     if is_async:
                         result = validator(context)
                         if inspect.isawaitable(result):

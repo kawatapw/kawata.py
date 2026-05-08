@@ -130,7 +130,6 @@ class TestRequest:
     async def test_request_pending_only_setting(self, mock_context, mock_player):
         """Test request with pending only setting enabled."""
         mock_context.args = []
-        mock_context.state.settings.REQUEST_PENDING_ONLY = True
 
         mock_bmap = Mock()
         mock_bmap.id = 123
@@ -142,8 +141,8 @@ class TestRequest:
         }
 
         with patch(
-            "app.commands.categories.nominator.map_requests_repo.fetch_all",
-            AsyncMock(return_value=[]),
+            "app.commands.categories.nominator.settings.REQUEST_PENDING_ONLY",
+            True,
         ):
             result = await request.callback(mock_context)
 

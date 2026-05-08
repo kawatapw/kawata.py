@@ -2043,7 +2043,8 @@ async def getReplay(
 
     # increment replay views for this score
     if score.player is not None and player.id != score.player.id:
-        app.state.loop.create_task(score.increment_replay_views())  # type: ignore[unused-awaitable]
+        if app.state.loop is not None:
+            app.state.loop.create_task(score.increment_replay_views())  # type: ignore[unused-awaitable]
 
     return FileResponse(file)
 

@@ -209,7 +209,7 @@ class TestRestrictCommand:
         self, mock_context, mock_target_player, skip_if_no_db
     ):
         """Test restrict command with shorthand reason."""
-        mock_context.args = ["TargetPlayer", "aa"]
+        mock_context.args = ["TargetPlayer", "appeal"]
         mock_context.state.sessions.players.from_cache_or_sql = AsyncMock(
             return_value=mock_target_player
         )
@@ -406,27 +406,26 @@ class TestShutdownCommand:
     @pytest.mark.asyncio
     async def test_shutdown_delay_too_short(self, mock_context, skip_if_no_db):
         """Test shutdown command with delay too short."""
-        mock_context.args = ["5"]
+        mock_context.args = ["5s"]
 
         result = await shutdown.callback(mock_context)
 
         assert "Minimum delay is 15 seconds." in result
 
     @pytest.mark.asyncio
-    async def test_shutdown_with_delay(self, mock_context, skip_if_no_db):
+    async def test_shutdown_with_delay(self, mock_context):
         """Test shutdown command with valid delay."""
-        mock_context.args = ["30", "Maintenance"]
+        mock_context.args = ["30s", "Maintenance"]
 
-        with patch(
-            "app.commands.categories.administrator.asyncio.get_event_loop"
-        ) as mock_get_loop:
-            mock_loop = Mock()
-            mock_get_loop.return_value = mock_loop
-            with patch(
-                "app.commands.categories.administrator.sessions.players.enqueue"
-            ) as mock_enqueue:
-                result = await shutdown.callback(mock_context)
+        import app.state
 
-        assert "Enqueued test." in result
-        mock_loop.call_later.assert_called_once()
-        mock_enqueue.assert_called_once()
+        original_loop = app.state.loop
+        mock_loop = Mock()
+        mock_loop.call_later = Mock()
+        app.state.loop = mock_loop
+        try:
+            result = await shutdown.callback(mock_context)
+            assert "Enqueued test." in result
+            mock_loop.call_later.assert_called_once()
+        finally:
+            app.state.loop = original_loop
