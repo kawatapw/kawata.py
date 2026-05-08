@@ -25,7 +25,16 @@ from app.packets import switch_tournament_server
 from app.repositories import clans as clans_repo
 
 # Define SHORTHAND_REASONS
+# Includes both classic shorthand codes and human-readable keywords
 SHORTHAND_REASONS = {
+    # Classic codes (from old bancho.py)
+    "aa": "having their appeal accepted",
+    "cc": "using a modified osu! client",
+    "3p": "using 3rd party programs",
+    "rx": "using 3rd party programs (relax)",
+    "tw": "using 3rd party programs (timewarp)",
+    "au": "using 3rd party programs (auto play)",
+    # Human-readable keywords (from new system)
     "appeal": "appeal accepted",
     "cheat": "cheating",
     "bad": "bad behavior",
@@ -138,7 +147,7 @@ async def restrict(ctx: Context) -> str:
     if target.is_online:
         target.logout()
 
-    return f"{target.name} was restricted."
+    return f"{target} was restricted."
 
 
 @administrator_command(
@@ -173,7 +182,7 @@ async def unrestrict(ctx: Context) -> str:
     if target.is_online:
         target.logout()
 
-    return f"{target.name} was unrestricted."
+    return f"{target} was unrestricted."
 
 
 @administrator_command(

@@ -262,7 +262,7 @@ async def mp_mods(ctx: Context, match: Match) -> str | None:
         # set slot mods
         slot = match.get_slot(ctx.player)
         if slot is None:
-            raise ValueError("Player slot not found in match")
+            raise RuntimeError("Player slot not found in match")
 
         slot.mods = mods & ~SPEED_CHANGING_MODS
     else:
@@ -301,7 +301,7 @@ async def mp_freemods(ctx: Context, match: Match) -> str | None:
 
         host_slot = match.get_host_slot()
         if host_slot is None:
-            raise ValueError("Host slot not found in match")
+            raise RuntimeError("Host slot not found in match")
 
         # the match keeps any speed-changing mods,
         # and also takes any mods the host has enabled.

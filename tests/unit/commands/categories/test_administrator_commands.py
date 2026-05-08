@@ -72,6 +72,8 @@ def mock_target_player():
     target.clan_id = None
     target.restrict = AsyncMock()
     target.unrestrict = AsyncMock()
+    # Mock __str__ to return name, matching Player.__str__ behavior
+    target.__str__ = lambda self=target: self.name
     return target
 
 

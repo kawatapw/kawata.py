@@ -14,6 +14,8 @@ from app.commands.base import mappool_command
 from app.commands.context import Context
 from app.constants import regexes
 from app.constants.mods import Mods
+from app.logging import Ansi
+from app.logging import log
 from app.objects.beatmap import Beatmap
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
@@ -22,7 +24,7 @@ from app.repositories import users as users_repo
 
 @mappool_command(
     name="help",
-    triggers=["help"],
+    triggers=["help", "h"],
     description="Show all documented mappool commands the player can access.",
     hidden=True,
 )
@@ -214,7 +216,7 @@ async def pool_list(ctx: Context) -> str:
     for pool in tourney_pools:
         created_by = await users_repo.fetch_one(id=pool["created_by"])
         if created_by is None:
-            # Log error but continue
+            log(f"Could not find pool creator (Id {pool['created_by']}).", Ansi.LRED)
             continue
 
         pool_lines.append(
@@ -254,6 +256,7 @@ async def pool_info(ctx: Context) -> str:
     ):
         bmap = await Beatmap.from_bid(tourney_map["map_id"])
         if bmap is None:
+            log(f"Could not find beatmap {tourney_map['map_id']}.", Ansi.LRED)
             continue
         lines.append(
             f"{Mods(tourney_map['mods'])!r}{tourney_map['slot']}: {bmap.embed}",

@@ -104,6 +104,7 @@ def status_to_id(s: str) -> int:
 
 @nominator_command(
     name="_map",
+    triggers=["map"],
     description="Changes the ranked status of the most recently /np'ed map.",
 )
 async def _map(ctx: Context) -> str:
