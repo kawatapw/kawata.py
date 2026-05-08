@@ -297,8 +297,16 @@ class CommandRegistry:
             # Validate arguments
             for validator in command.metadata.validators:
                 try:
-                    if inspect.iscoroutinefunction(validator.__call__):
-                        await validator(context)
+                    # Check if the validator itself is a coroutine function
+                    # or if its __call__ method is a coroutine function
+                    is_async = (
+                        inspect.iscoroutinefunction(validator)
+                        or inspect.iscoroutinefunction(validator.__call__)
+                    )
+                    if is_async:
+                        result = validator(context)
+                        if inspect.isawaitable(result):
+                            await result
                     else:
                         validator(context)
                 except ValidationError as e:

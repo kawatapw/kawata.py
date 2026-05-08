@@ -10,7 +10,7 @@ import time
 from typing import TYPE_CHECKING
 
 from app import state
-from app.commands.base import mappool_command
+from app.commands.base import CommandCategory, mappool_command
 from app.commands.context import Context
 from app.constants import regexes
 from app.constants.mods import Mods
@@ -37,7 +37,7 @@ async def pool_help(ctx: Context) -> str:
     # Get all mappool commands from the registry
     from app.commands import get_registry
 
-    for cmd in get_registry().get_by_category("mappool"):
+    for cmd in get_registry().get_by_category(CommandCategory.MAPPOOL):
         if (
             not cmd.metadata.description
             or ctx.player.priv & cmd.privileges != cmd.privileges

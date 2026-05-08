@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.commands.base import clan_command
+from app.commands.base import CommandCategory, clan_command
 from app.commands.context import Context
 from app.constants.privileges import ClanPrivileges
 from app.repositories import clans as clans_repo
@@ -35,7 +35,7 @@ async def clan_help(ctx: Context) -> str:
     # Get all clan commands from the registry
     from app.commands import registry
 
-    for cmd in registry.get_by_category("clan"):
+    for cmd in registry.get_by_category(CommandCategory.CLAN):
         if (
             not cmd.metadata.description
             or ctx.player.priv & cmd.privileges != cmd.privileges

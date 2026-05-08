@@ -377,7 +377,7 @@ async def lastFM(
         if flags & (LastFMFlags.HQ_ASSEMBLY | LastFMFlags.HQ_FILE):
             # Player is currently running hq!osu; could possibly
             # be a separate client, buuuut prooobably not lol.
-
+            assert app.state.sessions.bot is not None
             await player.restrict(
                 admin=app.state.sessions.bot,
                 reason=f"hq!osu running ({flags})",
@@ -397,6 +397,7 @@ async def lastFM(
 
             if random.randrange(32) == 0:  # nosec B311
                 # Random chance (1/32) for a ban.
+                assert app.state.sessions.bot is not None
                 await player.restrict(
                     admin=app.state.sessions.bot,
                     reason="hq!osu relife 1/32",
@@ -1063,6 +1064,7 @@ async def osuSubmitModularSelector(
                     f"Restricting player {score.player.name} for submitting score without replay",
                     Ansi.LRED,
                 )
+                assert app.state.sessions.bot is not None
                 await score.player.restrict(
                     admin=app.state.sessions.bot,
                     reason="submitted score with no replay",
@@ -1603,8 +1605,8 @@ async def osuSubmitModularSelector(
 
         # Determine which stats to use for the overall ranking chart
         # based on the player's preferred view
-        chart_stats: ModeData
-        chart_prev: ModeData
+        chart_stats: ModeData = all_time_stats
+        chart_prev: ModeData = all_time_prev
         using_seasonal_stats = False
 
         log(

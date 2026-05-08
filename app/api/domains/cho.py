@@ -589,6 +589,7 @@ class SendMessage(BasePacket):
                     recipients=staff - {player},
                 )
                 if cmd.resp is not None:
+                    assert app.state.sessions.bot is not None
                     t_chan.send_selective(
                         msg=cmd.resp,
                         sender=app.state.sessions.bot,

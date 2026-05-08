@@ -2660,7 +2660,10 @@ async def process_commands(
         state=app.state,
     )
 
-    return result
+    # Convert ContextCommandResponse to our CommandResponse TypedDict
+    if result is None:
+        return None
+    return CommandResponse(resp=result.resp, hidden=result.hidden)
 
 
 """ Season management commands
