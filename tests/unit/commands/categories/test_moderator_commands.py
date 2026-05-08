@@ -67,6 +67,7 @@ class TestNotesCommand:
 
         result = await notes.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!notes <name> <days_back>" in result
 
@@ -80,6 +81,7 @@ class TestNotesCommand:
 
         result = await notes.callback(mock_context)
 
+        assert result is not None
         assert '"nonexistent" not found.' in result
 
     @pytest.mark.asyncio
@@ -92,6 +94,7 @@ class TestNotesCommand:
 
         result = await notes.callback(mock_context)
 
+        assert result is not None
         assert "Please contact a developer" in result
 
     @pytest.mark.asyncio
@@ -104,6 +107,7 @@ class TestNotesCommand:
 
         result = await notes.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -117,6 +121,7 @@ class TestNotesCommand:
 
         result = await notes.callback(mock_context)
 
+        assert result is not None
         assert "No notes found on TargetPlayer" in result
 
     @pytest.mark.asyncio
@@ -150,6 +155,7 @@ class TestNotesCommand:
         ):
             result = await notes.callback(mock_context)
 
+        assert result is not None
         assert "ModeratorName" in result
         assert "spamming" in result
 
@@ -164,6 +170,7 @@ class TestAddnoteCommand:
 
         result = await addnote.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!addnote <name> <note ...>" in result
 
@@ -177,6 +184,7 @@ class TestAddnoteCommand:
 
         result = await addnote.callback(mock_context)
 
+        assert result is not None
         assert '"nonexistent" not found.' in result
 
     @pytest.mark.asyncio
@@ -190,6 +198,7 @@ class TestAddnoteCommand:
         with patch("app.commands.categories.moderator.logs_repo.create", AsyncMock()):
             result = await addnote.callback(mock_context)
 
+        assert result is not None
         assert "Added note to TargetPlayer." in result
 
 
@@ -203,6 +212,7 @@ class TestSilenceCommand:
 
         result = await silence.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!silence <name> <duration> <reason>" in result
 
@@ -216,6 +226,7 @@ class TestSilenceCommand:
 
         result = await silence.callback(mock_context)
 
+        assert result is not None
         assert '"nonexistent" not found.' in result
 
     @pytest.mark.asyncio
@@ -231,6 +242,7 @@ class TestSilenceCommand:
 
         result = await silence.callback(mock_context)
 
+        assert result is not None
         assert "Only developers can manage staff members." in result
 
     @pytest.mark.asyncio
@@ -243,6 +255,7 @@ class TestSilenceCommand:
 
         result = await silence.callback(mock_context)
 
+        assert result is not None
         assert "Invalid timespan." in result
 
     @pytest.mark.asyncio
@@ -258,6 +271,7 @@ class TestSilenceCommand:
 
         result = await silence.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer was silenced." in result
         # Verify shorthand was expanded
         mock_target_player.silence.assert_called_once()
@@ -275,6 +289,7 @@ class TestSilenceCommand:
 
         result = await silence.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer was silenced." in result
         mock_target_player.silence.assert_called_once()
 
@@ -289,6 +304,7 @@ class TestUnsilenceCommand:
 
         result = await unsilence.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!unsilence <name> <reason>" in result
 
@@ -302,6 +318,7 @@ class TestUnsilenceCommand:
 
         result = await unsilence.callback(mock_context)
 
+        assert result is not None
         assert '"nonexistent" not found.' in result
 
     @pytest.mark.asyncio
@@ -315,6 +332,7 @@ class TestUnsilenceCommand:
 
         result = await unsilence.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer is not silenced." in result
 
     @pytest.mark.asyncio
@@ -331,6 +349,7 @@ class TestUnsilenceCommand:
 
         result = await unsilence.callback(mock_context)
 
+        assert result is not None
         assert "Only developers can manage staff members." in result
 
     @pytest.mark.asyncio
@@ -345,6 +364,7 @@ class TestUnsilenceCommand:
 
         result = await unsilence.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer was unsilenced." in result
         mock_target_player.unsilence.assert_called_once()
 

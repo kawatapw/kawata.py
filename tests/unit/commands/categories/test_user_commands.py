@@ -111,6 +111,7 @@ class TestRollCommand:
 
         result = await roll.callback(mock_context)
 
+        assert result is not None
         assert "TestPlayer rolls" in result
         assert "points!" in result
 
@@ -130,6 +131,7 @@ class TestRollCommand:
 
         result = await roll.callback(mock_context)
 
+        assert result is not None
         assert "TestPlayer rolls" in result
         assert "points!" in result
 
@@ -140,6 +142,7 @@ class TestRollCommand:
 
         result = await roll.callback(mock_context)
 
+        assert result is not None
         assert "TestPlayer rolls" in result
         assert "points!" in result
 
@@ -163,6 +166,7 @@ class TestBlockCommand:
 
         result = await block.callback(mock_context)
 
+        assert result is not None
         assert "Added TargetPlayer to blocked users." in result
         mock_context.player.add_block.assert_called_once_with(target)
 
@@ -176,6 +180,7 @@ class TestBlockCommand:
 
         result = await block.callback(mock_context)
 
+        assert result is not None
         assert "User not found." in result
 
     @pytest.mark.asyncio
@@ -188,6 +193,7 @@ class TestBlockCommand:
 
         result = await block.callback(mock_context)
 
+        assert result is not None
         assert "What?" in result
 
     @pytest.mark.asyncio
@@ -200,6 +206,7 @@ class TestBlockCommand:
 
         result = await block.callback(mock_context)
 
+        assert result is not None
         assert "What?" in result
 
     @pytest.mark.asyncio
@@ -217,6 +224,7 @@ class TestBlockCommand:
 
         result = await block.callback(mock_context)
 
+        assert result is not None
         assert "already blocked!" in result
 
     @pytest.mark.asyncio
@@ -257,6 +265,7 @@ class TestUnblockCommand:
 
         result = await unblock.callback(mock_context)
 
+        assert result is not None
         assert "Removed TargetPlayer from blocked users." in result
         mock_context.player.remove_block.assert_called_once_with(target)
 
@@ -270,6 +279,7 @@ class TestUnblockCommand:
 
         result = await unblock.callback(mock_context)
 
+        assert result is not None
         assert "User not found." in result
 
     @pytest.mark.asyncio
@@ -287,6 +297,7 @@ class TestUnblockCommand:
 
         result = await unblock.callback(mock_context)
 
+        assert result is not None
         assert "not blocked!" in result
 
 
@@ -340,6 +351,7 @@ class TestReconnectCommand:
 
         result = await reconnect.callback(mock_context)
 
+        assert result is not None
         assert "Player not found" in result
 
 
@@ -374,6 +386,7 @@ class TestChangenameCommand:
 
         result = await changename.callback(mock_context)
 
+        assert result is not None
         assert "Must be 2-15 characters in length." in result
 
     @pytest.mark.asyncio
@@ -383,6 +396,7 @@ class TestChangenameCommand:
 
         result = await changename.callback(mock_context)
 
+        assert result is not None
         assert "Must be 2-15 characters in length." in result
 
     @pytest.mark.asyncio
@@ -392,6 +406,7 @@ class TestChangenameCommand:
 
         result = await changename.callback(mock_context)
 
+        assert result is not None
         assert "Must be 2-15 characters in length." in result
 
     @pytest.mark.asyncio
@@ -401,6 +416,7 @@ class TestChangenameCommand:
 
         result = await changename.callback(mock_context)
 
+        assert result is not None
         assert 'May contain "_" and " ", but not both.' in result
 
     @pytest.mark.asyncio
@@ -414,6 +430,7 @@ class TestChangenameCommand:
         ):
             result = await changename.callback(mock_context)
 
+        assert result is not None
         assert "Disallowed username" in result
 
     @pytest.mark.asyncio
@@ -427,6 +444,7 @@ class TestChangenameCommand:
         ):
             result = await changename.callback(mock_context)
 
+        assert result is not None
         assert "Username already taken" in result
 
 
@@ -454,6 +472,7 @@ class TestMaplinkCommand:
         ):
             result = await maplink.callback(mock_context)
 
+            assert result is not None
             assert "https://mirror.hinamizawa.ai/api/v1/hinai/d/123456" in result
             assert "Test Map" in result
 
@@ -479,6 +498,7 @@ class TestMaplinkCommand:
         ):
             result = await maplink.callback(mock_context)
 
+            assert result is not None
             assert "https://mirror.hinamizawa.ai/api/v1/hinai/d/789012" in result
             assert "Spectating Map" in result
 
@@ -498,6 +518,7 @@ class TestMaplinkCommand:
 
         result = await maplink.callback(mock_context)
 
+        assert result is not None
         assert "https://mirror.hinamizawa.ai/api/v1/hinai/d/456789" in result
         assert "NP Map" in result
 
@@ -510,6 +531,7 @@ class TestMaplinkCommand:
 
         result = await maplink.callback(mock_context)
 
+        assert result is not None
         assert "No map found!" in result
 
 
@@ -539,6 +561,7 @@ class TestRecentCommand:
 
         result = await recent.callback(mock_context)
 
+        assert result is not None
         assert "Test Map" in result
         assert "95.50%" in result
         assert "+HDHR" in result
@@ -571,7 +594,6 @@ class TestRecentCommand:
 
         result = await recent.callback(mock_context)
 
-        # Should not raise an error
         assert result is not None
         assert "TargetPlayer" in result or "Test Map" in result
 
@@ -583,6 +605,7 @@ class TestRecentCommand:
 
         result = await recent.callback(mock_context)
 
+        assert result is not None
         assert "No scores found" in result
 
     @pytest.mark.asyncio
@@ -596,6 +619,7 @@ class TestRecentCommand:
 
         result = await recent.callback(mock_context)
 
+        assert result is not None
         assert "We don't have a beatmap on file" in result
 
     @pytest.mark.asyncio
@@ -619,6 +643,7 @@ class TestRecentCommand:
 
         result = await recent.callback(mock_context)
 
+        assert result is not None
         assert "FAIL" in result
 
 
@@ -651,6 +676,7 @@ class TestTopCommand:
         ):
             result = await top.callback(mock_context)
 
+            assert result is not None
             assert "Top 10 scores for" in result
             assert "300.50pp" in result
 
@@ -661,6 +687,7 @@ class TestTopCommand:
 
         result = await top.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -670,6 +697,7 @@ class TestTopCommand:
 
         result = await top.callback(mock_context)
 
+        assert result is not None
         assert "Valid gamemodes:" in result
 
     @pytest.mark.asyncio
@@ -679,6 +707,7 @@ class TestTopCommand:
 
         result = await top.callback(mock_context)
 
+        assert result is not None
         assert "Impossible gamemode combination" in result
 
     @pytest.mark.asyncio
@@ -706,6 +735,7 @@ class TestTopCommand:
         ):
             result = await top.callback(mock_context)
 
+        assert result is not None
         assert "Top 10 scores for" in result
 
     @pytest.mark.asyncio
@@ -721,6 +751,7 @@ class TestTopCommand:
         ):
             result = await top.callback(mock_context)
 
+            assert result is not None
             assert "No scores" in result
 
 
@@ -735,6 +766,7 @@ class TestWithCommand:
 
         result = await _with.callback(mock_context)
 
+        assert result is not None
         assert "This command can only be used in DM with Bot." in result
 
     @pytest.mark.asyncio
@@ -745,6 +777,7 @@ class TestWithCommand:
 
         result = await _with.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first!" in result
 
     @pytest.mark.asyncio
@@ -758,6 +791,7 @@ class TestWithCommand:
 
         result = await _with.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first!" in result
 
     @pytest.mark.asyncio
@@ -792,6 +826,7 @@ class TestWithCommand:
         ):
             result = await _with.callback(mock_context)
 
+        assert result is not None
         assert "pp" in result
         assert "*" in result
 
@@ -806,6 +841,7 @@ class TestRequestCommand:
 
         result = await request.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -816,6 +852,7 @@ class TestRequestCommand:
 
         result = await request.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first!" in result
 
     @pytest.mark.asyncio
@@ -838,6 +875,7 @@ class TestRequestCommand:
         ):
             result = await request.callback(mock_context)
 
+            assert result is not None
             assert "Only pending maps may be requested" in result
 
     @pytest.mark.asyncio
@@ -860,6 +898,7 @@ class TestRequestCommand:
         ):
             result = await request.callback(mock_context)
 
+        assert result is not None
         assert "You already have an active nomination request" in result
 
     @pytest.mark.asyncio
@@ -886,6 +925,7 @@ class TestRequestCommand:
             ):
                 result = await request.callback(mock_context)
 
+        assert result is not None
         assert "Request submitted." in result
 
 
@@ -900,6 +940,7 @@ class TestApikeyCommand:
 
         result = await apikey.callback(mock_context)
 
+        assert result is not None
         assert "Command only available in DMs with" in result
 
     @pytest.mark.asyncio
@@ -915,6 +956,7 @@ class TestApikeyCommand:
         ):
             result = await apikey.callback(mock_context)
 
+            assert result is not None
             assert "API key generated" in result
             assert mock_player.api_key is not None
             assert mock_player.api_key in mock_context.state.sessions.api_keys
@@ -932,6 +974,7 @@ class TestApikeyCommand:
         ):
             result = await apikey.callback(mock_context)
 
+            assert result is not None
             assert "API key generated" in result
             assert mock_player.api_key != "old-key-123"
             assert "old-key-123" not in mock_context.state.sessions.api_keys

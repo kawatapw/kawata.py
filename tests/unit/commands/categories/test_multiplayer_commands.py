@@ -151,6 +151,7 @@ class TestMpHelp:
             )
             result = await mp_help.callback(mock_context)
 
+        assert result is not None
         assert "test:" in result
         assert "Test command" in result
 
@@ -171,6 +172,7 @@ class TestMpStart:
 
         result = await mp_start.callback(mock_context)
 
+        assert result is not None
         assert "Not all players are ready" in result
 
     @pytest.mark.asyncio
@@ -186,6 +188,7 @@ class TestMpStart:
 
         result = await mp_start.callback(mock_context)
 
+        assert result is not None
         assert "Good luck!" in result
         mock_match.start.assert_called_once()
 
@@ -197,6 +200,7 @@ class TestMpStart:
 
         result = await mp_start.callback(mock_context)
 
+        assert result is not None
         assert "Good luck!" in result
         mock_match.start.assert_called_once()
 
@@ -208,6 +212,7 @@ class TestMpStart:
 
         result = await mp_start.callback(mock_context)
 
+        assert result is not None
         assert "Match will start in 30 seconds" in result
 
     @pytest.mark.asyncio
@@ -223,6 +228,7 @@ class TestMpStart:
 
         result = await mp_start.callback(mock_context)
 
+        assert result is not None
         assert "Match timer cancelled" in result
 
 
@@ -238,6 +244,7 @@ class TestMpAbort:
 
         result = await mp_abort.callback(mock_context)
 
+        assert result is not None
         assert "Match aborted" in result
         mock_match.unready_players.assert_called_once()
         mock_match.enqueue.assert_called_once()
@@ -264,6 +271,7 @@ class TestMpMap:
         ):
             result = await mp_map.callback(mock_context)
 
+            assert result is not None
             assert "Selected:" in result
             assert mock_match.map_id == 123456
             mock_match.enqueue_state.assert_called_once()
@@ -276,6 +284,7 @@ class TestMpMap:
 
         result = await mp_map.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -287,6 +296,7 @@ class TestMpMap:
 
         result = await mp_map.callback(mock_context)
 
+        assert result is not None
         assert "Map already selected" in result
 
     @pytest.mark.asyncio
@@ -301,6 +311,7 @@ class TestMpMap:
         ):
             result = await mp_map.callback(mock_context)
 
+            assert result is not None
             assert "Beatmap not found" in result
 
 
@@ -316,6 +327,7 @@ class TestMpMods:
 
         result = await mp_mods.callback(mock_context)
 
+        assert result is not None
         assert "Match mods updated" in result
         mock_match.enqueue_state.assert_called_once()
 
@@ -327,6 +339,7 @@ class TestMpMods:
 
         result = await mp_mods.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -341,6 +354,7 @@ class TestMpFreemods:
 
         result = await mp_freemods.callback(mock_context)
 
+        assert result is not None
         assert "Match freemod status updated" in result
         assert mock_match.freemods is True
 
@@ -352,6 +366,7 @@ class TestMpFreemods:
 
         result = await mp_freemods.callback(mock_context)
 
+        assert result is not None
         assert "Match freemod status updated" in result
         assert mock_match.freemods is False
 
@@ -363,6 +378,7 @@ class TestMpFreemods:
 
         result = await mp_freemods.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -386,6 +402,7 @@ class TestMpHost:
 
         result = await mp_host.callback(mock_context)
 
+        assert result is not None
         assert "Match host updated" in result
         assert mock_match.host_id == 2
 
@@ -397,6 +414,7 @@ class TestMpHost:
 
         result = await mp_host.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -411,6 +429,7 @@ class TestMpHost:
 
         result = await mp_host.callback(mock_context)
 
+        assert result is not None
         assert "Found no such player in the match" in result
 
 
@@ -425,6 +444,7 @@ class TestMpRandpw:
 
         result = await mp_randpw.callback(mock_context)
 
+        assert result is not None
         assert "Match password randomized" in result
 
 
@@ -444,6 +464,7 @@ class TestMpInvite:
 
         result = await mp_invite.callback(mock_context)
 
+        assert result is not None
         assert "Invited" in result
         target.enqueue.assert_called_once()
 
@@ -455,6 +476,7 @@ class TestMpInvite:
 
         result = await mp_invite.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -477,6 +499,7 @@ class TestMpAddref:
 
         result = await mp_addref.callback(mock_context)
 
+        assert result is not None
         assert "added to match referees" in result
         assert target in mock_match.referees
 
@@ -488,6 +511,7 @@ class TestMpAddref:
 
         result = await mp_addref.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -511,6 +535,7 @@ class TestMpRmref:
 
         result = await mp_rmref.callback(mock_context)
 
+        assert result is not None
         assert "removed from match referees" in result
         assert target not in mock_match.referees
 
@@ -522,6 +547,7 @@ class TestMpRmref:
 
         result = await mp_rmref.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -545,6 +571,7 @@ class TestMpListref:
 
         result = await mp_listref.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer" in result
 
 
@@ -563,6 +590,7 @@ class TestMpLock:
 
         result = await mp_lock.callback(mock_context)
 
+        assert result is not None
         assert "All unused slots locked" in result
         assert slot.status == SlotStatus.locked
 
@@ -582,6 +610,7 @@ class TestMpUnlock:
 
         result = await mp_unlock.callback(mock_context)
 
+        assert result is not None
         assert "All locked slots unlocked" in result
         assert slot.status == SlotStatus.open
 
@@ -597,6 +626,7 @@ class TestMpTeams:
 
         result = await mp_teams.callback(mock_context)
 
+        assert result is not None
         assert "Match team type updated" in result
         assert mock_match.team_type == MatchTeamTypes.head_to_head
 
@@ -608,6 +638,7 @@ class TestMpTeams:
 
         result = await mp_teams.callback(mock_context)
 
+        assert result is not None
         assert "Match team type updated" in result
         assert mock_match.team_type == MatchTeamTypes.team_vs
 
@@ -619,6 +650,7 @@ class TestMpTeams:
 
         result = await mp_teams.callback(mock_context)
 
+        assert result is not None
         assert "Unknown team type" in result
 
 
@@ -633,6 +665,7 @@ class TestMpCondition:
 
         result = await mp_condition.callback(mock_context)
 
+        assert result is not None
         assert "Match win condition updated" in result
         assert mock_match.win_condition == MatchWinConditions.score
 
@@ -645,6 +678,7 @@ class TestMpCondition:
 
         result = await mp_condition.callback(mock_context)
 
+        assert result is not None
         assert "Match win condition updated" in result
         assert mock_match.use_pp_scoring is True
 
@@ -656,6 +690,7 @@ class TestMpCondition:
 
         result = await mp_condition.callback(mock_context)
 
+        assert result is not None
         assert "Invalid win condition" in result
 
 
@@ -670,6 +705,7 @@ class TestMpScrim:
 
         result = await mp_scrim.callback(mock_context)
 
+        assert result is not None
         assert "scrimmage has been started" in result
         assert mock_match.is_scrimming is True
 
@@ -682,6 +718,7 @@ class TestMpScrim:
 
         result = await mp_endscrim.callback(mock_context)
 
+        assert result is not None
         assert "Scrimmage ended" in result
         assert mock_match.is_scrimming is False
 
@@ -693,6 +730,7 @@ class TestMpScrim:
 
         result = await mp_scrim.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -708,6 +746,7 @@ class TestMpEndscrim:
 
         result = await mp_endscrim.callback(mock_context)
 
+        assert result is not None
         assert "Scrimmage ended" in result
         assert mock_match.is_scrimming is False
 
@@ -728,6 +767,7 @@ class TestMpRematch:
 
         result = await mp_rematch.callback(mock_context)
 
+        assert result is not None
         assert (
             "point has been deducted" in result or "rematch has been started" in result
         )
@@ -742,6 +782,7 @@ class TestMpRematch:
 
         result = await mp_rematch.callback(mock_context)
 
+        assert result is not None
         assert "Only available to the host" in result
 
 
@@ -762,6 +803,7 @@ class TestMpForce:
 
         result = await mp_force.callback(mock_context)
 
+        assert result is not None
         assert "Welcome" in result
         target.join_match.assert_called_once()
 
@@ -782,6 +824,7 @@ class TestMpLoadpool:
         ):
             result = await mp_loadpool.callback(mock_context)
 
+            assert result is not None
             assert "selected" in result
             assert mock_match.tourney_pool is not None
 
@@ -799,6 +842,7 @@ class TestMpUnloadpool:
 
         result = await mp_unloadpool.callback(mock_context)
 
+        assert result is not None
         assert "Mappool unloaded" in result
         assert mock_match.tourney_pool is None
 
@@ -819,6 +863,7 @@ class TestMpBan:
         ):
             result = await mp_ban.callback(mock_context)
 
+            assert result is not None
             assert "banned" in result
             assert (Mods.HIDDEN, 2) in mock_match.bans
 
@@ -840,6 +885,7 @@ class TestMpUnban:
         ):
             result = await mp_unban.callback(mock_context)
 
+            assert result is not None
             assert "unbanned" in result
             assert (Mods.HIDDEN, 2) not in mock_match.bans
 
@@ -870,5 +916,6 @@ class TestMpPick:
             ):
                 result = await mp_pick.callback(mock_context)
 
+                assert result is not None
                 assert "Picked" in result
                 assert mock_match.map_md5 == "abc123"

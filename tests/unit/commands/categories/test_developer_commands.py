@@ -79,6 +79,7 @@ class TestStealthCommand:
 
         result = await stealth.callback(mock_context)
 
+        assert result is not None
         assert "Stealth enabled" in result
         assert mock_context.player.stealth is True
 
@@ -89,6 +90,7 @@ class TestStealthCommand:
 
         result = await stealth.callback(mock_context)
 
+        assert result is not None
         assert "Stealth disabled" in result
         assert mock_context.player.stealth is False
 
@@ -101,6 +103,7 @@ class TestRecalcCommand:
         """Test recalc command."""
         result = await recalc.callback(mock_context)
 
+        assert result is not None
         assert "Please use tools/recalc.py instead" in result
         assert "discord.gg" in result
 
@@ -115,6 +118,7 @@ class TestDebugCommand:
 
         result = await debug.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!debug <0-3>" in result
 
@@ -126,6 +130,7 @@ class TestDebugCommand:
         with patch("app.commands.categories.developer.settings.DEBUG_LEVEL", Mock()):
             result = await debug.callback(mock_context)
 
+        assert result is not None
         assert "Set Debug Level to 2" in result
 
 
@@ -139,6 +144,7 @@ class TestDebugFocusCommand:
 
         result = await debug_focus.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert (
             "!debugFocus <all/scores/leaderboards/messages/requests/client>" in result
@@ -152,6 +158,7 @@ class TestDebugFocusCommand:
         with patch("app.commands.categories.developer.settings.DEBUG_FOCUS", Mock()):
             result = await debug_focus.callback(mock_context)
 
+        assert result is not None
         assert "Set Debug Focus to scores" in result
 
 
@@ -165,6 +172,7 @@ class TestAddprivCommand:
 
         result = await addpriv.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!addpriv <name> <role1 role2 role3 ...>" in result
 
@@ -178,6 +186,7 @@ class TestAddprivCommand:
 
         result = await addpriv.callback(mock_context)
 
+        assert result is not None
         assert "Could not find user." in result
 
     @pytest.mark.asyncio
@@ -190,6 +199,7 @@ class TestAddprivCommand:
 
         result = await addpriv.callback(mock_context)
 
+        assert result is not None
         assert "Not found: invalid_role" in result
 
     @pytest.mark.asyncio
@@ -202,6 +212,7 @@ class TestAddprivCommand:
 
         result = await addpriv.callback(mock_context)
 
+        assert result is not None
         assert "Please use the !givedonator command" in result
 
     @pytest.mark.asyncio
@@ -214,6 +225,7 @@ class TestAddprivCommand:
 
         result = await addpriv.callback(mock_context)
 
+        assert result is not None
         assert "Updated" in result
         assert "privileges." in result
         mock_target_player.add_privs.assert_called_once()
@@ -229,6 +241,7 @@ class TestRmprivCommand:
 
         result = await rmpriv.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!rmpriv <name> <role1 role2 role3 ...>" in result
 
@@ -242,6 +255,7 @@ class TestRmprivCommand:
 
         result = await rmpriv.callback(mock_context)
 
+        assert result is not None
         assert "Could not find user." in result
 
     @pytest.mark.asyncio
@@ -254,6 +268,7 @@ class TestRmprivCommand:
 
         result = await rmpriv.callback(mock_context)
 
+        assert result is not None
         assert "Not found: invalid_role" in result
 
     @pytest.mark.asyncio
@@ -266,6 +281,7 @@ class TestRmprivCommand:
 
         result = await rmpriv.callback(mock_context)
 
+        assert result is not None
         assert "Updated" in result
         assert "privileges." in result
         mock_target_player.remove_privs.assert_called_once()
@@ -297,6 +313,7 @@ class TestGivedonatorCommand:
 
         result = await givedonator.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!givedonator <name> <duration>" in result
 
@@ -310,6 +327,7 @@ class TestGivedonatorCommand:
 
         result = await givedonator.callback(mock_context)
 
+        assert result is not None
         assert "Could not find user." in result
 
     @pytest.mark.asyncio
@@ -322,6 +340,7 @@ class TestGivedonatorCommand:
 
         result = await givedonator.callback(mock_context)
 
+        assert result is not None
         assert "Invalid timespan." in result
 
     @pytest.mark.asyncio
@@ -335,6 +354,7 @@ class TestGivedonatorCommand:
         with patch("app.commands.categories.developer.time.time", return_value=1000):
             result = await givedonator.callback(mock_context)
 
+        assert result is not None
         assert "Added 30d of donator status to" in result
         assert "." in result
         mock_target_player.add_privs.assert_called_once()
@@ -350,6 +370,7 @@ class TestWipemapCommand:
 
         result = await wipemap.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!wipemap" in result
 
@@ -360,6 +381,7 @@ class TestWipemapCommand:
 
         result = await wipemap.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first!" in result
 
     @pytest.mark.asyncio
@@ -377,6 +399,7 @@ class TestWipemapCommand:
 
         result = await wipemap.callback(mock_context)
 
+        assert result is not None
         assert "Scores wiped." in result
         mock_context.state.services.database.execute.assert_called_once()
 
@@ -391,6 +414,7 @@ class TestReloadCommand:
 
         result = await reload.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!reload <module>" in result
 
@@ -401,6 +425,7 @@ class TestReloadCommand:
 
         result = await reload.callback(mock_context)
 
+        assert result is not None
         assert "Module not found." in result
 
     @pytest.mark.asyncio
@@ -412,6 +437,7 @@ class TestReloadCommand:
             mock_reload.return_value = Mock(__name__="os")
             result = await reload.callback(mock_context)
 
+        assert result is not None
         assert "Reloaded os" in result
 
 
@@ -448,6 +474,7 @@ class TestServerCommand:
 
                         result = await server.callback(mock_context)
 
+        assert result is not None
         assert "bancho.py" in result
         assert "Test CPU" in result
 
@@ -462,6 +489,7 @@ class TestPyCommand:
 
         result = await py.callback(mock_context)
 
+        assert result is not None
         assert "owo" in result
 
     @pytest.mark.asyncio
@@ -471,6 +499,7 @@ class TestPyCommand:
 
         result = await py.callback(mock_context)
 
+        assert result is not None
         assert "42" in result
 
     @pytest.mark.asyncio
@@ -480,4 +509,5 @@ class TestPyCommand:
 
         result = await py.callback(mock_context)
 
+        assert result is not None
         assert "ZeroDivisionError" in result or "Error" in result

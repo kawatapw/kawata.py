@@ -83,6 +83,7 @@ class TestRequest:
             ):
                 result = await request.callback(mock_context)
 
+                assert result is not None
                 assert "Request submitted" in result
 
     @pytest.mark.asyncio
@@ -92,6 +93,7 @@ class TestRequest:
 
         result = await request.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -102,6 +104,7 @@ class TestRequest:
 
         result = await request.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first" in result
 
     @pytest.mark.asyncio
@@ -124,6 +127,7 @@ class TestRequest:
         ):
             result = await request.callback(mock_context)
 
+            assert result is not None
             assert "already have an active nomination request" in result
 
     @pytest.mark.asyncio
@@ -146,6 +150,7 @@ class TestRequest:
         ):
             result = await request.callback(mock_context)
 
+            assert result is not None
             assert "Only pending maps may be requested" in result
 
 
@@ -172,6 +177,7 @@ class TestRequests:
             ):
                 result = await requests.callback(mock_context)
 
+                assert result is not None
                 assert "Total requested beatmaps: 1" in result
                 assert "2x request(s)" in result
 
@@ -186,6 +192,7 @@ class TestRequests:
         ):
             result = await requests.callback(mock_context)
 
+            assert result is not None
             assert "The queue is clean!" in result
 
     @pytest.mark.asyncio
@@ -195,6 +202,7 @@ class TestRequests:
 
         result = await requests.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
 
@@ -237,6 +245,7 @@ class TestMap:
             ):
                 result = await _map.callback(mock_context)
 
+                assert result is not None
                 assert "updated to Ranked" in result
 
     @pytest.mark.asyncio
@@ -285,6 +294,7 @@ class TestMap:
                 ):
                     result = await _map.callback(mock_context)
 
+                    assert result is not None
                     assert "updated to Ranked" in result
 
     @pytest.mark.asyncio
@@ -323,6 +333,7 @@ class TestMap:
             ):
                 result = await _map.callback(mock_context)
 
+                assert result is not None
                 assert "updated to Unranked" in result
 
     @pytest.mark.asyncio
@@ -361,6 +372,7 @@ class TestMap:
             ):
                 result = await _map.callback(mock_context)
 
+                assert result is not None
                 assert "updated to Loved" in result
 
     @pytest.mark.asyncio
@@ -370,6 +382,7 @@ class TestMap:
 
         result = await _map.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -380,6 +393,7 @@ class TestMap:
 
         result = await _map.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first" in result
 
     @pytest.mark.asyncio
@@ -401,4 +415,5 @@ class TestMap:
 
         result = await _map.callback(mock_context)
 
+        assert result is not None
         assert "already Ranked" in result

@@ -82,6 +82,7 @@ class TestClanCreate:
 
                     result = await clan_create.callback(mock_context)
 
+                    assert result is not None
                     assert "founded" in result
                     assert "TAG" in result
 
@@ -92,6 +93,7 @@ class TestClanCreate:
 
         result = await clan_create.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -101,6 +103,7 @@ class TestClanCreate:
 
         result = await clan_create.callback(mock_context)
 
+        assert result is not None
         assert "Clan tag may be 1-6 characters long" in result
 
     @pytest.mark.asyncio
@@ -110,6 +113,7 @@ class TestClanCreate:
 
         result = await clan_create.callback(mock_context)
 
+        assert result is not None
         assert "Clan name may be 2-16 characters long" in result
 
     @pytest.mark.asyncio
@@ -124,6 +128,7 @@ class TestClanCreate:
         ):
             result = await clan_create.callback(mock_context)
 
+            assert result is not None
             assert "already a member" in result
 
     @pytest.mark.asyncio
@@ -137,6 +142,7 @@ class TestClanCreate:
         ):
             result = await clan_create.callback(mock_context)
 
+            assert result is not None
             assert "already been claimed" in result
 
     @pytest.mark.asyncio
@@ -150,6 +156,7 @@ class TestClanCreate:
         ):
             result = await clan_create.callback(mock_context)
 
+            assert result is not None
             assert "tag has already been claimed" in result
 
 
@@ -176,6 +183,7 @@ class TestClanDisband:
                 ):
                     result = await clan_disband.callback(mock_context)
 
+                    assert result is not None
                     assert "disbanded" in result
 
     @pytest.mark.asyncio
@@ -201,6 +209,7 @@ class TestClanDisband:
                 ):
                     result = await clan_disband.callback(mock_context)
 
+                    assert result is not None
                     assert "disbanded" in result
 
     @pytest.mark.asyncio
@@ -210,6 +219,7 @@ class TestClanDisband:
 
         result = await clan_disband.callback(mock_context)
 
+        assert result is not None
         assert "Only staff members may disband" in result
 
     @pytest.mark.asyncio
@@ -219,6 +229,7 @@ class TestClanDisband:
 
         result = await clan_disband.callback(mock_context)
 
+        assert result is not None
         assert "not a member of a clan" in result
 
 
@@ -252,6 +263,7 @@ class TestClanInfo:
             ):
                 result = await clan_info.callback(mock_context)
 
+                assert result is not None
                 assert "Test Clan" in result
                 assert "Owner" in result
                 assert "Member" in result
@@ -263,6 +275,7 @@ class TestClanInfo:
 
         result = await clan_info.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -276,6 +289,7 @@ class TestClanInfo:
         ):
             result = await clan_info.callback(mock_context)
 
+            assert result is not None
             assert "Could not find a clan" in result
 
 
@@ -302,6 +316,7 @@ class TestClanLeave:
                 ):
                     result = await clan_leave.callback(mock_context)
 
+                    assert result is not None
                     assert "successfully left" in result
 
     @pytest.mark.asyncio
@@ -311,6 +326,7 @@ class TestClanLeave:
 
         result = await clan_leave.callback(mock_context)
 
+        assert result is not None
         assert "not in a clan" in result
 
     @pytest.mark.asyncio
@@ -322,6 +338,7 @@ class TestClanLeave:
 
         result = await clan_leave.callback(mock_context)
 
+        assert result is not None
         assert "transfer your clan's ownership" in result
 
 
@@ -344,6 +361,7 @@ class TestClanList:
         ):
             result = await clan_list.callback(mock_context)
 
+            assert result is not None
             assert "bancho.py clans listing" in result
             assert "TAG1" in result
             assert "TAG2" in result
@@ -363,6 +381,7 @@ class TestClanList:
         ):
             result = await clan_list.callback(mock_context)
 
+            assert result is not None
             assert "bancho.py clans listing" in result
 
     @pytest.mark.asyncio
@@ -376,6 +395,7 @@ class TestClanList:
         ):
             result = await clan_list.callback(mock_context)
 
+            assert result is not None
             assert "No clans found" in result
 
     @pytest.mark.asyncio
@@ -385,4 +405,5 @@ class TestClanList:
 
         result = await clan_list.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result

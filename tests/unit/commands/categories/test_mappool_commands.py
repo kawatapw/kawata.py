@@ -78,6 +78,7 @@ class TestPoolHelp:
         ):
             result = await pool_help.callback(mock_context)
 
+            assert result is not None
             assert "test:" in result
             assert "Test command" in result
 
@@ -100,6 +101,7 @@ class TestPoolCreate:
             ):
                 result = await pool_create.callback(mock_context)
 
+                assert result is not None
                 assert "created" in result
 
     @pytest.mark.asyncio
@@ -109,6 +111,7 @@ class TestPoolCreate:
 
         result = await pool_create.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -122,6 +125,7 @@ class TestPoolCreate:
         ):
             result = await pool_create.callback(mock_context)
 
+            assert result is not None
             assert "Pool already exists" in result
 
 
@@ -147,6 +151,7 @@ class TestPoolDelete:
                 ):
                     result = await pool_delete.callback(mock_context)
 
+                    assert result is not None
                     assert "deleted" in result
 
     @pytest.mark.asyncio
@@ -156,6 +161,7 @@ class TestPoolDelete:
 
         result = await pool_delete.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -169,6 +175,7 @@ class TestPoolDelete:
         ):
             result = await pool_delete.callback(mock_context)
 
+            assert result is not None
             assert "Could not find a pool" in result
 
 
@@ -203,6 +210,7 @@ class TestPoolAdd:
                 ):
                     result = await pool_add.callback(mock_context)
 
+                    assert result is not None
                     assert "added to" in result
 
     @pytest.mark.asyncio
@@ -212,6 +220,7 @@ class TestPoolAdd:
 
         result = await pool_add.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -222,6 +231,7 @@ class TestPoolAdd:
 
         result = await pool_add.callback(mock_context)
 
+        assert result is not None
         assert "Please /np a map first" in result
 
     @pytest.mark.asyncio
@@ -237,6 +247,7 @@ class TestPoolAdd:
 
         result = await pool_add.callback(mock_context)
 
+        assert result is not None
         assert "Invalid pick syntax" in result
 
     @pytest.mark.asyncio
@@ -256,6 +267,7 @@ class TestPoolAdd:
         ):
             result = await pool_add.callback(mock_context)
 
+            assert result is not None
             assert "Could not find a pool" in result
 
     @pytest.mark.asyncio
@@ -289,6 +301,7 @@ class TestPoolAdd:
                 ):
                     result = await pool_add.callback(mock_context)
 
+                assert result is not None
                 assert "already in the pool" in result
 
 
@@ -314,6 +327,7 @@ class TestPoolRemove:
                 ):
                     result = await pool_remove.callback(mock_context)
 
+                    assert result is not None
                     assert "removed from" in result
 
     @pytest.mark.asyncio
@@ -323,6 +337,7 @@ class TestPoolRemove:
 
         result = await pool_remove.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -336,6 +351,7 @@ class TestPoolRemove:
         ):
             result = await pool_remove.callback(mock_context)
 
+            assert result is not None
             assert "Could not find a pool" in result
 
     @pytest.mark.asyncio
@@ -353,6 +369,7 @@ class TestPoolRemove:
             ):
                 result = await pool_remove.callback(mock_context)
 
+                assert result is not None
                 assert "Found no" in result
 
 
@@ -389,6 +406,7 @@ class TestPoolList:
             ):
                 result = await pool_list.callback(mock_context)
 
+                assert result is not None
                 assert "Mappools" in result
                 assert "Pool1" in result
                 assert "Pool2" in result
@@ -404,6 +422,7 @@ class TestPoolList:
         ):
             result = await pool_list.callback(mock_context)
 
+            assert result is not None
             assert "There are currently no pools" in result
 
 
@@ -441,6 +460,7 @@ class TestPoolInfo:
                 ):
                     result = await pool_info.callback(mock_context)
 
+                    assert result is not None
                     assert "TestPool" in result
                     assert "HD2" in result
 
@@ -450,7 +470,7 @@ class TestPoolInfo:
         mock_context.args = []
 
         result = await pool_info.callback(mock_context)
-
+        assert result is not None
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -464,4 +484,5 @@ class TestPoolInfo:
         ):
             result = await pool_info.callback(mock_context)
 
+            assert result is not None
             assert "Could not find a pool" in result

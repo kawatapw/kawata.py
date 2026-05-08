@@ -86,6 +86,7 @@ class TestSeasonCreate:
                     ):
                         result = await season_create.callback(mock_context)
 
+                        assert result is not None
                         assert "created with ID 1" in result
 
     @pytest.mark.asyncio
@@ -112,6 +113,7 @@ class TestSeasonCreate:
         ):
             result = await season_create.callback(mock_context)
 
+            assert result is not None
             assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
@@ -129,6 +131,7 @@ class TestSeasonCreate:
             ):
                 result = await season_create.callback(mock_context)
 
+                assert result is not None
                 assert "Schedule not found" in result
 
 
@@ -156,6 +159,7 @@ class TestSeasonStart:
                 ):
                     result = await season_start.callback(mock_context)
 
+                    assert result is not None
                     assert "activated" in result
 
     @pytest.mark.asyncio
@@ -175,6 +179,7 @@ class TestSeasonStart:
             ):
                 result = await season_start.callback(mock_context)
 
+                assert result is not None
                 assert "already active" in result
 
 
@@ -202,6 +207,7 @@ class TestSeasonEnd:
                 ):
                     result = await season_end.callback(mock_context)
 
+                    assert result is not None
                     assert "deactivated" in result
 
     @pytest.mark.asyncio
@@ -221,6 +227,7 @@ class TestSeasonEnd:
             ):
                 result = await season_end.callback(mock_context)
 
+                assert result is not None
                 assert "not active" in result
 
 
@@ -253,6 +260,7 @@ class TestRecalcSeasonStats:
                 ):
                     result = await recalc_season_stats.callback(mock_context)
 
+                    assert result is not None
                     assert "Started recalculating 2 seasons" in result
 
     @pytest.mark.asyncio
@@ -277,6 +285,7 @@ class TestRecalcSeasonStats:
                     ):
                         result = await recalc_season_stats.callback(mock_context)
 
+                        assert result is not None
                         assert "Started recalculating season 'TestSeason'" in result
 
 
@@ -315,6 +324,7 @@ class TestSeasonList:
             ):
                 result = await season_list.callback(mock_context)
 
+                assert result is not None
                 assert "Seasons (2 total)" in result
                 assert "Season1" in result
                 assert "Season2" in result
@@ -334,6 +344,7 @@ class TestSeasonList:
             ):
                 result = await season_list.callback(mock_context)
 
+                assert result is not None
                 assert "No seasons found" in result
 
 
@@ -363,6 +374,7 @@ class TestSeasonSchedule:
                 ):
                     result = await season_schedule.callback(mock_context)
 
+                    assert result is not None
                     assert "created with ID 1" in result
 
     @pytest.mark.asyncio
@@ -385,6 +397,7 @@ class TestSeasonSchedule:
             ):
                 result = await season_schedule.callback(mock_context)
 
+                assert result is not None
                 assert "Schedules (2 total)" in result
                 assert "Schedule1" in result
 
@@ -399,6 +412,7 @@ class TestSeasonSchedule:
         ):
             result = await season_schedule.callback(mock_context)
 
+            assert result is not None
             assert "Invalid action" in result
 
 
@@ -417,6 +431,7 @@ class TestSeasons:
         ):
             result = await seasons.callback(mock_context)
 
+            assert result is not None
             assert "Switched to seasonal view" in result
             assert mock_player.preferred_lb_view == "seasonal"
 
@@ -432,6 +447,7 @@ class TestSeasons:
         ):
             result = await seasons.callback(mock_context)
 
+            assert result is not None
             assert "Switched to all-time view" in result
             assert mock_player.preferred_lb_view == "all_time"
 
@@ -450,6 +466,7 @@ class TestSeasons:
             ):
                 result = await seasons.callback(mock_context)
 
+                assert result is not None
                 assert "Switched to viewing season: TestSeason" in result
                 assert mock_player.selected_season_id == 1
 
@@ -464,6 +481,7 @@ class TestSeasons:
         ):
             result = await seasons.callback(mock_context)
 
+            assert result is not None
             assert "Switched to all-time view" in result
             assert mock_player.preferred_lb_view == "all_time"
             assert mock_player.selected_season_id is None
@@ -483,5 +501,6 @@ class TestSeasonsAll:
         ):
             result = await seasons_all.callback(mock_context)
 
+            assert result is not None
             assert "Switched to all-time view" in result
             assert mock_player.preferred_lb_view == "all_time"

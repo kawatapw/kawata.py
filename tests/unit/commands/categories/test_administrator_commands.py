@@ -102,6 +102,7 @@ class TestUserCommand:
         ):
             result = await user.callback(mock_context)
 
+        assert result is not None
         assert "TestPlayer" in result
         assert "ManageUsers" in result
         assert "ManagePrivs" in result
@@ -121,6 +122,7 @@ class TestUserCommand:
         ):
             result = await user.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer" in result
 
     @pytest.mark.asyncio
@@ -133,6 +135,7 @@ class TestUserCommand:
 
         result = await user.callback(mock_context)
 
+        assert result is not None
         assert "Player not found." in result
 
 
@@ -146,6 +149,7 @@ class TestRestrictCommand:
 
         result = await restrict.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!restrict <name> <reason>" in result
 
@@ -159,6 +163,7 @@ class TestRestrictCommand:
 
         result = await restrict.callback(mock_context)
 
+        assert result is not None
         assert '"NonExistent" not found.' in result
 
     @pytest.mark.asyncio
@@ -174,6 +179,7 @@ class TestRestrictCommand:
 
         result = await restrict.callback(mock_context)
 
+        assert result is not None
         assert "Only developers can manage staff members." in result
 
     @pytest.mark.asyncio
@@ -187,6 +193,7 @@ class TestRestrictCommand:
 
         result = await restrict.callback(mock_context)
 
+        assert result is not None
         assert "already restricted!" in result
 
     @pytest.mark.asyncio
@@ -201,6 +208,7 @@ class TestRestrictCommand:
 
         result = await restrict.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer was restricted." in result
         mock_target_player.restrict.assert_called_once()
 
@@ -216,6 +224,7 @@ class TestRestrictCommand:
 
         result = await restrict.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer was restricted." in result
         # Verify shorthand was expanded
         mock_target_player.restrict.assert_called_once()
@@ -233,6 +242,7 @@ class TestUnrestrictCommand:
 
         result = await unrestrict.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!unrestrict <name> <reason>" in result
 
@@ -246,6 +256,7 @@ class TestUnrestrictCommand:
 
         result = await unrestrict.callback(mock_context)
 
+        assert result is not None
         assert '"NonExistent" not found.' in result
 
     @pytest.mark.asyncio
@@ -261,6 +272,7 @@ class TestUnrestrictCommand:
 
         result = await unrestrict.callback(mock_context)
 
+        assert result is not None
         assert "Only developers can manage staff members." in result
 
     @pytest.mark.asyncio
@@ -274,6 +286,7 @@ class TestUnrestrictCommand:
 
         result = await unrestrict.callback(mock_context)
 
+        assert result is not None
         assert "is not restricted!" in result
 
     @pytest.mark.asyncio
@@ -289,6 +302,7 @@ class TestUnrestrictCommand:
 
         result = await unrestrict.callback(mock_context)
 
+        assert result is not None
         assert "TargetPlayer was unrestricted." in result
         mock_target_player.unrestrict.assert_called_once()
 
@@ -303,6 +317,7 @@ class TestAlertCommand:
 
         result = await alert.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!alert <msg>" in result
 
@@ -313,6 +328,7 @@ class TestAlertCommand:
 
         result = await alert.callback(mock_context)
 
+        assert result is not None
         assert "Alert sent." in result
 
 
@@ -326,6 +342,7 @@ class TestAlertuserCommand:
 
         result = await alertuser.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!alertu <name> <msg>" in result
 
@@ -337,6 +354,7 @@ class TestAlertuserCommand:
 
         result = await alertuser.callback(mock_context)
 
+        assert result is not None
         assert "Could not find a user by that name." in result
 
     @pytest.mark.asyncio
@@ -348,6 +366,7 @@ class TestAlertuserCommand:
         with patch.object(mock_target_player, "enqueue") as mock_enqueue:
             result = await alertuser.callback(mock_context)
 
+        assert result is not None
         assert "Alert sent." in result
         mock_enqueue.assert_called_once()
 
@@ -362,6 +381,7 @@ class TestSwitchservCommand:
 
         result = await switchserv.callback(mock_context)
 
+        assert result is not None
         assert "Invalid syntax" in result
         assert "!switch <endpoint>" in result
 
@@ -376,6 +396,7 @@ class TestSwitchservCommand:
             mock_switch.return_value = Mock()
             result = await switchserv.callback(mock_context)
 
+        assert result is not None
         assert "Have a nice journey.." in result
         mock_context.player.enqueue.assert_called_once()
 
@@ -391,6 +412,7 @@ class TestShutdownCommand:
         with patch("app.commands.categories.administrator.os.kill") as mock_kill:
             result = await shutdown.callback(mock_context)
 
+        assert result is not None
         assert "Process killed" in result
         mock_kill.assert_called_once()
 
@@ -401,6 +423,7 @@ class TestShutdownCommand:
 
         result = await shutdown.callback(mock_context)
 
+        assert result is not None
         assert "Invalid timespan." in result
 
     @pytest.mark.asyncio
@@ -410,6 +433,7 @@ class TestShutdownCommand:
 
         result = await shutdown.callback(mock_context)
 
+        assert result is not None
         assert "Minimum delay is 15 seconds." in result
 
     @pytest.mark.asyncio
@@ -425,6 +449,7 @@ class TestShutdownCommand:
         app.state.loop = mock_loop
         try:
             result = await shutdown.callback(mock_context)
+            assert result is not None
             assert "Enqueued test." in result
             mock_loop.call_later.assert_called_once()
         finally:
