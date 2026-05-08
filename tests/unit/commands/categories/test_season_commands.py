@@ -2,6 +2,7 @@
 Tests for season commands.
 """
 
+from datetime import date
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -72,7 +73,7 @@ class TestSeasonCreate:
                 ),
             ):
                 with patch(
-                    "app.commands.categories.season.get_provider_for_schedule_type",
+                    "app.schedule_types.get_provider_for_schedule_type",
                     Mock(
                         return_value=Mock(
                             calculate_next_season=Mock(return_value=(Mock(), Mock()))
@@ -236,7 +237,7 @@ class TestRecalcSeasonStats:
             AsyncMock(return_value=True),
         ):
             with patch(
-                "app.commands.categories.season.state.services.database.fetch_all",
+                "app.state.services.database.fetch_all",
                 AsyncMock(
                     return_value=[
                         {"id": 1, "name": "Season1"},
@@ -245,7 +246,7 @@ class TestRecalcSeasonStats:
                 ),
             ):
                 with patch(
-                    "app.commands.categories.season.calculate_season_stats_for_all_users",
+                    "app.bg_loops.calculate_season_stats_for_all_users",
                     AsyncMock(),
                 ):
                     with patch(
@@ -269,7 +270,7 @@ class TestRecalcSeasonStats:
                 AsyncMock(return_value={"id": 1, "name": "TestSeason"}),
             ):
                 with patch(
-                    "app.commands.categories.season.calculate_season_stats_for_all_users",
+                    "app.bg_loops.calculate_season_stats_for_all_users",
                     AsyncMock(),
                 ):
                     with patch(
@@ -300,15 +301,15 @@ class TestSeasonList:
                             "id": 1,
                             "name": "Season1",
                             "is_active": True,
-                            "start_date": Mock(),
-                            "end_date": Mock(),
+                            "start_date": date(2024, 1, 1),
+                            "end_date": date(2024, 3, 31),
                         },
                         {
                             "id": 2,
                             "name": "Season2",
                             "is_active": False,
-                            "start_date": Mock(),
-                            "end_date": Mock(),
+                            "start_date": date(2024, 4, 1),
+                            "end_date": date(2024, 6, 30),
                         },
                     ]
                 ),
@@ -350,7 +351,7 @@ class TestSeasonSchedule:
             AsyncMock(return_value=True),
         ):
             with patch(
-                "app.commands.categories.season.get_provider_for_schedule_type",
+                "app.schedule_types.get_provider_for_schedule_type",
                 Mock(
                     return_value=Mock(
                         get_config_schema=Mock(return_value={"properties": {}})

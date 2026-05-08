@@ -21,6 +21,7 @@ from app.commands.categories.user import (
 )
 from app.commands.context import Context
 from app.constants.privileges import Privileges
+from app.objects.beatmap import RankedStatus
 
 
 @pytest.fixture
@@ -552,10 +553,26 @@ class TestRecentCommand:
         mock_context.args = ["TargetPlayer"]
         mock_context.state.sessions.players.get = Mock(return_value=target)
 
+        # Set up proper mock for recent_score
+        mock_score = Mock()
+        mock_score.bmap = Mock()
+        mock_score.bmap.embed = "[https://osu.test/b/123 Test Map]"
+        mock_score.acc = 95.5
+        mock_score.mods = Mock()
+        mock_score.mods.__repr__ = Mock(return_value="+HD")
+        mock_score.mode = Mock()
+        mock_score.mode.__repr__ = Mock(return_value="std")
+        mock_score.passed = True
+        mock_score.pp = 200.0
+        mock_score.rank = 5
+        mock_score.status = Mock()
+        target.recent_score = mock_score
+
         result = await recent.callback(mock_context)
 
         # Should not raise an error
         assert result is not None
+        assert "TargetPlayer" in result or "Test Map" in result
 
     @pytest.mark.asyncio
     async def test_recent_no_score(self, mock_context, mock_player):
@@ -763,7 +780,7 @@ class TestWithCommand:
             AsyncMock(return_value=True),
         ):
             with patch(
-                "app.commands.categories.user.state.usecases.performance.calculate_performances",
+                "app.usecases.performance.calculate_performances",
                 Mock(
                     return_value=[
                         {
@@ -828,7 +845,7 @@ class TestRequestCommand:
 
         mock_bmap = Mock()
         mock_bmap.id = 123456
-        mock_bmap.status = Mock()
+        mock_bmap.status = RankedStatus.Pending
 
         mock_player.last_np = {
             "bmap": mock_bmap,
@@ -850,7 +867,7 @@ class TestRequestCommand:
 
         mock_bmap = Mock()
         mock_bmap.id = 123456
-        mock_bmap.status = Mock()
+        mock_bmap.status = RankedStatus.Pending
 
         mock_player.last_np = {
             "bmap": mock_bmap,

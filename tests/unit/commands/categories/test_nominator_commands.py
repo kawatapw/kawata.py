@@ -2,6 +2,7 @@
 Tests for nominator commands.
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -148,8 +149,8 @@ class TestRequests:
             "app.commands.categories.nominator.map_requests_repo.fetch_all",
             AsyncMock(
                 return_value=[
-                    {"map_id": 123, "player_id": 1, "datetime": Mock()},
-                    {"map_id": 123, "player_id": 2, "datetime": Mock()},
+                    {"map_id": 123, "player_id": 1, "datetime": datetime(2024, 1, 1)},
+                    {"map_id": 123, "player_id": 2, "datetime": datetime(2024, 1, 2)},
                 ]
             ),
         ):
@@ -210,7 +211,7 @@ class TestMap:
             AsyncMock(),
         ):
             with patch(
-                "app.commands.categories.nominator.state.cache.beatmap",
+                "app.state.cache.beatmap",
                 {},
             ):
                 with patch(
@@ -218,7 +219,7 @@ class TestMap:
                     AsyncMock(),
                 ):
                     with patch(
-                        "app.commands.categories.nominator.state.services.database.transaction",
+                        "app.state.services.database.transaction",
                     ) as mock_transaction:
                         mock_transaction.return_value.__aenter__ = AsyncMock()
                         mock_transaction.return_value.__aexit__ = AsyncMock()
@@ -254,7 +255,7 @@ class TestMap:
                 AsyncMock(return_value=[{"id": 123}]),
             ):
                 with patch(
-                    "app.commands.categories.nominator.state.cache.beatmapset",
+                    "app.state.cache.beatmapset",
                     {},
                 ):
                     with patch(
@@ -262,7 +263,7 @@ class TestMap:
                         AsyncMock(),
                     ):
                         with patch(
-                            "app.commands.categories.nominator.state.services.database.transaction",
+                            "app.state.services.database.transaction",
                         ) as mock_transaction:
                             mock_transaction.return_value.__aenter__ = AsyncMock()
                             mock_transaction.return_value.__aexit__ = AsyncMock()
@@ -293,7 +294,7 @@ class TestMap:
             AsyncMock(),
         ):
             with patch(
-                "app.commands.categories.nominator.state.cache.beatmap",
+                "app.state.cache.beatmap",
                 {},
             ):
                 with patch(
@@ -301,7 +302,7 @@ class TestMap:
                     AsyncMock(),
                 ):
                     with patch(
-                        "app.commands.categories.nominator.state.services.database.transaction",
+                        "app.state.services.database.transaction",
                     ) as mock_transaction:
                         mock_transaction.return_value.__aenter__ = AsyncMock()
                         mock_transaction.return_value.__aexit__ = AsyncMock()
@@ -332,7 +333,7 @@ class TestMap:
             AsyncMock(),
         ):
             with patch(
-                "app.commands.categories.nominator.state.cache.beatmap",
+                "app.state.cache.beatmap",
                 {},
             ):
                 with patch(
@@ -340,7 +341,7 @@ class TestMap:
                     AsyncMock(),
                 ):
                     with patch(
-                        "app.commands.categories.nominator.state.services.database.transaction",
+                        "app.state.services.database.transaction",
                     ) as mock_transaction:
                         mock_transaction.return_value.__aenter__ = AsyncMock()
                         mock_transaction.return_value.__aexit__ = AsyncMock()
