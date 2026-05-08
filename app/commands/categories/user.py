@@ -64,7 +64,9 @@ async def block(ctx: Context) -> str:
     if not target:
         return "User not found."
 
-    if (ctx.state.sessions.bot and target is ctx.state.sessions.bot) or target is ctx.player:
+    if (
+        ctx.state.sessions.bot and target is ctx.state.sessions.bot
+    ) or target is ctx.player:
         return "What?"
 
     if target.id in ctx.player.blocks:
@@ -89,7 +91,9 @@ async def unblock(ctx: Context) -> str:
     if not target:
         return "User not found."
 
-    if (ctx.state.sessions.bot and target is ctx.state.sessions.bot) or target is ctx.player:
+    if (
+        ctx.state.sessions.bot and target is ctx.state.sessions.bot
+    ) or target is ctx.player:
         return "What?"
 
     if target.id not in ctx.player.blocks:

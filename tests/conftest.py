@@ -11,9 +11,8 @@ from asgi_lifespan import LifespanManager
 from asgi_lifespan._types import ASGIApp
 from fastapi import status
 
-from app.state import services
-
 from app.api.init_api import asgi_app
+from app.state import services
 
 # TODO: fixtures for postgres database connection(s) for itests
 
@@ -143,4 +142,6 @@ def db_available() -> bool:
 def skip_if_no_db(db_available: bool):
     """Skip test if database is not available."""
     if not db_available:
-        pytest.skip("Database not available - skipping test that requires DB connection")
+        pytest.skip(
+            "Database not available - skipping test that requires DB connection"
+        )

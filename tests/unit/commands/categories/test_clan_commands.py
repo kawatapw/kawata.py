@@ -75,7 +75,9 @@ class TestClanCreate:
                 ):
                     # Use the already mocked ctx.state.sessions.channels from fixture
                     mock_announce_chan = Mock()
-                    mock_context.state.sessions.channels.get_by_name.return_value = mock_announce_chan
+                    mock_context.state.sessions.channels.get_by_name.return_value = (
+                        mock_announce_chan
+                    )
 
                     result = await clan_create.callback(mock_context)
 
@@ -176,7 +178,9 @@ class TestClanDisband:
                     assert "disbanded" in result
 
     @pytest.mark.asyncio
-    async def test_disband_other_clan_as_admin(self, mock_context, mock_player, skip_if_no_db):
+    async def test_disband_other_clan_as_admin(
+        self, mock_context, mock_player, skip_if_no_db
+    ):
         """Test admin disbanding another clan."""
         mock_context.args = ["OTHER"]
         mock_player.priv = Privileges.ADMINISTRATOR

@@ -281,7 +281,7 @@ class TestRmprivCommand:
             return_value=mock_target_player
         )
 
-        result = await rmpriv.callback(mock_context)
+        await rmpriv.callback(mock_context)
 
         assert mock_target_player.donor_end == 0
         mock_context.state.services.database.execute.assert_called_once()

@@ -25,7 +25,11 @@ if TYPE_CHECKING:
 )
 async def clan_help(ctx: Context) -> str:
     """Show all documented clan commands the player can access."""
-    prefix = ctx.settings.COMMAND_PREFIX if hasattr(ctx, 'settings') and ctx.settings else "!"
+    prefix = (
+        ctx.settings.COMMAND_PREFIX
+        if hasattr(ctx, "settings") and ctx.settings
+        else "!"
+    )
     cmds = []
 
     # Get all clan commands from the registry

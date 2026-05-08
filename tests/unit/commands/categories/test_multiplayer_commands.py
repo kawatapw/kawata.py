@@ -532,7 +532,7 @@ class TestMpListref:
         target.name = "TargetPlayer"
         target.__str__ = Mock(return_value="TargetPlayer")
         mock_context.player.__str__ = Mock(return_value="TestPlayer")
-        
+
         # Keep refs as player objects for permission check
         mock_match.refs = {mock_context.player, target}
         mock_context.state.sessions.players.get = Mock(return_value=target)
@@ -722,7 +722,9 @@ class TestMpRematch:
 
         result = await mp_rematch.callback(mock_context)
 
-        assert "point has been deducted" in result or "rematch has been started" in result
+        assert (
+            "point has been deducted" in result or "rematch has been started" in result
+        )
 
     @pytest.mark.asyncio
     async def test_rematch_not_host(self, mock_context, mock_match):

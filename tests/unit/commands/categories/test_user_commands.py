@@ -71,9 +71,10 @@ def mock_context(mock_player, mock_bot):
     ctx.state.usecases = Mock()
     ctx.state.usecases.performance = Mock()
     ctx.state.usecases.performance.calculate_performances = Mock(return_value=[])
-    
+
     # Also mock the global state module
     import app.state
+
     app.state.sessions.bot = mock_bot
     app.state.usecases = Mock()
     app.state.usecases.performance = Mock()

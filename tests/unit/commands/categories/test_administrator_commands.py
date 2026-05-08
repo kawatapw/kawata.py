@@ -190,7 +190,9 @@ class TestRestrictCommand:
         assert "already restricted!" in result
 
     @pytest.mark.asyncio
-    async def test_restrict_success(self, mock_context, mock_target_player, skip_if_no_db):
+    async def test_restrict_success(
+        self, mock_context, mock_target_player, skip_if_no_db
+    ):
         """Test restrict command success."""
         mock_context.args = ["TargetPlayer", "cheating"]
         mock_context.state.sessions.players.from_cache_or_sql = AsyncMock(
@@ -275,7 +277,9 @@ class TestUnrestrictCommand:
         assert "is not restricted!" in result
 
     @pytest.mark.asyncio
-    async def test_unrestrict_success(self, mock_context, mock_target_player, skip_if_no_db):
+    async def test_unrestrict_success(
+        self, mock_context, mock_target_player, skip_if_no_db
+    ):
         """Test unrestrict command success."""
         mock_target_player.restricted = True
         mock_context.args = ["TargetPlayer", "appeal accepted"]
@@ -413,7 +417,9 @@ class TestShutdownCommand:
         """Test shutdown command with valid delay."""
         mock_context.args = ["30", "Maintenance"]
 
-        with patch("app.commands.categories.administrator.asyncio.get_event_loop") as mock_get_loop:
+        with patch(
+            "app.commands.categories.administrator.asyncio.get_event_loop"
+        ) as mock_get_loop:
             mock_loop = Mock()
             mock_get_loop.return_value = mock_loop
             with patch(

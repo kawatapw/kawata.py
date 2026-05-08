@@ -75,7 +75,11 @@ def ensure_match(
 @ensure_match
 async def mp_help(ctx: Context, match: Match) -> str:
     """Show all documented multiplayer commands the player can access."""
-    prefix = ctx.settings.COMMAND_PREFIX if hasattr(ctx, 'settings') and ctx.settings else "!"
+    prefix = (
+        ctx.settings.COMMAND_PREFIX
+        if hasattr(ctx, "settings") and ctx.settings
+        else "!"
+    )
     cmds = []
 
     for cmd in match.commands:

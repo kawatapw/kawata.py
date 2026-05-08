@@ -381,7 +381,7 @@ class TestMapExistsValidator:
     async def test_valid_map_id(self, mock_context):
         """Test that valid map ID passes validation."""
         mock_context.args = ["123456"]
-        validator = MapExistsValidator(arg_index=0)
+        MapExistsValidator(arg_index=0)
 
         # Should not raise (even if map doesn't exist, the format is valid)
         # This test would need actual database mocking to fully test

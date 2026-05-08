@@ -224,7 +224,9 @@ class TestMap:
         mock_transaction = AsyncMock()
         mock_transaction.__aenter__ = AsyncMock(return_value=None)
         mock_transaction.__aexit__ = AsyncMock(return_value=None)
-        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+        mock_context.state.services.database.transaction = Mock(
+            return_value=mock_transaction
+        )
 
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",
@@ -261,7 +263,9 @@ class TestMap:
         mock_transaction = AsyncMock()
         mock_transaction.__aenter__ = AsyncMock(return_value=None)
         mock_transaction.__aexit__ = AsyncMock(return_value=None)
-        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+        mock_context.state.services.database.transaction = Mock(
+            return_value=mock_transaction
+        )
 
         # Set up cache for beatmapset (required for set ranking)
         mock_beatmapset_cache = Mock()
@@ -306,7 +310,9 @@ class TestMap:
         mock_transaction = AsyncMock()
         mock_transaction.__aenter__ = AsyncMock(return_value=None)
         mock_transaction.__aexit__ = AsyncMock(return_value=None)
-        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+        mock_context.state.services.database.transaction = Mock(
+            return_value=mock_transaction
+        )
 
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",
@@ -342,7 +348,9 @@ class TestMap:
         mock_transaction = AsyncMock()
         mock_transaction.__aenter__ = AsyncMock(return_value=None)
         mock_transaction.__aexit__ = AsyncMock(return_value=None)
-        mock_context.state.services.database.transaction = Mock(return_value=mock_transaction)
+        mock_context.state.services.database.transaction = Mock(
+            return_value=mock_transaction
+        )
 
         with patch(
             "app.commands.categories.nominator.maps_repo.partial_update",

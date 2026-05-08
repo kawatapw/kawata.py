@@ -258,7 +258,9 @@ class TestPoolAdd:
             assert "Could not find a pool" in result
 
     @pytest.mark.asyncio
-    async def test_add_map_already_in_pool(self, mock_context, mock_player, skip_if_no_db):
+    async def test_add_map_already_in_pool(
+        self, mock_context, mock_player, skip_if_no_db
+    ):
         """Test adding a map that's already in the pool."""
         mock_context.args = ["TestPool", "HD2"]
 
@@ -276,7 +278,9 @@ class TestPoolAdd:
         ):
             with patch(
                 "app.commands.categories.mappool.tourney_pool_maps_repo.fetch_many",
-                AsyncMock(return_value=[{"map_id": 123, "mods": Mods.HIDDEN, "slot": 2}]),
+                AsyncMock(
+                    return_value=[{"map_id": 123, "mods": Mods.HIDDEN, "slot": 2}]
+                ),
             ):
                 result = await pool_add.callback(mock_context)
 
@@ -412,7 +416,9 @@ class TestPoolInfo:
         ):
             with patch(
                 "app.commands.categories.mappool.tourney_pool_maps_repo.fetch_many",
-                AsyncMock(return_value=[{"map_id": 123, "mods": Mods.HIDDEN, "slot": 2}]),
+                AsyncMock(
+                    return_value=[{"map_id": 123, "mods": Mods.HIDDEN, "slot": 2}]
+                ),
             ):
                 with patch(
                     "app.commands.categories.mappool.Beatmap.from_bid",
