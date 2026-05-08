@@ -6,7 +6,10 @@ simple registry that allows the rest of the system to look up backends by
 name from configuration.
 """
 
-from abc import ABC, abstractmethod
+from __future__ import annotations
+
+from abc import ABC
+from abc import abstractmethod
 from typing import Any
 
 

@@ -102,21 +102,37 @@ import shutil
 import time
 import zipfile
 from collections import defaultdict
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable
+from collections.abc import Callable
+from collections.abc import Mapping
 from datetime import datetime
-from enum import IntEnum, unique
+from enum import IntEnum
+from enum import unique
 from functools import cache
 from pathlib import Path as SystemPath
-from typing import Annotated, Any, Literal, cast
-from urllib.parse import unquote, unquote_plus
+from typing import Annotated
+from typing import Any
+from typing import Literal
+from typing import cast
+from urllib.parse import unquote
+from urllib.parse import unquote_plus
 
 import bcrypt
 from fastapi import status
-from fastapi.datastructures import FormData, UploadFile
+from fastapi.datastructures import FormData
+from fastapi.datastructures import UploadFile
 from fastapi.exceptions import HTTPException
-from fastapi.param_functions import Depends, File, Form, Header, Path, Query
+from fastapi.param_functions import Depends
+from fastapi.param_functions import File
+from fastapi.param_functions import Form
+from fastapi.param_functions import Header
+from fastapi.param_functions import Path
+from fastapi.param_functions import Query
 from fastapi.requests import Request
-from fastapi.responses import FileResponse, ORJSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse
+from fastapi.responses import ORJSONResponse
+from fastapi.responses import RedirectResponse
+from fastapi.responses import Response
 from fastapi.routing import APIRouter
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
@@ -131,11 +147,19 @@ from app.constants.clientflags import LastFMFlags
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
-from app.logging import Ansi, error_catcher, log, logLevel
+from app.logging import Ansi
+from app.logging import error_catcher
+from app.logging import log
+from app.logging import logLevel
 from app.objects import models
-from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
-from app.objects.player import ModeData, Player
-from app.objects.score import Grade, Score, SubmissionStatus
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import RankedStatus
+from app.objects.beatmap import ensure_osu_file_is_available
+from app.objects.player import ModeData
+from app.objects.player import Player
+from app.objects.score import Grade
+from app.objects.score import Score
+from app.objects.score import SubmissionStatus
 from app.repositories import clans as clans_repo
 from app.repositories import comments as comments_repo
 from app.repositories import favourites as favourites_repo
@@ -149,7 +173,8 @@ from app.repositories import users as users_repo
 from app.repositories.achievements import Achievement
 from app.usecases import achievements as achievements_usecases
 from app.usecases import user_achievements as user_achievements_usecases
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
 
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
 REPLAYS_PATH = SystemPath.cwd() / ".data/osr"
@@ -206,9 +231,9 @@ authenticate_screenshot = authenticate_player_session(Form, "u", "p")
 @router.post("/web/osu-screenshot.php")
 @error_catcher
 async def osuScreenshot(
-    player: Player = Depends(authenticate_screenshot),  # noqa: B008
-    endpoint_version: int = Form(..., alias="v"),  # noqa: B008
-    screenshot_file: UploadFile = File(..., alias="ss"),  # noqa: B008
+    player: Player = Depends(authenticate_screenshot),
+    endpoint_version: int = Form(..., alias="v"),
+    screenshot_file: UploadFile = File(..., alias="ss"),
 ) -> Response:
     with memoryview(await screenshot_file.read()) as screenshot_view:
         # png sizes: 1080p: ~300-800kB | 4k: ~1-2mB
@@ -252,7 +277,7 @@ authenticate_friends = authenticate_player_session(Query, "u", "h")
 @router.get("/web/osu-getfriends.php")
 @error_catcher
 async def osuGetFriends(
-    player: Player = Depends(authenticate_friends),  # noqa: B008
+    player: Player = Depends(authenticate_friends),
 ) -> Response:
     return Response("\n".join(map(str, player.friends)).encode())
 
@@ -377,7 +402,8 @@ async def lastFM(
         if flags & (LastFMFlags.HQ_ASSEMBLY | LastFMFlags.HQ_FILE):
             # Player is currently running hq!osu; could possibly
             # be a separate client, buuuut prooobably not lol.
-            assert app.state.sessions.bot is not None
+            if app.state.sessions.bot is None:
+                raise RuntimeError("Bot session not available")
             await player.restrict(
                 admin=app.state.sessions.bot,
                 reason=f"hq!osu running ({flags})",
@@ -397,7 +423,8 @@ async def lastFM(
 
             if random.randrange(32) == 0:  # nosec B311
                 # Random chance (1/32) for a ban.
-                assert app.state.sessions.bot is not None
+                if app.state.sessions.bot is None:
+                    raise RuntimeError("Bot session not available")
                 await player.restrict(
                     admin=app.state.sessions.bot,
                     reason="hq!osu relife 1/32",
@@ -604,27 +631,26 @@ def parse_form_data_score_params(
 ) -> tuple[bytes, StarletteUploadFile] | None:
     """Parse the score data, and replay file
     from the form data's 'score' parameters."""
-    try:
-        score_parts = score_data.getlist("score")
-        assert len(score_parts) == 2, "Invalid score data"
+    score_parts = score_data.getlist("score")
+    if len(score_parts) != 2:
+        raise ValueError("Invalid score data")
 
-        score_data_b64 = score_data.getlist("score")[0]
-        if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
-            "all",
-            "scores",
-        ]:
-            log(f"Score Data b64: {score_data_b64}", Ansi.LMAGENTA)
-        assert isinstance(score_data_b64, str), "Invalid score data"
-        replay_file = score_data.getlist("score")[1]
-        assert isinstance(replay_file, StarletteUploadFile), "Invalid replay data"
-    except AssertionError as exc:
-        log(f"Failed to validate score multipart data: ({exc.args[0]})", Ansi.LRED)
-        return None
-    else:
-        return (
-            score_data_b64.encode(),
-            replay_file,
-        )
+    score_data_b64 = score_data.getlist("score")[0]
+    if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
+        "all",
+        "scores",
+    ]:
+        log(f"Score Data b64: {score_data_b64}", Ansi.LMAGENTA)
+    if not isinstance(score_data_b64, str):
+        raise TypeError("Invalid score data")
+    replay_file = score_data.getlist("score")[1]
+    if not isinstance(replay_file, StarletteUploadFile):
+        raise TypeError("Invalid replay data")
+
+    return (
+        score_data_b64.encode(),
+        replay_file,
+    )
 
 
 @router.post("/web/osu-submit-modular.php")
@@ -776,8 +802,9 @@ async def osuSubmitModularSelector(
         Ansi.LCYAN,
     )
 
-    try:
-        assert player.client_details is not None
+    def _validate_score_checksums() -> None:
+        if player.client_details is None:
+            raise RuntimeError("Player client details not available")
 
         log("Validating client details", Ansi.LCYAN)
 
@@ -823,8 +850,9 @@ async def osuSubmitModularSelector(
                 f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
             )
 
+    try:
+        _validate_score_checksums()
         log("All checksum validations passed", Ansi.LGREEN)
-
     except (ValueError, AssertionError) as e:
         # NOTE: this is undergoing a temporary trial period,
         # after which, it will be enabled & perform restrictions.
@@ -860,7 +888,8 @@ async def osuSubmitModularSelector(
 
     # we should update their activity no matter
     # what the result of the score submission is.
-    assert score.player is not None
+    if score.player is None:
+        raise RuntimeError("Score player not available")
     score.player.update_latest_activity_soon()
 
     # make sure the player's client displays the correct mode's stats
@@ -915,7 +944,9 @@ async def osuSubmitModularSelector(
             score.time_elapsed = (
                 int(score_time)
                 if score.passed and score_time is not None
-                else int(fail_time) if fail_time is not None else 0
+                else int(fail_time)
+                if fail_time is not None
+                else 0
             )
             log(f"Score time elapsed: {score.time_elapsed}ms", Ansi.LCYAN)
 
@@ -991,7 +1022,8 @@ async def osuSubmitModularSelector(
                                 ),
                             )
 
-                    assert announce_chan is not None
+                    if announce_chan is None:
+                        raise RuntimeError("Announce channel not available")
                     announce_chan.send(" ".join(ann), sender=score.player, to_self=True)
 
             # this score is our best score.
@@ -1064,7 +1096,8 @@ async def osuSubmitModularSelector(
                     f"Restricting player {score.player.name} for submitting score without replay",
                     Ansi.LRED,
                 )
-                assert app.state.sessions.bot is not None
+                if app.state.sessions.bot is None:
+                    raise RuntimeError("Bot session not available")
                 await score.player.restrict(
                     admin=app.state.sessions.bot,
                     reason="submitted score with no replay",
@@ -1163,14 +1196,13 @@ async def osuSubmitModularSelector(
                         all_time_updates[grade_col] = all_time_stats.grades[
                             score.prev_best.grade
                         ]
-            else:
-                # this is our first submitted score on the map
-                if score.grade >= Grade.A:
-                    delta_grades[score.grade] += 1
-                    all_time_stats.grades[score.grade] += 1
-                    grade_col = format(score.grade, "stats_column")
-                    all_time_updates[grade_col] = all_time_stats.grades[score.grade]
-                    log(f"First score on map, grade: {score.grade.name}", Ansi.LCYAN)
+            # this is our first submitted score on the map
+            elif score.grade >= Grade.A:
+                delta_grades[score.grade] += 1
+                all_time_stats.grades[score.grade] += 1
+                grade_col = format(score.grade, "stats_column")
+                all_time_updates[grade_col] = all_time_stats.grades[score.grade]
+                log(f"First score on map, grade: {score.grade.name}", Ansi.LCYAN)
 
             delta_rscore = additional_rscore
             all_time_stats.rscore += additional_rscore
@@ -1383,7 +1415,7 @@ async def osuSubmitModularSelector(
                             if delta != 0:
                                 grade_col = format(grade, "stats_column")
                                 season_updates[grade_col] = (
-                                    cast(int, existing.get(grade_col, 0)) + delta
+                                    cast("int", existing.get(grade_col, 0)) + delta
                                 )
 
                         # For pp and acc, we need to recalculate for the season
@@ -2018,7 +2050,9 @@ async def osuSubmitModularSelector(
             open(file_path, "a").close()
 
         # Execute Write Log
-        asyncio.create_task(app.utils.write_log_file("SCORE", file_path, request))  # type: ignore[unused-awaitable]
+        asyncio.create_task(  # type: ignore[unused-awaitable]  # noqa: RUF006
+            app.utils.write_log_file("SCORE", file_path, request),
+        )
 
     return Response(response)
 
@@ -2367,12 +2401,11 @@ async def getScores(
             # map can be updated.
             app.state.cache.needs_update.add(map_md5)
             return Response(b"1|false")
-        else:
-            # map is unsubmitted.
-            # add this map to the unsubmitted cache, so
-            # that we don't have to make this request again.
-            app.state.cache.unsubmitted.add(map_md5)
-            return Response(b"-1|false")
+        # map is unsubmitted.
+        # add this map to the unsubmitted cache, so
+        # that we don't have to make this request again.
+        app.state.cache.unsubmitted.add(map_md5)
+        return Response(b"-1|false")
 
     # we've found a beatmap for the request.
 
@@ -2439,7 +2472,7 @@ async def getScores(
                 **personal_best_score_row,
                 name=display_name,
                 userid=player.id,
-                score=int(round(personal_best_score_row["_score"])),
+                score=round(personal_best_score_row["_score"]),
                 has_replay="1",
             ),
         )
@@ -2450,7 +2483,7 @@ async def getScores(
         [
             SCORE_LISTING_FMTSTR.format(
                 **s,
-                score=int(round(s["_score"])),
+                score=round(s["_score"]),
                 has_replay="1",
                 rank=idx + 1,
             )
@@ -2537,13 +2570,16 @@ async def osuComment(
         player.update_latest_activity_soon()
         return Response("\n".join(ret).encode())
 
-    elif action == "post":
+    if action == "post":
         # client is submitting a new comment
 
         # validate all required params are provided
-        assert target is not None
-        assert start_time is not None
-        assert comment is not None
+        if target is None:
+            raise RuntimeError("Target not provided")
+        if start_time is None:
+            raise RuntimeError("Start time not provided")
+        if comment is None:
+            raise RuntimeError("Comment not provided")
 
         # get the corresponding id from the request
         if target == "song":
@@ -2808,9 +2844,8 @@ async def register_account(
     # - not already be taken by another player
     if not regexes.EMAIL.match(email):
         errors["user_email"].append("Invalid email syntax.")
-    else:
-        if await users_repo.fetch_one(email=email):
-            errors["user_email"].append("Email already taken by another player.")
+    elif await users_repo.fetch_one(email=email):
+        errors["user_email"].append("Email already taken by another player.")
 
     # Passwords must:
     # - be within 8-32 characters in length
@@ -2917,14 +2952,14 @@ async def checkAerisUpdates(
         "libGLESv2.dll",
         "Microsoft.Ink.dll",
         "Newtonsoft.Json.dll",
-        "OpenTK.dll",  #
-        "osu!common.dll",  #
-        "osu!gameplay.dll",  #
+        "OpenTK.dll",
+        "osu!common.dll",
+        "osu!gameplay.dll",
         "osu!ui.dll",
         "osu!.exe",
-        "osu.dll",  #
+        "osu.dll",
         "pthreadGC2.dll",
-        "SmartThreadPool.dll",  #
+        "SmartThreadPool.dll",
         "WindowsInput.dll",
     ]
     files_to_exclude = []
@@ -3063,7 +3098,8 @@ async def checkAerisUpdates(
             data = []
             needUpdate = True
             try:
-                data = json.loads(open(updaterCache).read())
+                with open(updaterCache) as f:
+                    data = json.loads(f.read())
                 needUpdate = len(data) < len(neededFiles)
                 index = 0
                 # Add build_name field if missing, Prevents error in upload portion.
@@ -3100,10 +3136,11 @@ async def checkAerisUpdates(
                 ):
                     log("Still updating, sending cache")
                     return Response(json.dumps(data))
-                f = open(
+                with open(
                     ".data/storage/updater/{}/{}".format(args["stream"], "updating"),
                     "w",
-                )
+                ):
+                    pass
                 existing_data = {}
                 if os.path.exists(updaterCache):
                     try:
@@ -3112,8 +3149,8 @@ async def checkAerisUpdates(
                                 entry["filename"]: entry
                                 for entry in json.loads(f.read())
                             }
-                    except Exception:
-                        pass  # nosec B110
+                    except Exception as e:
+                        log(f"[AU] Failed to read updater cache: {e}", Ansi.LYELLOW)
                 try:
                     log(
                         "[Aeris updater] New files detected, updating Downloadable files",
@@ -3155,9 +3192,8 @@ async def checkAerisUpdates(
                         ),
                         mode="w",
                     )
-                    zf.write(file, arcname=x)
-                    f = open(updaterCache, "w")
-                    f.write(json.dumps(result))
+                    with open(updaterCache, "w") as f:
+                        f.write(json.dumps(result))
 
                 os.remove(
                     ".data/storage/updater/{}/{}".format(args["stream"], "updating"),

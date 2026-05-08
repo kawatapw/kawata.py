@@ -2,25 +2,26 @@
 Tests for the command validation framework.
 """
 
-from unittest.mock import AsyncMock, Mock
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 
 from app.commands.context import Context
-from app.commands.validation import (
-    ArgCountValidator,
-    BooleanValidator,
-    ChoiceValidator,
-    DurationValidator,
-    GamemodeValidator,
-    MapExistsValidator,
-    ModsValidator,
-    NumericValidator,
-    PlayerExistsValidator,
-    ReasonValidator,
-    UsernameValidator,
-    ValidationError,
-)
+from app.commands.validation import ArgCountValidator
+from app.commands.validation import BooleanValidator
+from app.commands.validation import ChoiceValidator
+from app.commands.validation import DurationValidator
+from app.commands.validation import GamemodeValidator
+from app.commands.validation import MapExistsValidator
+from app.commands.validation import ModsValidator
+from app.commands.validation import NumericValidator
+from app.commands.validation import PlayerExistsValidator
+from app.commands.validation import ReasonValidator
+from app.commands.validation import UsernameValidator
+from app.commands.validation import ValidationError
 
 
 @pytest.fixture
@@ -97,7 +98,7 @@ class TestPlayerExistsValidator:
 
         validator = PlayerExistsValidator(arg_index=0)
 
-        with pytest.raises(ValidationError, match="Player.*not found"):
+        with pytest.raises(ValidationError, match=r"Player.*not found"):
             await validator(mock_context)
 
     @pytest.mark.asyncio

@@ -84,9 +84,14 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Integer, String, insert, select
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import insert
+from sqlalchemy import select
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
@@ -129,8 +134,9 @@ async def create(userid: int, map_md5: str, rating: int) -> Rating:
         .where(RatingsTable.map_md5 == map_md5)
     )
     _rating = await app.state.services.database.fetch_one(select_stmt)
-    assert _rating is not None
-    return cast(Rating, _rating)
+    if _rating is None:
+        raise RuntimeError("Failed to fetch rating after insert")
+    return cast("Rating", _rating)
 
 
 async def fetch_many(
@@ -150,7 +156,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     ratings = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Rating], ratings)
+    return cast("list[Rating]", ratings)
 
 
 async def fetch_one(userid: int, map_md5: str) -> Rating | None:
@@ -161,4 +167,4 @@ async def fetch_one(userid: int, map_md5: str) -> Rating | None:
         .where(RatingsTable.map_md5 == map_md5)
     )
     rating = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Rating | None, rating)
+    return cast("Rating | None", rating)

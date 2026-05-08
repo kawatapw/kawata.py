@@ -73,14 +73,19 @@ Related Files:
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import Sequence
 from typing import Any
 
 import app.settings
 import app.state
 import app.utils
-from app.constants.privileges import ClanPrivileges, Privileges
-from app.logging import Ansi, error_catcher, log
+from app.constants.privileges import ClanPrivileges
+from app.constants.privileges import Privileges
+from app.logging import Ansi
+from app.logging import error_catcher
+from app.logging import log
 from app.objects.channel import Channel
 from app.objects.group import Group
 from app.objects.match import Match
@@ -102,8 +107,7 @@ class Channels(list[Channel]):
         # Allow string to be passed to compare vs. name.
         if isinstance(o, str):
             return o in (chan.name for chan in self)
-        else:
-            return super().__contains__(o)
+        return super().__contains__(o)
 
     def __repr__(self) -> str:
         # XXX: we use the "real" name, aka
@@ -208,8 +212,7 @@ class Groups(list[Group]):
         # obj, or the player name as a string.
         if isinstance(player, str):
             return player in (group.lead.name for group in self)
-        else:
-            return super().__contains__(player)
+        return super().__contains__(player)
 
     def __repr__(self) -> str:
         return f"[{', '.join(map(repr, self))}]"
@@ -269,8 +272,7 @@ class Players(list[Player]):
     def __contains__(self, player: object) -> bool:
         if isinstance(player, str):
             return make_safe_name(player) in self._by_name
-        else:
-            return super().__contains__(player)
+        return super().__contains__(player)
 
     def __repr__(self) -> str:
         return f"[{', '.join(map(repr, self))}]"
@@ -316,9 +318,9 @@ class Players(list[Player]):
         """Get a player by token, id, or name from cache."""
         if token is not None:
             return self._by_token.get(token)
-        elif id is not None:
+        if id is not None:
             return self._by_id.get(id)
-        elif name is not None:
+        if name is not None:
             return self._by_name.get(make_safe_name(name))
         return None
 
@@ -403,7 +405,8 @@ class Players(list[Player]):
             if not player:
                 return None
 
-        assert player.pw_bcrypt is not None
+        if player.pw_bcrypt is None:
+            raise ValueError("Player password hash is None")
 
         if app.state.cache.bcrypt[player.pw_bcrypt] == pw_md5.encode():
             return player

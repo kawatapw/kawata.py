@@ -62,15 +62,20 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Literal
 
-from . import cache, services, sessions
+from . import cache
+from . import services
+from . import sessions
 
 if TYPE_CHECKING:
     from asyncio import AbstractEventLoop
 
     from app.adapters.database import Database
-    from app.packets import BasePacket, ClientPackets
+    from app.packets import BasePacket
+    from app.packets import ClientPackets
 
 loop: AbstractEventLoop | None = None
 score_submission_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
@@ -101,13 +106,13 @@ state = State(
 )
 
 __all__ = [
+    "State",
     "cache",
+    "loop",
+    "packets",
+    "score_submission_locks",
     "services",
     "sessions",
-    "loop",
-    "score_submission_locks",
-    "packets",
     "shutting_down",
-    "State",
     "state",
 ]

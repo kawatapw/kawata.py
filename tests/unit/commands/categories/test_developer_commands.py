@@ -2,23 +2,25 @@
 Tests for developer commands.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.developer import (
-    addpriv,
-    debug,
-    debug_focus,
-    givedonator,
-    py,
-    recalc,
-    reload,
-    rmpriv,
-    server,
-    stealth,
-    wipemap,
-)
+from app.commands.categories.developer import addpriv
+from app.commands.categories.developer import debug
+from app.commands.categories.developer import debug_focus
+from app.commands.categories.developer import givedonator
+from app.commands.categories.developer import py
+from app.commands.categories.developer import recalc
+from app.commands.categories.developer import reload
+from app.commands.categories.developer import rmpriv
+from app.commands.categories.developer import server
+from app.commands.categories.developer import stealth
+from app.commands.categories.developer import wipemap
 from app.commands.context import Context
 from app.constants.privileges import Privileges
 

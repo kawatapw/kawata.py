@@ -8,23 +8,24 @@ from __future__ import annotations
 
 import secrets
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from app import packets
-from app.commands.base import CommandCategory, multiplayer_command
+from app.commands.base import CommandCategory
+from app.commands.base import multiplayer_command
 from app.commands.context import Context
 from app.constants import regexes
-from app.constants.mods import SPEED_CHANGING_MODS, Mods
+from app.constants.mods import SPEED_CHANGING_MODS
+from app.constants.mods import Mods
 from app.constants.privileges import Privileges
 from app.objects.beatmap import Beatmap
-from app.objects.match import (
-    Match,
-    MatchTeams,
-    MatchTeamTypes,
-    MatchWinConditions,
-    SlotStatus,
-)
+from app.objects.match import Match
+from app.objects.match import MatchTeams
+from app.objects.match import MatchTeamTypes
+from app.objects.match import MatchWinConditions
+from app.objects.match import SlotStatus
 from app.objects.player import Player
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
@@ -171,7 +172,7 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
         }
 
         return f"Match will start in {duration} seconds."
-    elif ctx.args[0] in ("cancel", "c"):
+    if ctx.args[0] in ("cancel", "c"):
         # !mp start cancel
         if match.starting is None:
             return "Match timer not active!"
@@ -183,7 +184,7 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
         match.starting = None
 
         return "Match timer cancelled."
-    elif ctx.args[0] not in ("force", "f"):
+    if ctx.args[0] not in ("force", "f"):
         return "Invalid syntax: !mp start <force/seconds>"
     # !mp start force simply passes through
 
@@ -260,7 +261,8 @@ async def mp_mods(ctx: Context, match: Match) -> str | None:
 
         # set slot mods
         slot = match.get_slot(ctx.player)
-        assert slot is not None
+        if slot is None:
+            raise ValueError("Player slot not found in match")
 
         slot.mods = mods & ~SPEED_CHANGING_MODS
     else:
@@ -298,7 +300,8 @@ async def mp_freemods(ctx: Context, match: Match) -> str | None:
         match.freemods = False
 
         host_slot = match.get_host_slot()
-        assert host_slot is not None
+        if host_slot is None:
+            raise ValueError("Host slot not found in match")
 
         # the match keeps any speed-changing mods,
         # and also takes any mods the host has enabled.

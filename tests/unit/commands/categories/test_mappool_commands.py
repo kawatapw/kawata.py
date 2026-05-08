@@ -2,20 +2,22 @@
 Tests for mappool commands.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.mappool import (
-    pool_add,
-    pool_create,
-    pool_delete,
-    pool_help,
-    pool_info,
-    pool_list,
-    pool_remove,
-)
+from app.commands.categories.mappool import pool_add
+from app.commands.categories.mappool import pool_create
+from app.commands.categories.mappool import pool_delete
+from app.commands.categories.mappool import pool_help
+from app.commands.categories.mappool import pool_info
+from app.commands.categories.mappool import pool_list
+from app.commands.categories.mappool import pool_remove
 from app.commands.context import Context
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
@@ -271,9 +273,7 @@ class TestPoolAdd:
             assert "Could not find a pool" in result
 
     @pytest.mark.asyncio
-    async def test_add_map_already_in_pool(
-        self, mock_context, mock_player
-    ):
+    async def test_add_map_already_in_pool(self, mock_context, mock_player):
         """Test adding a map that's already in the pool."""
         mock_context.args = ["TestPool", "HD2"]
 

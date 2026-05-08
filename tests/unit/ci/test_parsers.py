@@ -1,7 +1,11 @@
 """Unit tests for CI tool parsers."""
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add tools/ci to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "tools" / "ci"))
@@ -9,11 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "tools" / "c
 from modules.parsers.bandit_parser import BanditParser
 from modules.parsers.mypy_parser import MypyParser
 from modules.parsers.pytest_parser import PytestParser
-from modules.parsers.registry import (
-    detect_parser,
-    get_parser,
-    list_parsers,
-)
+from modules.parsers.registry import detect_parser
+from modules.parsers.registry import get_parser
+from modules.parsers.registry import list_parsers
 from modules.parsers.ruff_parser import RuffParser
 from modules.parsers.safety_parser import SafetyParser
 from modules.parsers.trivy_parser import TrivyParser
@@ -44,11 +46,8 @@ class TestParserRegistry:
 
     def test_get_unknown_parser(self):
         """Test getting unknown parser raises error."""
-        try:
+        with pytest.raises(ValueError, match="Unknown parser"):
             get_parser("unknown")
-            raise AssertionError("Should have raised ValueError")
-        except ValueError as e:
-            assert "Unknown parser" in str(e)
 
 
 class TestMypyParser:

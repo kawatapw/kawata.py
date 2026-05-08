@@ -86,9 +86,16 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Integer, String, func, insert, select, update
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
@@ -143,8 +150,9 @@ async def create(from_id: int, to_id: int, msg: str) -> Mail:
 
     select_stmt = select(*READ_PARAMS).where(MailTable.id == rec_id)
     mail = await app.state.services.database.fetch_one(select_stmt)
-    assert mail is not None
-    return cast(Mail, mail)
+    if mail is None:
+        raise RuntimeError("Failed to fetch mail after insert")
+    return cast("Mail", mail)
 
 
 async def fetch_all_mail_to_user(
@@ -165,7 +173,7 @@ async def fetch_all_mail_to_user(
         select_stmt = select_stmt.where(MailTable.read == read)
 
     mail = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[MailWithUsernames], mail)
+    return cast("list[MailWithUsernames]", mail)
 
 
 async def mark_conversation_as_read(to_id: int, from_id: int) -> list[Mail]:
@@ -187,4 +195,4 @@ async def mark_conversation_as_read(to_id: int, from_id: int) -> list[Mail]:
         .values(read=True)
     )
     await app.state.services.database.execute(update_stmt)
-    return cast(list[Mail], mail)
+    return cast("list[Mail]", mail)

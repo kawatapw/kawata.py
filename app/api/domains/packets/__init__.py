@@ -49,8 +49,10 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
-from . import aeris, common
+from . import aeris
+from . import common
 
 __all__ = [
     "aeris",

@@ -10,101 +10,98 @@ from __future__ import annotations
 import inspect
 import traceback
 from collections.abc import Awaitable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
-from app.commands.base import (
-    Command,
-    CommandCategory,
-    CommandError,
-    ValidationError,
-)
+from app.commands.base import Command
+from app.commands.base import CommandCategory
+from app.commands.base import CommandError
+from app.commands.base import ValidationError
 
 # Import all command categories
+from app.commands.categories import _map
+from app.commands.categories import _with
+from app.commands.categories import addnote
+from app.commands.categories import addpriv
+from app.commands.categories import alert
+from app.commands.categories import alertuser
+from app.commands.categories import apikey
+from app.commands.categories import block
+from app.commands.categories import changename
+from app.commands.categories import clan_create
+from app.commands.categories import clan_disband
+from app.commands.categories import clan_help
+from app.commands.categories import clan_info
+from app.commands.categories import clan_leave
+from app.commands.categories import clan_list
+from app.commands.categories import debug
+from app.commands.categories import debug_focus
+from app.commands.categories import givedonator
+from app.commands.categories import maplink
+from app.commands.categories import mp_abort
+from app.commands.categories import mp_addref
+from app.commands.categories import mp_condition
+from app.commands.categories import mp_endscrim
+from app.commands.categories import mp_force
+from app.commands.categories import mp_freemods
+from app.commands.categories import mp_help
+from app.commands.categories import mp_host
+from app.commands.categories import mp_invite
+from app.commands.categories import mp_listref
+from app.commands.categories import mp_loadpool
+from app.commands.categories import mp_lock
+from app.commands.categories import mp_map
+from app.commands.categories import mp_mods
+from app.commands.categories import mp_randpw
+from app.commands.categories import mp_rematch
+from app.commands.categories import mp_rmref
+from app.commands.categories import mp_scrim
+from app.commands.categories import mp_start
+from app.commands.categories import mp_teams
+from app.commands.categories import mp_unloadpool
+from app.commands.categories import mp_unlock
+from app.commands.categories import notes  # Moderator commands
+from app.commands.categories import pool_add
+from app.commands.categories import pool_create
+from app.commands.categories import pool_delete
+from app.commands.categories import pool_help
+from app.commands.categories import pool_info
+from app.commands.categories import pool_list
+from app.commands.categories import pool_remove
+from app.commands.categories import py
+from app.commands.categories import recalc
+from app.commands.categories import recalc_season_stats
+from app.commands.categories import recent
+from app.commands.categories import reconnect
+from app.commands.categories import reload
+from app.commands.categories import request
+from app.commands.categories import requests  # Nominator commands
+from app.commands.categories import restrict
+from app.commands.categories import rmpriv
+from app.commands.categories import roll
+from app.commands.categories import season_create
+from app.commands.categories import season_end
+from app.commands.categories import season_list
+from app.commands.categories import season_schedule
+from app.commands.categories import season_start
+from app.commands.categories import seasons
+from app.commands.categories import seasons_all
+from app.commands.categories import server
+from app.commands.categories import shutdown
+from app.commands.categories import silence
+from app.commands.categories import stealth  # Developer commands
+from app.commands.categories import switchserv
+from app.commands.categories import top
+from app.commands.categories import unblock
+from app.commands.categories import unrestrict
+from app.commands.categories import unsilence
 from app.commands.categories import (
-    _map,
-    _with,
-    addnote,
-    addpriv,
-    alert,
-    alertuser,
-    apikey,
-    block,
-    changename,
-    clan_create,
-    clan_disband,
-    clan_help,
-    clan_info,
-    clan_leave,
-    clan_list,
-    debug,
-    debug_focus,
-    givedonator,
-    maplink,
-    mp_abort,
-    mp_addref,
-    mp_condition,
-    mp_endscrim,
-    mp_force,
-    mp_freemods,
-    mp_help,
-    mp_host,
-    mp_invite,
-    mp_listref,
-    mp_loadpool,
-    mp_lock,
-    mp_map,
-    mp_mods,
-    mp_randpw,
-    mp_rematch,
-    mp_rmref,
-    mp_scrim,
-    mp_start,
-    mp_teams,
-    mp_unloadpool,
-    mp_unlock,
-    # Moderator commands
-    notes,
-    pool_add,
-    pool_create,
-    pool_delete,
-    pool_help,
-    pool_info,
-    pool_list,
-    pool_remove,
-    py,
-    recalc,
-    recalc_season_stats,
-    recent,
-    reconnect,
-    reload,
-    request,
-    # Nominator commands
-    requests,
-    restrict,
-    rmpriv,
-    roll,
-    season_create,
-    season_end,
-    season_list,
-    season_schedule,
-    season_start,
-    seasons,
-    seasons_all,
-    server,
-    shutdown,
-    silence,
-    # Developer commands
-    stealth,
-    switchserv,
-    top,
-    unblock,
-    unrestrict,
-    unsilence,
     # Administrator commands - user is imported separately from administrator module
     wipemap,
 )
 from app.commands.categories.administrator import user
-from app.commands.context import CommandResponse, Context
+from app.commands.context import CommandResponse
+from app.commands.context import Context
 from app.commands.help import generate_help_message
 
 if TYPE_CHECKING:
@@ -158,9 +155,9 @@ class CommandRegistry:
         if command.metadata.namespace:
             if command.metadata.namespace not in self._namespaces:
                 self._namespaces[command.metadata.namespace] = {}
-            self._namespaces[command.metadata.namespace][
-                command.metadata.name
-            ] = command
+            self._namespaces[command.metadata.namespace][command.metadata.name] = (
+                command
+            )
 
         # Register by category
         if command.metadata.category not in self._categories:

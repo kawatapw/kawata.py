@@ -127,27 +127,30 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Index,
-    Integer,
-    String,
-    and_,
-    func,
-    insert,
-    outerjoin,
-    select,
-    update,
-)
-from sqlalchemy.dialects.mysql import FLOAT, TINYINT
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import and_
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import outerjoin
+from sqlalchemy import select
+from sqlalchemy import update
+from sqlalchemy.dialects.mysql import FLOAT
+from sqlalchemy.dialects.mysql import TINYINT
 
 import app.settings
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
-from app.logging import Ansi, log, logLevel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
+from app.logging import Ansi
+from app.logging import log
+from app.logging import logLevel
 from app.repositories import Base
 
 
@@ -315,8 +318,9 @@ async def create(
 
     select_stmt = select(*READ_PARAMS).where(ScoresTable.id == rec_id)
     _score = await app.state.services.database.fetch_one(select_stmt)
-    assert _score is not None
-    return cast(Score, _score)
+    if _score is None:
+        raise RuntimeError("Failed to fetch score after insert")
+    return cast("Score", _score)
 
 
 async def fetch_one(id: int) -> Score | None:
@@ -377,7 +381,7 @@ async def fetch_one(id: int) -> Score | None:
                     level=logLevel.DBGLV2,
                 )
 
-        return cast(Score | None, _score)
+        return cast("Score | None", _score)
     except Exception as e:
         log(
             f"An error occurred while fetching a score with id {id} | Error: {e}.",
@@ -424,8 +428,9 @@ async def fetch_count(
         )
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise RuntimeError("Failed to fetch scores count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -468,7 +473,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     scores = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Score], scores)
+    return cast("list[Score]", scores)
 
 
 async def partial_update(
@@ -487,7 +492,7 @@ async def partial_update(
 
     select_stmt = select(*READ_PARAMS).where(ScoresTable.id == id)
     _score = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Score | None, _score)
+    return cast("Score | None", _score)
 
 
 async def fetch_oldest_play_time() -> datetime | None:
@@ -499,7 +504,7 @@ async def fetch_oldest_play_time() -> datetime | None:
     select_stmt = select(func.min(ScoresTable.play_time).label("oldest_play_time"))
     result = await app.state.services.database.fetch_one(select_stmt)
     if result and result["oldest_play_time"]:
-        return cast(datetime, result["oldest_play_time"])
+        return cast("datetime", result["oldest_play_time"])
     return None
 
 

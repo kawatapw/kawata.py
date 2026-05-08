@@ -359,7 +359,6 @@ jobs:
   ruff:
     needs: [initialization, build]
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -391,26 +390,30 @@ jobs:
         id: ruff
         run: |
           mkdir -p reports
-          # Run ruff check and capture output
-          uv run ruff check . > reports/ruff.txt 2>&1 || true
           # Run ruff format check and capture output
-          uv run ruff format . --check > reports/ruff-format.txt 2>&1 || true
+          uv run ruff format --check . > reports/ruff-format.txt 2>&1 || true
+          # Run ruff lint and capture output
+          uv run ruff check . > reports/ruff.txt 2>&1 || true
           # Display the output
-          if [ -f reports/ruff.txt ]; then
-            echo "## Ruff Results" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            cat reports/ruff.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
           if [ -f reports/ruff-format.txt ]; then
             echo "## Ruff Format Results" >> $GITHUB_STEP_SUMMARY
             echo '```text' >> $GITHUB_STEP_SUMMARY
             cat reports/ruff-format.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+          if [ -f reports/ruff.txt ]; then
+            echo "## Ruff Lint Results" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat reports/ruff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
           # Check if ruff found any errors
-          if grep -q "error\|E\|F" reports/ruff.txt || grep -q "would reformat\|error" reports/ruff-format.txt; then
-            echo "Ruff found errors. Failing job."
+          if grep -q "would reformat\|error" reports/ruff-format.txt; then
+            echo "Ruff format found issues. Failing job."
+            exit 1
+          fi
+          if grep -qE "^[0-9]+:" reports/ruff.txt; then
+            echo "Ruff lint found issues. Failing job."
             exit 1
           fi
 

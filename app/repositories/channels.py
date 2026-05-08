@@ -88,23 +88,23 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Column,
-    Index,
-    Integer,
-    String,
-    delete,
-    func,
-    insert,
-    select,
-    update,
-)
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import delete
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 
@@ -163,8 +163,9 @@ async def create(
     select_stmt = select(*READ_PARAMS).where(ChannelsTable.id == rec_id)
     channel = await app.state.services.database.fetch_one(select_stmt)
 
-    assert channel is not None
-    return cast(Channel, channel)
+    if channel is None:
+        raise ValueError(f"Channel with id {rec_id} not found after creation")
+    return cast("Channel", channel)
 
 
 async def fetch_one(
@@ -183,7 +184,7 @@ async def fetch_one(
         select_stmt = select_stmt.where(ChannelsTable.name == name)
 
     channel = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Channel | None, channel)
+    return cast("Channel | None", channel)
 
 
 async def fetch_count(
@@ -204,8 +205,9 @@ async def fetch_count(
         select_stmt = select_stmt.where(ChannelsTable.auto_join == auto_join)
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise ValueError("Failed to fetch channel count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -229,7 +231,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     channels = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Channel], channels)
+    return cast("list[Channel]", channels)
 
 
 async def partial_update(
@@ -255,7 +257,7 @@ async def partial_update(
 
     select_stmt = select(*READ_PARAMS).where(ChannelsTable.name == name)
     channel = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Channel | None, channel)
+    return cast("Channel | None", channel)
 
 
 async def delete_one(
@@ -269,4 +271,4 @@ async def delete_one(
 
     delete_stmt = delete(ChannelsTable).where(ChannelsTable.name == name)
     await app.state.services.database.execute(delete_stmt)
-    return cast(Channel | None, channel)
+    return cast("Channel | None", channel)

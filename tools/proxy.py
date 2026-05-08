@@ -7,7 +7,8 @@ from __future__ import annotations
 import re
 import struct
 import sys
-from enum import IntEnum, unique
+from enum import IntEnum
+from enum import unique
 
 from mitmproxy import http
 
@@ -133,33 +134,29 @@ def response(flow: http.HTTPFlow) -> None:
                 if packet_num % 5:  # don't build up too much in ram
                     sys.stdout.flush()
         sys.stdout.write("\n")
-    else:  # format varies per request
-        if (  # todo check host
-            (
-                # jfif, jpe, jpeg, jpg graphics file
-                body_view[:4] == b"\xff\xd8\xff\xe0"
-                and body_view[6:11] == b"JFIF\x00"
-            )
-            or (
-                # exif digital jpg
-                body_view[:4] == b"\xff\xd8\xff\xe1"
-                and body_view[6:11] == b"Exif\x00"
-            )
-            or (
-                # spiff still picture jpg
-                body_view[:4] == b"\xff\xd8\xff\xe8"
-                and body_view[6:12] == b"SPIFF\x00"
-            )
-        ):
-            sys.stdout.write(f"[{fmt_bytes(body_len)} jpeg file]\n\n")
-        elif (
-            body_view[:8] == b"\x89PNG\r\n\x1a\n"
-            and body_view[-8:] == b"\x49END\xae\x42\x60\x82"
-        ):
-            sys.stdout.write(f"[{fmt_bytes(body_len)} png file]\n\n")
-        elif body_view[:6] in (b"GIF87a", b"GIF89a") and body_view[-2:] == b"\x00\x3b":
-            sys.stdout.write(f"[{fmt_bytes(body_len)} gif file]\n\n")
-        else:
-            sys.stdout.write(f"{str(body)[2:-1]}\n\n")  # remove b''
+    elif (  # todo check host
+        (
+            # jfif, jpe, jpeg, jpg graphics file
+            body_view[:4] == b"\xff\xd8\xff\xe0" and body_view[6:11] == b"JFIF\x00"
+        )
+        or (
+            # exif digital jpg
+            body_view[:4] == b"\xff\xd8\xff\xe1" and body_view[6:11] == b"Exif\x00"
+        )
+        or (
+            # spiff still picture jpg
+            body_view[:4] == b"\xff\xd8\xff\xe8" and body_view[6:12] == b"SPIFF\x00"
+        )
+    ):
+        sys.stdout.write(f"[{fmt_bytes(body_len)} jpeg file]\n\n")
+    elif (
+        body_view[:8] == b"\x89PNG\r\n\x1a\n"
+        and body_view[-8:] == b"\x49END\xae\x42\x60\x82"
+    ):
+        sys.stdout.write(f"[{fmt_bytes(body_len)} png file]\n\n")
+    elif body_view[:6] in (b"GIF87a", b"GIF89a") and body_view[-2:] == b"\x00\x3b":
+        sys.stdout.write(f"[{fmt_bytes(body_len)} gif file]\n\n")
+    else:
+        sys.stdout.write(f"{str(body)[2:-1]}\n\n")  # remove b''
 
     sys.stdout.flush()

@@ -75,13 +75,17 @@ Related Files:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
+from fastapi import status
 from fastapi.param_functions import Query
 
 import app.state.sessions
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure, Success
-from app.api.v2.models.players import Player, PlayerStats, PlayerStatus
+from app.api.v2.common.responses import Failure
+from app.api.v2.common.responses import Success
+from app.api.v2.models.players import Player
+from app.api.v2.models.players import PlayerStats
+from app.api.v2.models.players import PlayerStatus
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 

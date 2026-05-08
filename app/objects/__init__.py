@@ -58,8 +58,16 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
-from . import achievement, beatmap, channel, collections, match, models, player, score
+from . import achievement
+from . import beatmap
+from . import channel
+from . import collections
+from . import match
+from . import models
+from . import player
+from . import score
 
 __all__ = [
     "achievement",

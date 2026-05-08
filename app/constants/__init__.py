@@ -52,8 +52,13 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
-from . import clientflags, gamemodes, mods, privileges, regexes
+from . import clientflags
+from . import gamemodes
+from . import mods
+from . import privileges
+from . import regexes
 
 __all__ = [
     "clientflags",

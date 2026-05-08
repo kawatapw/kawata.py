@@ -74,12 +74,19 @@ import secrets
 import signal
 import time
 import uuid
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable
+from collections.abc import Callable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn, TypedDict
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import NamedTuple
+from typing import TypedDict
 from urllib.parse import urlparse
 
 import cpuinfo
@@ -95,17 +102,21 @@ import app.usecases.performance
 import app.utils
 from app.constants import regexes
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
-from app.constants.mods import SPEED_CHANGING_MODS, Mods
-from app.constants.privileges import ClanPrivileges, Privileges
-from app.logging import Ansi, error_catcher, log
-from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
-from app.objects.match import (
-    Match,
-    MatchTeams,
-    MatchTeamTypes,
-    MatchWinConditions,
-    SlotStatus,
-)
+from app.constants.mods import SPEED_CHANGING_MODS
+from app.constants.mods import Mods
+from app.constants.privileges import ClanPrivileges
+from app.constants.privileges import Privileges
+from app.logging import Ansi
+from app.logging import error_catcher
+from app.logging import log
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import RankedStatus
+from app.objects.beatmap import ensure_osu_file_is_available
+from app.objects.match import Match
+from app.objects.match import MatchTeams
+from app.objects.match import MatchTeamTypes
+from app.objects.match import MatchWinConditions
+from app.objects.match import SlotStatus
 from app.objects.player import Player
 from app.objects.score import SubmissionStatus
 from app.repositories import clans as clans_repo
@@ -406,16 +417,15 @@ async def recent(ctx: Context) -> str | None:
     if score.passed:
         rank = score.rank if score.status == SubmissionStatus.BEST else "NA"
         score_lines.append(f"PASS {{{score.pp:.2f}pp #{rank}}}")
+    # XXX: prior to v3.2.0, bancho.py didn't parse total_length from
+    # the osu!api, and thus this can do some zerodivision moments.
+    # this can probably be removed in the future, or better yet
+    # replaced with a better system to fix the maps.
+    elif score.bmap.total_length != 0:
+        completion = score.time_elapsed / (score.bmap.total_length * 1000)
+        score_lines.append(f"FAIL {{{completion * 100:.2f}% complete}})")
     else:
-        # XXX: prior to v3.2.0, bancho.py didn't parse total_length from
-        # the osu!api, and thus this can do some zerodivision moments.
-        # this can probably be removed in the future, or better yet
-        # replaced with a better system to fix the maps.
-        if score.bmap.total_length != 0:
-            completion = score.time_elapsed / (score.bmap.total_length * 1000)
-            score_lines.append(f"FAIL {{{completion * 100:.2f}% complete}})")
-        else:
-            score_lines.append("FAIL")
+        score_lines.append("FAIL")
 
     return " | ".join(score_lines)
 
@@ -675,7 +685,8 @@ async def requests(ctx: Context) -> str | None:
 
     request_lines = [f"Total requested beatmaps: {len(grouped)}"]
     for map_id, reviews in grouped.items():
-        assert len(reviews) != 0
+        if len(reviews) == 0:
+            raise ValueError("Reviews list is empty")
 
         bmap = await Beatmap.from_bid(map_id)
         if not bmap:
@@ -729,9 +740,8 @@ async def _map(ctx: Context) -> str | None:
     if ctx.args[1] == "map":
         if bmap.status == new_status:
             return f"{bmap.embed} is already {new_status!s}!"
-    else:  # ctx.args[1] == "set"
-        if all(map.status == new_status for map in bmap.set.maps):
-            return f"All maps from the set are already {new_status!s}!"
+    elif all(map.status == new_status for map in bmap.set.maps):
+        return f"All maps from the set are already {new_status!s}!"
 
     # update sql & cache based on scope
     # XXX: not sure if getting md5s from sql
@@ -803,7 +813,7 @@ async def notes(ctx: Context) -> str | None:
 
     if days > 365:
         return "Please contact a developer to fetch >365 day old information."
-    elif days <= 0:
+    if days <= 0:
         return "Invalid syntax: !notes <name> <days_back>"
 
     res = await app.state.services.database.fetch_all(
@@ -1100,7 +1110,7 @@ async def switchserv(ctx: Context) -> str | None:
 
 @command(Privileges.ADMINISTRATOR)
 @error_catcher
-async def shutdown(ctx: Context) -> str | None | NoReturn:
+async def shutdown(ctx: Context) -> str | None:
     """Gracefully shutdown the server."""
     if ctx.args:  # shutdown after a delay
         delay = timeparse(ctx.args[0])
@@ -1121,9 +1131,9 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
 
         app.state.loop.call_later(delay, os.kill, os.getpid(), signal.SIGTERM)
         return f"Enqueued {ctx.trigger}."
-    else:  # shutdown immediately
-        os.kill(os.getpid(), signal.SIGTERM)
-        return "Process killed"
+    # shutdown immediately
+    os.kill(os.getpid(), signal.SIGTERM)
+    return "Process killed"
 
 
 """ Developer commands
@@ -1437,15 +1447,12 @@ if app.settings.DEVELOPER_MODE:
         definition = "\n ".join(["async def __py(ctx):", " ".join(ctx.args)])
 
         try:  # def __py(ctx)
-            exec(
-                definition, __py_namespace
-            )  # noqa: S102  # nosec B102  # add to namespace
+            exec(definition, __py_namespace)  # noqa: S102  # nosec B102  # add to namespace
             ret = await __py_namespace["__py"](ctx)  # await it's return
         except Exception as exc:  # return exception in osu! chat
             ret = f"{exc.__class__}: {exc}"
 
-        if "__py" in __py_namespace:
-            del __py_namespace["__py"]
+        __py_namespace.pop("__py", None)
 
         if not isinstance(ret, str):
             ret = pprint.pformat(ret, compact=True)
@@ -1576,7 +1583,7 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
         }
 
         return f"Match will start in {duration} seconds."
-    elif ctx.args[0] in ("cancel", "c"):
+    if ctx.args[0] in ("cancel", "c"):
         # !mp start cancel
         if match.starting is None:
             return "Match timer not active!"
@@ -1588,7 +1595,7 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
         match.starting = None
 
         return "Match timer cancelled."
-    elif ctx.args[0] not in ("force", "f"):
+    if ctx.args[0] not in ("force", "f"):
         return "Invalid syntax: !mp start <force/seconds>"
     # !mp start force simply passes through
 
@@ -1658,7 +1665,8 @@ async def mp_mods(ctx: Context, match: Match) -> str | None:
 
         # set slot mods
         slot = match.get_slot(ctx.player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Player slot not found in match")
 
         slot.mods = mods & ~SPEED_CHANGING_MODS
     else:
@@ -1693,7 +1701,8 @@ async def mp_freemods(ctx: Context, match: Match) -> str | None:
         match.freemods = False
 
         host_slot = match.get_host_slot()
-        assert host_slot is not None
+        if host_slot is None:
+            raise RuntimeError("Host slot not found in match")
 
         # the match keeps any speed-changing mods,
         # and also takes any mods the host has enabled.
@@ -2313,7 +2322,8 @@ async def pool_add(ctx: Context) -> str | None:
     for pool_map in tourney_pool_maps:
         if mods == pool_map["mods"] and slot == pool_map["slot"]:
             pool_beatmap = await Beatmap.from_bid(pool_map["map_id"])
-            assert pool_beatmap is not None
+            if pool_beatmap is None:
+                raise ValueError("Pool beatmap not found")
             return f"{mods_slot} is already {pool_beatmap.embed}!"
 
         if pool_map["map_id"] == bmap.id:
@@ -2578,7 +2588,7 @@ async def clan_leave(ctx: Context) -> str | None:
     """Leaves the clan you're in."""
     if not ctx.player.clan_id:
         return "You're not in a clan."
-    elif ctx.player.clan_priv == ClanPrivileges.Owner:
+    if ctx.player.clan_priv == ClanPrivileges.Owner:
         return "You must transfer your clan's ownership before leaving it. Alternatively, you can use !clan disband."
 
     clan = await clans_repo.fetch_one(id=ctx.player.clan_id)
@@ -2616,8 +2626,7 @@ async def clan_list(ctx: Context) -> str | None:
     if ctx.args:
         if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
             return "Invalid syntax: !clan list (page)"
-        else:
-            offset = 25 * int(ctx.args[0])
+        offset = 25 * int(ctx.args[0])
     else:
         offset = 0
 
@@ -2813,7 +2822,7 @@ async def recalc_season_stats(ctx: Context) -> str | None:
             player.send_bot(f"Done! Recalculated stats for {len(all_seasons)} seasons.")
 
         # Background task - intentionally not awaited
-        asyncio.create_task(_recalc_all())  # type: ignore[unused-awaitable]
+        asyncio.create_task(_recalc_all())  # type: ignore[unused-awaitable]  # noqa: RUF006
         return f"Started recalculating {len(all_seasons)} seasons in background. You'll get a message when done."
 
     if not ctx.args[0].isdecimal():
@@ -2829,7 +2838,7 @@ async def recalc_season_stats(ctx: Context) -> str | None:
         player.send_bot(f"Done! Recalculated stats for season '{season['name']}'.")
 
         # Background task - intentionally not awaited
-        asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]
+        asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]  # noqa: RUF006
 
     return f"Started recalculating season '{season['name']}' in background. You'll get a message when done."
 
@@ -2898,7 +2907,7 @@ async def season_schedule(ctx: Context) -> str | None:
 
         return f"Schedule '{name}' created with ID {schedule['id']}."
 
-    elif action == "list":
+    if action == "list":
         schedules = await seasons_repo.fetch_many_schedules()
         if not schedules:
             return "No schedules found."
@@ -2911,8 +2920,7 @@ async def season_schedule(ctx: Context) -> str | None:
 
         return "\n".join(msg)
 
-    else:
-        return "Invalid action. Use: create, list, or info"
+    return "Invalid action. Use: create, list, or info"
 
 
 @command(Privileges.UNRESTRICTED)
@@ -2934,13 +2942,12 @@ async def seasons(ctx: Context) -> str | None:
                 preferred_lb_view="seasonal",
             )
             return "Switched to seasonal view."
-        else:
-            ctx.player.preferred_lb_view = "all_time"
-            await users_repo.partial_update(
-                id=ctx.player.id,
-                preferred_lb_view="all_time",
-            )
-            return "Switched to all-time view."
+        ctx.player.preferred_lb_view = "all_time"
+        await users_repo.partial_update(
+            id=ctx.player.id,
+            preferred_lb_view="all_time",
+        )
+        return "Switched to all-time view."
 
     # Handle specific season ID or "all"
     arg = ctx.args[0].lower()

@@ -100,9 +100,13 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from enum import IntEnum, StrEnum, unique
+from enum import IntEnum
+from enum import StrEnum
+from enum import unique
 from functools import cached_property
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING
+from typing import TypedDict
+from typing import cast
 
 import app.packets
 import app.settings
@@ -111,19 +115,29 @@ from app._typing import IPAddress
 from app.constants.aeris_features import AerisFeatures
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.constants.privileges import ClientPrivileges, Privileges
+from app.constants.privileges import ClientPrivileges
+from app.constants.privileges import Privileges
 from app.discord import Webhook
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi
+from app.logging import log
+from app.logging import logLevel
 from app.objects.channel import Channel
-from app.objects.match import Match, MatchTeams, MatchTeamTypes, Slot, SlotStatus
-from app.objects.score import Grade, Score
+from app.objects.match import Match
+from app.objects.match import MatchTeams
+from app.objects.match import MatchTeamTypes
+from app.objects.match import Slot
+from app.objects.match import SlotStatus
+from app.objects.score import Grade
+from app.objects.score import Score
 from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.state.services import Geolocation
-from app.utils import escape_enum, make_safe_name, pymysql_encode
+from app.utils import escape_enum
+from app.utils import make_safe_name
+from app.utils import pymysql_encode
 
 if TYPE_CHECKING:
     from app.constants.privileges import ClanPrivileges
@@ -326,9 +340,7 @@ class Player:
         self.aeris_client: bool = (
             False  # Identified by the Specific packet dedicated to Kawata/Aeris clients
         )
-        self.aeris_client_features: int = (
-            AerisFeatures.None_
-        )  # by default the client don't take into account any Kawata/Aeris features, because it's another client
+        self.aeris_client_features: int = AerisFeatures.None_  # by default the client don't take into account any Kawata/Aeris features, because it's another client
         self.priv = priv
         self.pw_bcrypt = pw_bcrypt
         self.token = token
@@ -718,7 +730,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]
+            _ = asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]  # noqa: RUF006
 
         # refresh their client state
         if self.is_online:
@@ -758,7 +770,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]
+            _ = asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]  # noqa: RUF006
 
         if self.is_online:
             # log the user out if they're offline, this
@@ -876,7 +888,8 @@ class Player:
             return
 
         slot = self.match.get_slot(self)
-        assert slot is not None
+        if slot is None:
+            raise ValueError("Player slot not found in match")
 
         if slot.status == SlotStatus.locked:
             # player was kicked, keep the slot locked.
@@ -931,8 +944,10 @@ class Player:
         if (
             self in channel
             or not channel.can_read(self.priv)  # player already in channel
-            or channel.real_name == "#lobby"  # no read privs
-            and not self.in_lobby  # not in mp lobby
+            or (
+                channel.real_name == "#lobby"  # no read privs
+                and not self.in_lobby
+            )  # not in mp lobby
         ):
             return False
 
@@ -1043,7 +1058,8 @@ class Player:
         player.spectating = None
 
         channel = app.state.sessions.channels.get_by_name(f"#spec_{self.id}")
-        assert channel is not None
+        if channel is None:
+            raise RuntimeError(f"Spectator channel #spec_{self.id} not found")
 
         player.leave_channel(channel)
 
@@ -1160,7 +1176,7 @@ class Player:
             f"bancho:leaderboard:{mode.value}",
             str(self.id),
         )
-        return cast(int, rank) + 1 if rank is not None else 0
+        return cast("int", rank) + 1 if rank is not None else 0
 
     async def get_season_rank(self, season_id: int, mode: GameMode) -> int:
         """Get the player's rank in a specific season and mode."""
@@ -1171,7 +1187,7 @@ class Player:
             f"bancho:leaderboard:{mode.value}:season:{season_id}",
             str(self.id),
         )
-        return cast(int, rank) + 1 if rank is not None else 0
+        return cast("int", rank) + 1 if rank is not None else 0
 
     async def get_country_rank(self, mode: GameMode) -> int:
         if self.restricted:
@@ -1183,7 +1199,7 @@ class Player:
             str(self.id),
         )
 
-        return cast(int, rank) + 1 if rank is not None else 0
+        return cast("int", rank) + 1 if rank is not None else 0
 
     async def update_rank(self, mode: GameMode) -> int:
         country = self.geoloc["country"]["acronym"]

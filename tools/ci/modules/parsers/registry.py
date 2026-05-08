@@ -1,8 +1,11 @@
 """Parser registry for CI tool."""
 
+from __future__ import annotations
+
 import json
 import re
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from pathlib import Path
 from typing import Any
 
@@ -83,14 +86,14 @@ def detect_parser(file_path: str, content: str | None = None) -> str:
     # 2. File extension detection
     if suffix == ".xml":
         return "pytest"
-    elif suffix == ".sarif":
+    if suffix == ".sarif":
         return "trivy"
-    elif suffix in (".txt", ".log"):
+    if suffix in (".txt", ".log"):
         # Try to detect by content if available
         if content:
             return _detect_text_format(content)
         return "generic"
-    elif suffix == ".json":
+    if suffix == ".json":
         # 3. Content-based detection for JSON
         if content:
             return _detect_json_format(content)

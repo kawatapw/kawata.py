@@ -1,5 +1,7 @@
 """Report aggregation module."""
 
+from __future__ import annotations
+
 import argparse
 from typing import Any
 

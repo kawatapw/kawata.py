@@ -77,9 +77,11 @@ Related Files:
 
 from __future__ import annotations
 
-from base64 import b64decode, b64encode
+from base64 import b64decode
+from base64 import b64encode
 
-from py3rijndael import Pkcs7Padding, RijndaelCbc
+from py3rijndael import Pkcs7Padding
+from py3rijndael import RijndaelCbc
 
 
 def encrypt_score_aes_data(

@@ -54,15 +54,18 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
-from . import cho, map, osu
+from . import cho
+from . import map as map_domain
+from . import osu
 from .packets import aeris as aeris_packets
 from .packets import common
 
 __all__ = [
-    "cho",
-    "map",
-    "osu",
     "aeris_packets",
+    "cho",
     "common",
+    "map_domain",
+    "osu",
 ]

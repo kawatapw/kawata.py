@@ -53,9 +53,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pre-commit==3.6.1",
-    "black==26.3.1",
-    "isort==5.13.2",
-    "autoflake==2.2.1",
     "types-psutil==5.9.5.20240205",
     "types-pymysql==1.1.0.1",
     "types-requests==2.31.0.20240125",
@@ -132,32 +129,175 @@ junit_suite_name = "kawata-py"
 junit_log_passing_tests = true
 junit_duration_report = "call"
 
-[tool.isort]
-add_imports = ["from __future__ import annotations"]
-force_single_line = true
-profile = "black"
-
 [tool.ruff]
-# `lint` target is read-only (per CodeRabbit); `format` target uses ruff
-# format/check --fix explicitly when autofix is wanted.
-fix = false
-unsafe-fixes = false
 target-version = "py311"
+# Allow ruff to fix what it can when --fix is passed
+fix = true
+unsafe-fixes = false
 
 [tool.ruff.lint]
-# Enable common linting rules
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
+    # --- Core ---
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    # --- Bugbear & Comprehensions ---
+    "B",    # flake8-bugbear
+    "B9",   # flake8-bugbear opinionated warnings
+    "C4",   # flake8-comprehensions
+    # --- Modernization ---
+    "UP",   # pyupgrade
+    # --- Simplification ---
+    "SIM",  # flake8-simplify
+    # --- Type checking ---
+    "TCH",  # flake8-type-checking
+    # --- Unused code ---
+    "ARG",  # flake8-unused-arguments
+    "ERA",  # eradicate (commented-out code)
+    # --- Naming ---
+    "N",    # pep8-naming
+    # --- Security ---
+    "S",    # flake8-bandit
+    # --- Builtins ---
+    "A",    # flake8-builtins (shadowing)
+    # --- Commas ---
+    "COM",  # flake8-commas
+    # --- String concat ---
+    "ISC",  # flake8-implicit-str-concat
+    # --- Misc lint ---
+    "PIE",  # flake8-pie
+    # --- Pytest ---
+    "PT",   # flake8-pytest
+    # --- Return statements ---
+    "RET",  # flake8-return
+    # --- Self access ---
+    "SLF",  # flake8-self
+    # --- Import tidiness ---
+    "TID",  # flake8-tidy-imports
+    # --- Pylint refactor (selective) ---
+    "PLR",  # pylint refactor
+    # --- Exception handling ---
+    "TRY",  # tryceratops
+    # --- Refurb ---
+    "FURB", # refurb
+    # --- Logging ---
+    "LOG",  # flake8-logging
+    # --- FastAPI ---
+    "FAST", # fastapi
+    # --- Ruff-specific ---
+    "RUF",  # ruff rules
 ]
 ignore = [
-    "E501",  # line too long, handled by formatter
+    "E501",    # line too long, handled by formatter
+    "S105",    # possible hardcoded password (false positives in config)
+    "S106",    # possible hardcoded password in function arg
+    "S108",    # hardcoded temp file (false positives)
+    "S603",    # subprocess call (false positives)
+    "S607",    # partial executable path (false positives)
+    "COM812",  # trailing comma on bare tuple (conflicts with ruff format)
+    "COM819",  # prohibited trailing comma (conflicts with ruff format)
+    "ISC001",  # single-line implicit string concatenation (conflicts with ruff format)
+    "PLR2004", # magic value comparison (too noisy for this codebase)
+    "PLR0911", # too many return statements
+    "PLR0912", # too many branches
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements
+    "TRY003",  # long exception message (too noisy)
+    "TRY300",  # consider else block (opinionated)
+    "S311",    # pseudo-random generators (not security-sensitive here)
+    "S324",    # hashlib insecure (used for checksums, not security)
+    "S608",    # SQL injection (false positives with parameterized queries)
+    "SIM108",  # ternary operator (opinionated)
+    "SIM117",  # merge with statements (opinionated)
+    "TID252",  # relative imports (used intentionally in this codebase)
+    "RET504",  # unnecessary assignment before return (opinionated)
+    "N818",    # exception naming (too noisy for this codebase)
+    "FAST002", # fastapi dependency injection (too opinionated)
+    "RUF012",  # mutable class default (too noisy for this codebase)
+    "RUF001",  # ambiguous unicode character (false positives)
+    "RUF002",  # ambiguous unicode in docstring (false positives)
+    "RUF003",  # ambiguous unicode in comment (false positives)
+    "RUF015",  # unnecessary iterable allocation (opinionated)
+    "FURB129", # read-whole-file (false positives with context managers)
+    "FURB148", # unnecessary enumerate (opinionated)
+    "PT001",   # pytest fixture parenthesis (opinionated)
+    "PT011",   # pytest raises too broad (too noisy)
+    "PT018",   # pytest composite assertion (opinionated)
+    "B008",    # function call in default argument (FastAPI pattern)
+    "B904",    # raise from in except (too noisy for this codebase)
+    "SLF001",  # private member access (used intentionally in this codebase)
+    "A001",    # variable shadows builtin (too noisy)
+    "A002",    # argument shadows builtin (too noisy)
+    "A003",    # class attribute shadows builtin (too noisy)
+    "SIM102",  # collapsible if (opinionated)
+    "SIM105",  # suppressible exception (opinionated)
+    "SIM110",  # reimplemented built-in (opinionated)
+    "ERA001",  # commented-out code (too noisy during development)
+    "LOG002",  # logger name (opinionated)
+    "LOG009",  # undocumented warn (opinionated)
+    "LOG015",  # info in root logger (opinionated)
+    "N801",    # class naming (too opinionated)
+    "N802",    # function naming (too opinionated)
+    "N803",    # argument naming (too opinionated)
+    "N804",    # first argument naming (too opinionated)
+    "N805",    # first argument naming (too opinionated)
+    "N806",    # variable naming (too opinionated)
+    "N815",    # variable naming in class scope (too opinionated)
+    "N816",    # variable naming in global scope (too opinionated)
+    "N999",    # module naming (too opinionated)
+    "PIE790",  # unnecessary pass (opinionated)
+    "PIE794",  # duplicate class field (false positives)
+    "PIE808",  # unnecessary dict kwargs (opinionated)
+    "PIE810",  # multiple starts with (opinionated)
+    "TC001",  # type checking import (too noisy during development)
+    "TC002",  # type checking import (too noisy during development)
+    "TC003",  # type checking import (too noisy during development)
+    "ARG001",  # unused function argument (too noisy during development)
+    "ARG002",  # unused method argument (too noisy during development)
+    "ARG003",  # unused class method argument (too noisy during development)
+    "ARG004",  # unused static method argument (too noisy during development)
+    "ARG005",  # unused lambda argument (too noisy during development)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # assert allowed in tests
+    "S105",    # hardcoded password string in tests
+    "S106",    # hardcoded password in function arg in tests
+    "S311",    # pseudo-random in tests
+    "PLR2004", # magic values in tests
+    "SLF001",  # private member access in tests
+    "N802",    # function naming in tests
+    "B017",    # assert blind exception in tests
+    "PT019",   # fixture without value (false positive)
+    "F841",    # unused variable in tests
+    "E712",    # comparison to True/False in tests
+]
+"tools/**/*.py" = [
+    "S101",    # assert allowed in tools
+    "PLR2004", # magic values in tools
+    "SLF001",  # private member access in tools
+    "ERA001",  # commented-out code in tools
+]
+"migrations/**/*.py" = [
+    "ERA001",  # commented-out code in migrations
+    "E501",    # long lines in migrations
+]
+"__init__.py" = [
+    "F401",    # unused import in __init__.py (re-exports)
+    "F403",    # star import in __init__.py
+    "F405",    # undefined from star import
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+# Auto-add `from __future__ import annotations` to all files
+required-imports = ["from __future__ import annotations"]
+force-single-line = true
+force-wrap-aliases = true
+# Split imports into sections
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
 [tool.ruff.format]
 # Black-compatible formatting
@@ -165,9 +305,6 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 docstring-code-format = true
-
-[tool.ruff.lint.isort]
-known-first-party = ["app"]
 
 [tool.bandit]
 exclude_dirs = [

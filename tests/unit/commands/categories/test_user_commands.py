@@ -2,23 +2,25 @@
 Tests for user commands.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.user import (
-    _with,
-    apikey,
-    block,
-    changename,
-    maplink,
-    recent,
-    reconnect,
-    request,
-    roll,
-    top,
-    unblock,
-)
+from app.commands.categories.user import _with
+from app.commands.categories.user import apikey
+from app.commands.categories.user import block
+from app.commands.categories.user import changename
+from app.commands.categories.user import maplink
+from app.commands.categories.user import recent
+from app.commands.categories.user import reconnect
+from app.commands.categories.user import request
+from app.commands.categories.user import roll
+from app.commands.categories.user import top
+from app.commands.categories.user import unblock
 from app.commands.context import Context
 from app.constants.privileges import Privileges
 from app.objects.beatmap import RankedStatus

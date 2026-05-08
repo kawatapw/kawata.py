@@ -60,9 +60,11 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any
+from typing import TypeVar
 
 from pydantic import BaseModel as _pydantic_BaseModel
 from pydantic import ConfigDict

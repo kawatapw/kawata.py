@@ -89,9 +89,12 @@ Related Files:
 
 from __future__ import annotations
 
-from enum import IntEnum, IntFlag, unique
+from enum import IntEnum
+from enum import IntFlag
+from enum import unique
 
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
 
 
 @unique

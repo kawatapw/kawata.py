@@ -237,10 +237,7 @@ class SeasonalScheduleProvider(ScheduleTypeProvider):
             return False
 
         hemisphere = config.get("hemisphere", "northern")
-        if hemisphere not in ("northern", "southern"):
-            return False
-
-        return True
+        return hemisphere in ("northern", "southern")
 
     def calculate_seasons_for_range(
         self,

@@ -89,9 +89,17 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, TypedDict, cast
+from typing import Any
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, DateTime, Integer, func, insert, select, update
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
@@ -140,9 +148,10 @@ async def create(
 
     select_stmt = select(*READ_PARAMS).where(MapRequestsTable.id == rec_id)
     map_request = await app.state.services.database.fetch_one(select_stmt)
-    assert map_request is not None
+    if map_request is None:
+        raise RuntimeError("Failed to fetch map_request after insert")
 
-    return cast(MapRequest, map_request)
+    return cast("MapRequest", map_request)
 
 
 async def fetch_all(
@@ -160,7 +169,7 @@ async def fetch_all(
         select_stmt = select_stmt.where(MapRequestsTable.active == active)
 
     map_requests = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[MapRequest], map_requests)
+    return cast("list[MapRequest]", map_requests)
 
 
 async def mark_batch_as_inactive(map_ids: list[Any]) -> list[MapRequest]:
@@ -174,4 +183,4 @@ async def mark_batch_as_inactive(map_ids: list[Any]) -> list[MapRequest]:
 
     select_stmt = select(*READ_PARAMS).where(MapRequestsTable.map_id.in_(map_ids))
     map_requests = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[MapRequest], map_requests)
+    return cast("list[MapRequest]", map_requests)

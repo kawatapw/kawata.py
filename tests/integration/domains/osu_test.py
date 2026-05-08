@@ -56,9 +56,7 @@ async def test_score_submission(
     adapters_str = ".".join(("1", "2", "3")) + "."
     adapters_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324
     uninstall_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324 # or uniqueid 1
-    disk_signature_md5 = hashlib.md5(
-        b"lol123"
-    ).hexdigest()  # nosec B324 # or uniqueid 2
+    disk_signature_md5 = hashlib.md5(b"lol123").hexdigest()  # nosec B324 # or uniqueid 2
 
     client_hashes = (
         ":".join(
@@ -212,8 +210,7 @@ async def test_score_submission(
         },
         files={
             # simulate replay data
-            "score": b"12345"
-            * 100,
+            "score": b"12345" * 100,
         },
     )
 

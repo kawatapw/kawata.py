@@ -1,7 +1,10 @@
 """Artifact management module."""
 
+from __future__ import annotations
+
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +32,7 @@ def collect(
                     {"type": "pytest", "path": str(file), "content": f.read()},
                 )
         except Exception:
-            pass
+            logging.exception("Failed to load pytest results from %s", file)
 
     # Check for bandit results
     bandit_files = list(Path(".").glob("**/bandit-*.json"))
@@ -40,7 +43,7 @@ def collect(
                     {"type": "bandit", "path": str(file), "content": json.load(f)},
                 )
         except Exception:
-            pass
+            logging.exception("Failed to load bandit results from %s", file)
 
     # Check for coverage reports
     coverage_files = list(Path(".").glob("**/coverage.xml"))
@@ -51,7 +54,7 @@ def collect(
                     {"type": "coverage", "path": str(file), "content": f.read()},
                 )
         except Exception:
-            pass
+            logging.exception("Failed to load coverage report from %s", file)
 
     # Save artifacts to state
     workflow_name = context.workflow_name or "unknown"

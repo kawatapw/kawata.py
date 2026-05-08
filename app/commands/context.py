@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
+from typing import cast
 
 if TYPE_CHECKING:
     # Cache and Settings are modules, not classes, so we use Any for type hints

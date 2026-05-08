@@ -74,7 +74,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TypedDict
 
-from akatsuki_pp_py import Beatmap, Calculator
+from akatsuki_pp_py import Beatmap
+from akatsuki_pp_py import Calculator
 
 from app.constants.mods import Mods
 

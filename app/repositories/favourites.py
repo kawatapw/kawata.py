@@ -66,9 +66,14 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Integer, func, insert, select
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
 from app.repositories import Base
@@ -114,15 +119,16 @@ async def create(
     )
     favourite = await app.state.services.database.fetch_one(select_stmt)
 
-    assert favourite is not None
-    return cast(Favourite, favourite)
+    if favourite is None:
+        raise ValueError(f"Favourite with id {favourite} not found after creation")
+    return cast("Favourite", favourite)
 
 
 async def fetch_all(userid: int) -> list[Favourite]:
     """Fetch all favourites from a player."""
     select_stmt = select(*READ_PARAMS).where(FavouritesTable.userid == userid)
     favourites = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Favourite], favourites)
+    return cast("list[Favourite]", favourites)
 
 
 async def fetch_one(userid: int, setid: int) -> Favourite | None:
@@ -133,4 +139,4 @@ async def fetch_one(userid: int, setid: int) -> Favourite | None:
         .where(FavouritesTable.setid == setid)
     )
     favourite = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Favourite | None, favourite)
+    return cast("Favourite | None", favourite)

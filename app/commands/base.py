@@ -7,15 +7,15 @@ including command classes, decorators, and metadata structures.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from collections.abc import Awaitable
+from collections.abc import Callable
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Protocol,
-)
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Protocol
 
 if TYPE_CHECKING:
     from app.commands.context import Context

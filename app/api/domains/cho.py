@@ -91,17 +91,24 @@ import random
 import re
 import struct
 import time
-from collections.abc import Callable, Mapping
-from datetime import UTC, date, datetime
+from collections.abc import Callable
+from collections.abc import Mapping
+from datetime import UTC
+from datetime import date
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any
+from typing import Literal
+from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
+from fastapi import Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
 
 import app.packets
 import app.settings
@@ -112,41 +119,37 @@ from app._typing import IPAddress
 from app.commands import execute_command
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
-from app.constants.mods import SPEED_CHANGING_MODS, Mods
-from app.constants.privileges import ClanPrivileges, ClientPrivileges, Privileges
-from app.logging import (
-    Ansi,
-    error_catcher,
-    format_request,
-    get_timestamp,
-    log,
-    magnitude_fmt_time,
-)
-from app.objects.beatmap import Beatmap, ensure_osu_file_is_available
+from app.constants.mods import SPEED_CHANGING_MODS
+from app.constants.mods import Mods
+from app.constants.privileges import ClanPrivileges
+from app.constants.privileges import ClientPrivileges
+from app.constants.privileges import Privileges
+from app.logging import Ansi
+from app.logging import error_catcher
+from app.logging import format_request
+from app.logging import get_timestamp
+from app.logging import log
+from app.logging import magnitude_fmt_time
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.channel import Channel
-from app.objects.match import (
-    MAX_MATCH_NAME_LENGTH,
-    Match,
-    MatchTeams,
-    MatchTeamTypes,
-    MatchWinConditions,
-    Slot,
-    SlotStatus,
-)
-from app.objects.player import (
-    Action,
-    ClientDetails,
-    OsuStream,
-    OsuVersion,
-    Player,
-    PresenceFilter,
-)
-from app.packets import (
-    BanchoPacketReader,
-    BasePacket,
-    ClientPackets,
-    LoginFailureReason,
-)
+from app.objects.match import MAX_MATCH_NAME_LENGTH
+from app.objects.match import Match
+from app.objects.match import MatchTeams
+from app.objects.match import MatchTeamTypes
+from app.objects.match import MatchWinConditions
+from app.objects.match import Slot
+from app.objects.match import SlotStatus
+from app.objects.player import Action
+from app.objects.player import ClientDetails
+from app.objects.player import OsuStream
+from app.objects.player import OsuVersion
+from app.objects.player import Player
+from app.objects.player import PresenceFilter
+from app.packets import BanchoPacketReader
+from app.packets import BasePacket
+from app.packets import ClientPackets
+from app.packets import LoginFailureReason
 from app.repositories import clans as clans_repo
 from app.repositories import client_hashes as client_hashes_repo
 from app.repositories import ingame_logins as logins_repo
@@ -208,7 +211,7 @@ async def health_check() -> Response:
         checks["checks"]["database"] = "connected"
     except Exception as e:
         checks["status"] = "unhealthy"
-        checks["checks"]["database"] = f"failed: {str(e)}"
+        checks["checks"]["database"] = f"failed: {e!s}"
 
     # Check Redis
     try:
@@ -216,7 +219,7 @@ async def health_check() -> Response:
         checks["checks"]["redis"] = "connected"
     except Exception as e:
         checks["status"] = "unhealthy"
-        checks["checks"]["redis"] = f"failed: {str(e)}"
+        checks["checks"]["redis"] = f"failed: {e!s}"
 
     # Return appropriate HTTP status
     status_code = 200 if checks["status"] == "healthy" else 503
@@ -360,9 +363,7 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
-        request._body = (
-            await request.body()
-        )  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
+        request._body = await request.body()  # Combined with the next line, this is a workaround for server consuming bytes in end state, no idea why this works.
         log(
             f"Login request from {ip}.",
             Ansi.LCYAN,
@@ -515,7 +516,7 @@ class SendMessage(BasePacket):
 
         if recipient in IGNORED_CHANNELS:
             return
-        elif recipient == "#spectator":
+        if recipient == "#spectator":
             if player.spectating:
                 # we are spectating someone
                 spec_id = player.spectating.id
@@ -589,7 +590,8 @@ class SendMessage(BasePacket):
                     recipients=staff - {player},
                 )
                 if cmd.resp is not None:
-                    assert app.state.sessions.bot is not None
+                    if app.state.sessions.bot is None:
+                        raise RuntimeError("Bot is not available")
                     t_chan.send_selective(
                         msg=cmd.resp,
                         sender=app.state.sessions.bot,
@@ -1090,19 +1092,18 @@ async def handle_osu_login_request(
                         + app.packets.notification("User already logged in.")
                     ),
                 }
-            else:
-                # session is not active; replace it
-                log(
-                    "Replacing inactive session",
-                    Ansi.LGREEN,
-                    extra={
-                        "ip": ip,
-                        "username": login_data["username"],
-                        "inactive_for": login_time - player.last_recv_time,
-                    },
-                )
-                player.logout()
-                del player
+            # session is not active; replace it
+            log(
+                "Replacing inactive session",
+                Ansi.LGREEN,
+                extra={
+                    "ip": ip,
+                    "username": login_data["username"],
+                    "inactive_for": login_time - player.last_recv_time,
+                },
+            )
+            player.logout()
+            del player
     except Exception as e:
         log(
             "Error checking for duplicate sessions",
@@ -1253,25 +1254,24 @@ async def handle_osu_login_request(
             # TODO: this user may be multi-accounting; there may be
             # some desirable behavior to implement here in the future.
             ...
-        else:
-            # this player is not verified yet, this is their first
-            # time connecting in-game and submitting their hwid set.
-            # we will not allow any banned matches; if there are any,
-            # then ask the user to contact staff and resolve manually.
-            if not all(
-                hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches
-            ):
-                return {
-                    "osu_token": "contact-staff",
-                    "response_body": (
-                        app.packets.notification(
-                            "Please contact staff directly to create an account.",
-                        )
-                        + app.packets.login_reply(
-                            LoginFailureReason.AUTHENTICATION_FAILED,
-                        )
-                    ),
-                }
+        # this player is not verified yet, this is their first
+        # time connecting in-game and submitting their hwid set.
+        # we will not allow any banned matches; if there are any,
+        # then ask the user to contact staff and resolve manually.
+        elif not all(
+            hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches
+        ):
+            return {
+                "osu_token": "contact-staff",
+                "response_body": (
+                    app.packets.notification(
+                        "Please contact staff directly to create an account.",
+                    )
+                    + app.packets.login_reply(
+                        LoginFailureReason.AUTHENTICATION_FAILED,
+                    )
+                ),
+            }
 
     """ All checks passed, player is safe to login """
 
@@ -1652,8 +1652,10 @@ async def handle_osu_login_request(
             )
             # Continue anyway, mail isn't critical for login
 
+        if app.state.sessions.bot is None:
+            raise RuntimeError("Bot is not available")
+
         try:
-            assert app.state.sessions.bot is not None
             if not player.priv & Privileges.VERIFIED:
                 # this is the player's first login, verify their
                 # account & send info about the server/its usage.
@@ -1692,7 +1694,8 @@ async def handle_osu_login_request(
             # Continue anyway, they can still play even if verification failed
 
     else:
-        assert app.state.sessions.bot is not None
+        if app.state.sessions.bot is None:
+            raise RuntimeError("Bot is not available")
         try:
             # player is restricted, one way data
             for o in app.state.sessions.players.unrestricted:
@@ -2280,7 +2283,8 @@ class MatchChangeSlot(BasePacket):
 
         # swap with current slot.
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         player.match.slots[self.slot_id].copy_from(slot)
         slot.reset()
@@ -2298,7 +2302,8 @@ class MatchReady(BasePacket):
             return
 
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.status = SlotStatus.ready
         player.match.enqueue_state(lobby=False)
@@ -2379,7 +2384,8 @@ class MatchChangeSettings(BasePacket):
             else:
                 # host mods -> match mods.
                 host = player.match.get_host_slot()  # should always exist
-                assert host is not None
+                if host is None:
+                    raise RuntimeError("Host slot is not available")
 
                 # the match keeps any speed-changing mods,
                 # and also takes any mods the host has enabled.
@@ -2500,7 +2506,8 @@ class MatchScoreUpdate(BasePacket):
             return
 
         slot_id = player.match.get_slot_id(player)
-        assert slot_id is not None
+        if slot_id is None:
+            raise RuntimeError("Slot ID is not available")
 
         # if scorev2 is enabled, read an extra 8 bytes.
         buf = bytearray(b"0\x00\x00")
@@ -2521,7 +2528,8 @@ class MatchComplete(BasePacket):
             return
 
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.status = SlotStatus.complete
 
@@ -2556,7 +2564,7 @@ class MatchComplete(BasePacket):
 
         if player.match.is_scrimming:
             # determine winner, update match points & inform players.
-            asyncio.create_task(  # type: ignore[unused-awaitable]
+            asyncio.create_task(  # type: ignore[unused-awaitable]  # noqa: RUF006
                 player.match.update_matchpoints(was_playing),
             )
 
@@ -2577,7 +2585,8 @@ class MatchChangeMods(BasePacket):
 
             # set slot mods
             slot = player.match.get_slot(player)
-            assert slot is not None
+            if slot is None:
+                raise RuntimeError("Slot is not available")
 
             slot.mods = Mods(self.mods & ~SPEED_CHANGING_MODS)
         else:
@@ -2606,7 +2615,8 @@ class MatchLoadComplete(BasePacket):
 
         # our player has loaded in and is ready to play.
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.loaded = True
 
@@ -2626,7 +2636,8 @@ class MatchNoBeatmap(BasePacket):
             return
 
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.status = SlotStatus.no_map
         player.match.enqueue_state(lobby=False)
@@ -2642,7 +2653,8 @@ class MatchNotReady(BasePacket):
             return
 
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.status = SlotStatus.not_ready
         player.match.enqueue_state(lobby=False)
@@ -2660,7 +2672,8 @@ class MatchFailed(BasePacket):
         # find the player's slot id, and enqueue that
         # they've failed to all other players in the match.
         slot_id = player.match.get_slot_id(player)
-        assert slot_id is not None
+        if slot_id is None:
+            raise RuntimeError("Slot ID is not available")
 
         player.match.enqueue(app.packets.match_player_failed(slot_id), lobby=False)
 
@@ -2675,7 +2688,8 @@ class MatchHasBeatmap(BasePacket):
             return
 
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.status = SlotStatus.not_ready
         player.match.enqueue_state(lobby=False)
@@ -2691,7 +2705,8 @@ class MatchSkipRequest(BasePacket):
             return
 
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         slot.skipped = True
         player.match.enqueue(app.packets.match_player_skipped(player.id))
@@ -2863,7 +2878,8 @@ class MatchChangeTeam(BasePacket):
 
         # toggle team
         slot = player.match.get_slot(player)
-        assert slot is not None
+        if slot is None:
+            raise RuntimeError("Slot is not available")
 
         if slot.team == MatchTeams.blue:
             slot.team = MatchTeams.red
@@ -3020,8 +3036,8 @@ class UserPresenceRequestAll(BasePacket):
 
         buffer = bytearray()
 
-        for player in app.state.sessions.players.unrestricted:
-            buffer += app.packets.user_presence(player)
+        for player_iter in app.state.sessions.players.unrestricted:
+            buffer += app.packets.user_presence(player_iter)
 
         player.enqueue(bytes(buffer))
 

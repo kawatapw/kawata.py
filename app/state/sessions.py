@@ -74,10 +74,15 @@ Related Files:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
-from app.logging import Ansi, log
-from app.objects.collections import Channels, Groups, Matches, Players
+from app.logging import Ansi
+from app.logging import log
+from app.objects.collections import Channels
+from app.objects.collections import Groups
+from app.objects.collections import Matches
+from app.objects.collections import Players
 
 if TYPE_CHECKING:
     from app.objects.player import Player

@@ -1,10 +1,13 @@
 """Ruff linter parser."""
 
+from __future__ import annotations
+
 import json
 import re
 from typing import Any
 
-from .registry import Parser, register_parser
+from .registry import Parser
+from .registry import register_parser
 
 
 class RuffParser(Parser):

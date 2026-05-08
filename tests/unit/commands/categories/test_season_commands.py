@@ -2,21 +2,23 @@
 Tests for season commands.
 """
 
+from __future__ import annotations
+
 from datetime import date
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.season import (
-    recalc_season_stats,
-    season_create,
-    season_end,
-    season_list,
-    season_schedule,
-    season_start,
-    seasons,
-    seasons_all,
-)
+from app.commands.categories.season import recalc_season_stats
+from app.commands.categories.season import season_create
+from app.commands.categories.season import season_end
+from app.commands.categories.season import season_list
+from app.commands.categories.season import season_schedule
+from app.commands.categories.season import season_start
+from app.commands.categories.season import seasons
+from app.commands.categories.season import seasons_all
 from app.commands.context import Context
 from app.constants.privileges import Privileges
 

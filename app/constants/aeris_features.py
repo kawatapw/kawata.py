@@ -53,6 +53,8 @@ Related Files:
     - app/repositories/users.py: Database operations for feature flag storage
 """
 
+from __future__ import annotations
+
 
 class AerisFeatures:
     """Feature flag constants for the Aeris anti-cheat system.

@@ -107,14 +107,25 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import BigInteger, Column, Index, Integer, func, insert, select, update
-from sqlalchemy.dialects.mysql import FLOAT, INTEGER, TINYINT
+from sqlalchemy import BigInteger
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
+from sqlalchemy.dialects.mysql import FLOAT
+from sqlalchemy.dialects.mysql import INTEGER
+from sqlalchemy.dialects.mysql import TINYINT
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 
@@ -211,8 +222,9 @@ async def create(player_id: int, mode: int, season_id: int = 0) -> Stat:
 
     select_stmt = select(*READ_PARAMS).where(StatsTable.id == rec_id)
     stat = await app.state.services.database.fetch_one(select_stmt)
-    assert stat is not None
-    return cast(Stat, stat)
+    if stat is None:
+        raise RuntimeError("Failed to fetch created stat")
+    return cast("Stat", stat)
 
 
 async def create_all_modes(player_id: int) -> list[Stat]:
@@ -236,7 +248,7 @@ async def create_all_modes(player_id: int) -> list[Stat]:
 
     select_stmt = select(*READ_PARAMS).where(StatsTable.id == player_id)
     stats = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Stat], stats)
+    return cast("list[Stat]", stats)
 
 
 SEASONAL_MODES: tuple[int, ...] = (
@@ -270,7 +282,7 @@ async def create_all_modes_for_season(player_id: int, season_id: int) -> list[St
         .where(StatsTable.season_id == season_id)
     )
     stats = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Stat], stats)
+    return cast("list[Stat]", stats)
 
 
 async def ensure_season_rows_for_users(season_id: int, user_ids: list[int]) -> None:
@@ -307,7 +319,7 @@ async def fetch_one(
     else:
         select_stmt = select_stmt.where(StatsTable.season_id == 0)
     stat = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Stat | None, stat)
+    return cast("Stat | None", stat)
 
 
 async def fetch_count(
@@ -326,8 +338,9 @@ async def fetch_count(
         select_stmt = select_stmt.where(StatsTable.season_id == 0)
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise RuntimeError("Failed to fetch stats count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -350,7 +363,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     stats = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Stat], stats)
+    return cast("list[Stat]", stats)
 
 
 async def partial_update(
@@ -423,4 +436,4 @@ async def partial_update(
     else:
         select_stmt = select_stmt.where(StatsTable.season_id == 0)
     stat = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Stat | None, stat)
+    return cast("Stat | None", stat)

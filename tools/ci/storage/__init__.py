@@ -5,4 +5,6 @@ backend registry; this package contains concrete backend implementations
 that can be selected via configuration.
 """
 
-from .artifact_backend import ArtifactBackend  # noqa: F401
+from __future__ import annotations
+
+from .artifact_backend import ArtifactBackend

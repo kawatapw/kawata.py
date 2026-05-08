@@ -9,16 +9,19 @@ from __future__ import annotations
 import os
 import signal
 import time
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING
+from typing import cast
 
 import timeago
 from pytimeparse.timeparse import timeparse
 
 import app.state
-from app.commands.base import administrator_command, developer_command
+from app.commands.base import administrator_command
+from app.commands.base import developer_command
 from app.commands.context import Context
 from app.constants.privileges import Privileges
-from app.packets import notification, switch_tournament_server
+from app.packets import notification
+from app.packets import switch_tournament_server
 from app.repositories import clans as clans_repo
 
 # Define SHORTHAND_REASONS
@@ -31,8 +34,6 @@ SHORTHAND_REASONS = {
 
 if TYPE_CHECKING:
     from asyncio import AbstractEventLoop
-
-    from app.repositories import clans as clans_repo
 
 
 @administrator_command(
@@ -237,7 +238,7 @@ async def switchserv(ctx: Context) -> str:
     name="shutdown",
     description="Toggle the developer's stealth, allowing them to be hidden.",
 )
-async def shutdown(ctx: Context) -> str | None | NoReturn:
+async def shutdown(ctx: Context) -> str | None:
     """Gracefully shutdown the server."""
     if ctx.args:  # shutdown after a delay
         delay = timeparse(ctx.args[0])
@@ -260,9 +261,9 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
             delay, os.kill, os.getpid(), signal.SIGTERM
         )
         return f"Enqueued {ctx.trigger}."
-    else:  # shutdown immediately
-        os.kill(os.getpid(), signal.SIGTERM)
-        return "Process killed"
+    # shutdown immediately
+    os.kill(os.getpid(), signal.SIGTERM)
+    return "Process killed"
 
 
 """ Developer commands

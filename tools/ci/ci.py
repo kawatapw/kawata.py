@@ -7,6 +7,8 @@ individual CI modules. It is intentionally thin so that most logic
 remains testable in the underlying packages.
 """
 
+from __future__ import annotations
+
 import sys
 from typing import Any
 

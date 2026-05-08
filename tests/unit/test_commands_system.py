@@ -4,20 +4,22 @@ Tests for the new commands system.
 This file tests the command registration, execution, and help system.
 """
 
-from unittest.mock import AsyncMock, Mock
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 
 from app.commands import CommandRegistry
-from app.commands.base import (
-    Command,
-    CommandCategory,
-    CommandMetadata,
-    moderator_command,
-    user_command,
-)
+from app.commands.base import Command
+from app.commands.base import CommandCategory
+from app.commands.base import CommandMetadata
+from app.commands.base import moderator_command
+from app.commands.base import user_command
 from app.commands.context import Context
-from app.commands.validation import ValidationError, validate
+from app.commands.validation import ValidationError
+from app.commands.validation import validate
 from app.constants.privileges import Privileges
 
 

@@ -6,16 +6,12 @@ Commands for managing clans.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from app.commands.base import CommandCategory, clan_command
+from app.commands.base import CommandCategory
+from app.commands.base import clan_command
 from app.commands.context import Context
 from app.constants.privileges import ClanPrivileges
 from app.repositories import clans as clans_repo
 from app.repositories import users as users_repo
-
-if TYPE_CHECKING:
-    pass
 
 
 @clan_command(
@@ -191,7 +187,7 @@ async def clan_leave(ctx: Context) -> str:
     """Leaves the clan you're in."""
     if not ctx.player.clan_id:
         return "You're not in a clan."
-    elif ctx.player.clan_priv == ClanPrivileges.Owner:
+    if ctx.player.clan_priv == ClanPrivileges.Owner:
         return "You must transfer your clan's ownership before leaving it. Alternatively, you can use !clan disband."
 
     clan = await clans_repo.fetch_one(id=ctx.player.clan_id)
@@ -232,8 +228,7 @@ async def clan_list(ctx: Context) -> str:
     if ctx.args:
         if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
             return "Invalid syntax: !clan list (page)"
-        else:
-            offset = 25 * int(ctx.args[0])
+        offset = 25 * int(ctx.args[0])
     else:
         offset = 0
 

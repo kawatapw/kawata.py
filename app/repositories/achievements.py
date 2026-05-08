@@ -77,27 +77,29 @@ from __future__ import annotations
 import ast
 import operator
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import TypedDict
+from typing import cast
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 if TYPE_CHECKING:
     from app.objects.score import Score
 
 
-from sqlalchemy import (
-    Column,
-    Index,
-    Integer,
-    String,
-    delete,
-    func,
-    insert,
-    select,
-    update,
-)
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import delete
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 
 # Safe expression evaluator for achievement conditions.
 # Replaces eval() to prevent arbitrary code execution from DB content.
@@ -263,7 +265,7 @@ def _make_achievement_cond(cond_str: str) -> Callable[[Score, int], bool]:
             )
 
     def evaluator(score: Score, mode_vn: int) -> bool:
-        return cast(bool, _safe_eval_node(tree, score, mode_vn))
+        return cast("bool", _safe_eval_node(tree, score, mode_vn))
 
     return evaluator
 
@@ -321,10 +323,11 @@ async def create(
 
     select_stmt = select(*READ_PARAMS).where(AchievementsTable.id == rec_id)
     achievement = await app.state.services.database.fetch_one(select_stmt)
-    assert achievement is not None
+    if achievement is None:
+        raise ValueError(f"Achievement with id {rec_id} not found after creation")
 
     achievement["cond"] = cond_func
-    return cast(Achievement, achievement)
+    return cast("Achievement", achievement)
 
 
 async def fetch_one(
@@ -347,7 +350,7 @@ async def fetch_one(
         return None
 
     achievement["cond"] = _make_achievement_cond(achievement["cond"])
-    return cast(Achievement, achievement)
+    return cast("Achievement", achievement)
 
 
 async def fetch_count() -> int:
@@ -355,8 +358,9 @@ async def fetch_count() -> int:
     select_stmt = select(func.count().label("count")).select_from(AchievementsTable)
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise ValueError("Failed to fetch achievement count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -368,16 +372,16 @@ async def fetch_many(
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
-    achievements: list[dict[str, Any]] | None = (
-        await app.state.services.database.fetch_all(select_stmt)
-    )
+    achievements: (
+        list[dict[str, Any]] | None
+    ) = await app.state.services.database.fetch_all(select_stmt)
     if achievements is not None:
         for achievement in achievements:
             achievement["cond"] = _make_achievement_cond(achievement["cond"])
     else:
         achievements = []
 
-    return cast(list[Achievement], achievements)
+    return cast("list[Achievement]", achievements)
 
 
 async def partial_update(
@@ -410,7 +414,7 @@ async def partial_update(
         return None
 
     achievement["cond"] = _make_achievement_cond(achievement["cond"])
-    return cast(Achievement, achievement)
+    return cast("Achievement", achievement)
 
 
 async def delete_one(
@@ -425,4 +429,4 @@ async def delete_one(
     delete_stmt = delete(AchievementsTable).where(AchievementsTable.id == id)
     await app.state.services.database.execute(delete_stmt)
 
-    return cast(Achievement, achievement)
+    return cast("Achievement", achievement)

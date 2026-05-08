@@ -87,10 +87,17 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, DateTime, Integer, String, func, insert, select
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
 from sqlalchemy import SmallInteger as TinyInt
+from sqlalchemy import String
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
 from app.repositories import Base
@@ -157,5 +164,6 @@ async def create(
 
     select_stmt = select(*READ_PARAMS).where(LogTable.id == log_id)
     log = await app.state.services.database.fetch_one(select_stmt)
-    assert log is not None
-    return cast(Log, log)
+    if log is None:
+        raise RuntimeError("Failed to fetch log after insert")
+    return cast("Log", log)

@@ -51,6 +51,7 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
 from fastapi import APIRouter
 
@@ -62,7 +63,9 @@ api_router = APIRouter()
 api_router.include_router(apiv1_router)
 api_router.include_router(apiv2_router)
 
-from . import domains, init_api, middlewares  # noqa: E402
+from . import domains  # noqa: E402
+from . import init_api  # noqa: E402
+from . import middlewares  # noqa: E402
 
 __all__ = [
     "api_router",

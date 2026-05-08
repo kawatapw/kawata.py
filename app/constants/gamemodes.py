@@ -60,10 +60,12 @@ Related Files:
 from __future__ import annotations
 
 import functools
-from enum import IntEnum, unique
+from enum import IntEnum
+from enum import unique
 
 from app.constants.mods import Mods
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
 
 GAMEMODE_REPR_LIST = (
     "vn!std",

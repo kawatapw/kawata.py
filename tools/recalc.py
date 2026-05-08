@@ -6,13 +6,18 @@ import asyncio
 import math
 import os
 import sys
-from collections.abc import Awaitable, Iterator, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Awaitable
+from collections.abc import Iterator
+from collections.abc import Sequence
+from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
+from typing import TypeVar
 
 import databases
-from akatsuki_pp_py import Beatmap, Calculator
+from akatsuki_pp_py import Beatmap
+from akatsuki_pp_py import Calculator
 from redis import asyncio as aioredis
 
 _project_root = Path(__file__).resolve().parent.parent
@@ -152,7 +157,7 @@ async def recalculate_user(
         {"id": id},
     )
     if user_info is None:
-        raise Exception(f"Unknown user ID {id}?")
+        raise ValueError(f"Unknown user ID {id}?")
 
     if user_info["priv"] & Privileges.UNRESTRICTED:
         await ctx.redis.zadd(

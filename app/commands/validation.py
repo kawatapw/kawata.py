@@ -104,18 +104,19 @@ class DurationValidator(Validator):
 
         try:
             duration = timeparse(duration_str)
-            if duration is None:
-                raise ValidationError(f'Invalid duration format: "{duration_str}"')
-
-            if duration <= 0:
-                raise ValidationError("Duration must be positive")
-
-            # Store parsed duration for later use
-            if ctx.parsed_durations is None:
-                ctx.parsed_durations = {}
-            ctx.parsed_durations[self.arg_index] = duration
         except Exception as e:
             raise ValidationError(f'Invalid duration: "{duration_str}"') from e
+
+        if duration is None:
+            raise ValidationError(f'Invalid duration format: "{duration_str}"')
+
+        if duration <= 0:
+            raise ValidationError("Duration must be positive")
+
+        # Store parsed duration for later use
+        if ctx.parsed_durations is None:
+            ctx.parsed_durations = {}
+        ctx.parsed_durations[self.arg_index] = duration
 
 
 class ReasonValidator(Validator):
@@ -180,14 +181,12 @@ class ModsValidator(Validator):
                 if mode_str in GAMEMODE_REPR_LIST:
                     mode_index = GAMEMODE_REPR_LIST.index(mode_str)
                     mods = mods.filter_invalid_combos(mode_index)
-
-            # Check if no valid mods were found
-            if mods == Mods.NOMOD:
-                raise ValidationError(f'Invalid mods: "{mods_str}"')
-        except ValidationError:
-            raise
         except Exception as e:
             raise ValidationError(f'Invalid mods: "{mods_str}"') from e
+
+        # Check if no valid mods were found
+        if mods == Mods.NOMOD:
+            raise ValidationError(f'Invalid mods: "{mods_str}"')
 
 
 class MapExistsValidator(Validator):
@@ -233,7 +232,7 @@ class BooleanValidator(Validator):
         if value not in self.true_values and value not in self.false_values:
             valid_values = ", ".join(self.true_values + self.false_values)
             raise ValidationError(
-                f"Invalid boolean value: {value}. " f"Valid values: {valid_values}"
+                f"Invalid boolean value: {value}. Valid values: {valid_values}"
             )
 
 
@@ -300,12 +299,10 @@ class ChoiceValidator(Validator):
                     f'Invalid value: "{value}". '
                     f"Valid choices: {', '.join(self.choices)}"
                 )
-        else:
-            if value not in self.choices:
-                raise ValidationError(
-                    f'Invalid value: "{value}". '
-                    f"Valid choices: {', '.join(self.choices)}"
-                )
+        elif value not in self.choices:
+            raise ValidationError(
+                f'Invalid value: "{value}". Valid choices: {", ".join(self.choices)}'
+            )
 
 
 # Convenience functions for creating validators

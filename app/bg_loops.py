@@ -63,7 +63,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from typing import Any
 
 import app.packets
@@ -71,7 +72,9 @@ import app.settings
 import app.state
 from app.constants.gamemodes import GameMode
 from app.constants.privileges import Privileges
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi
+from app.logging import log
+from app.logging import logLevel
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.schedule_types import get_provider_for_schedule_type
@@ -121,13 +124,13 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
             },
         )
 
-        expired_donors: list[dict[str, Any]] | None = (
-            await app.state.services.database.fetch_all(
-                "SELECT id FROM users "
-                "WHERE donor_end <= UNIX_TIMESTAMP() "
-                "AND priv & :donor_priv",
-                {"donor_priv": Privileges.DONATOR.value},
-            )
+        expired_donors: (
+            list[dict[str, Any]] | None
+        ) = await app.state.services.database.fetch_all(
+            "SELECT id FROM users "
+            "WHERE donor_end <= UNIX_TIMESTAMP() "
+            "AND priv & :donor_priv",
+            {"donor_priv": Privileges.DONATOR.value},
         )
 
         if expired_donors is not None:
@@ -136,7 +139,8 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
                     id=expired_donor["id"],
                 )
 
-                assert player is not None
+                if player is None:
+                    raise RuntimeError("Player not found")
 
                 # TODO: perhaps make a `revoke_donor` method?
                 await player.remove_privs(Privileges.DONATOR)
@@ -210,9 +214,9 @@ async def check_season_schedules(interval: int = 60) -> None:
             log("Checking season schedules...", Ansi.LCYAN, level=logLevel.DEBUG)
 
             # Get all schedules that need checking
-            schedules: list[seasons_repo.SeasonSchedule] = (
-                await seasons_repo.fetch_active_schedules()
-            )
+            schedules: list[
+                seasons_repo.SeasonSchedule
+            ] = await seasons_repo.fetch_active_schedules()
 
             if not schedules:
                 log("No active schedules found", Ansi.LYELLOW, level=logLevel.DEBUG)

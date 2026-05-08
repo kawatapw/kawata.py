@@ -71,9 +71,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 
 from app.state import services
+
+
+class WebhookError(Exception):
+    """Raised when webhook configuration is invalid."""
 
 
 class Footer:
@@ -185,12 +191,12 @@ class Webhook:
     @property
     def json(self) -> Any:
         if not any([self.content, self.file, self.embeds]):
-            raise Exception(
+            raise WebhookError(
                 "Webhook must contain at least one of (content, file, embeds).",
             )
 
         if self.content and len(self.content) > 2000:
-            raise Exception("Webhook content must be under 2000 characters.")
+            raise WebhookError("Webhook content must be under 2000 characters.")
 
         payload: dict[str, Any] = {"embeds": []}
 

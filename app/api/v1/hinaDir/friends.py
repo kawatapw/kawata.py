@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import status
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
@@ -159,12 +162,10 @@ async def api_get_friends_status(
 @router.post("/set_relationship")
 @error_catcher
 async def api_set_relationship(
-    token: HTTPCredentials | None = Depends(oauth2_scheme),  # noqa: B008
-    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),  # noqa: B008
-    target_id: int = Query(..., alias="target", ge=2, le=2_147_483_647),  # noqa: B008
-    action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(
-        ...
-    ),  # noqa: B008
+    token: HTTPCredentials | None = Depends(oauth2_scheme),
+    user_id: int = Query(..., alias="id", ge=2, le=2_147_483_647),
+    target_id: int = Query(..., alias="target", ge=2, le=2_147_483_647),
+    action: Literal["add_friend", "remove_friend", "block", "unblock"] = Query(...),
 ) -> ORJSONResponse:
     """Add/remove friends or block/unblock users. Requires BOT_API_KEY."""
     if token is None or token.credentials != app.settings.BOT_API_KEY:

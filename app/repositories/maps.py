@@ -121,25 +121,26 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Enum,
-    Index,
-    Integer,
-    String,
-    delete,
-    func,
-    insert,
-    select,
-    update,
-)
-from sqlalchemy.dialects.mysql import FLOAT, TINYINT
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Enum
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import delete
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
+from sqlalchemy.dialects.mysql import FLOAT
+from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 
@@ -300,8 +301,9 @@ async def create(
 
     select_stmt = select(*READ_PARAMS).where(MapsTable.id == rec_id)
     map = await app.state.services.database.fetch_one(select_stmt)
-    assert map is not None
-    return cast(Map, map)
+    if map is None:
+        raise RuntimeError("Failed to fetch map after insert")
+    return cast("Map", map)
 
 
 async def fetch_one(
@@ -322,7 +324,7 @@ async def fetch_one(
         select_stmt = select_stmt.where(MapsTable.filename == filename)
 
     map = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Map | None, map)
+    return cast("Map | None", map)
 
 
 async def fetch_count(
@@ -355,8 +357,9 @@ async def fetch_count(
         select_stmt = select_stmt.where(MapsTable.frozen == frozen)
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise RuntimeError("Failed to fetch maps count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -394,7 +397,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     maps = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Map], maps)
+    return cast("list[Map]", maps)
 
 
 async def partial_update(
@@ -473,7 +476,7 @@ async def partial_update(
 
     select_stmt = select(*READ_PARAMS).where(MapsTable.id == id)
     map = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Map | None, map)
+    return cast("Map | None", map)
 
 
 async def delete_one(id: int) -> Map | None:
@@ -485,4 +488,4 @@ async def delete_one(id: int) -> Map | None:
 
     delete_stmt = delete(MapsTable).where(MapsTable.id == id)
     await app.state.services.database.execute(delete_stmt)
-    return cast(Map, map)
+    return cast("Map", map)

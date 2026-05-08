@@ -75,7 +75,9 @@ import socket
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
+from typing import Any
+from typing import TypedDict
+from typing import TypeVar
 
 import httpx
 import pymysql
@@ -83,12 +85,16 @@ from fastapi.datastructures import FormData
 from starlette.requests import Request
 
 import app.settings
-from app.logging import Ansi, format_request, log, logLevel
-
-if TYPE_CHECKING:
-    pass
+from app.logging import Ansi
+from app.logging import format_request
+from app.logging import log
+from app.logging import logLevel
 
 T = TypeVar("T")
+
+
+class BanchoPyError(Exception):
+    """Base exception for bancho.py errors."""
 
 
 DATA_PATH = Path.cwd() / ".data"
@@ -212,7 +218,7 @@ def get_appropriate_stacktrace() -> list[FrameInfo]:
         if frame.function == "run":
             break
     else:
-        raise Exception
+        raise BanchoPyError
 
     return [
         {
@@ -279,7 +285,7 @@ def is_running_as_admin() -> bool:
         except AttributeError:
             pass
 
-    raise Exception(
+    raise BanchoPyError(
         f"{sys.platform} is not currently supported on bancho.py, please create a github issue!",
     ) from None
 
@@ -389,7 +395,7 @@ async def get_request_files(type: str, request: Request) -> dict[str, Any] | Non
         for key, value in form_data.items():
             if hasattr(value, "filename"):  # It's a file
                 files[key] = value
-        return files if files else None
+        return files or None
     except Exception as e:
         # Handle the exception here
         log(
@@ -416,8 +422,9 @@ async def write_log_file(type: str, file_path: str, request: Request) -> None:
         if type == "SCORE":
             file.write("Old Client Score Submission:\n")
         file.write("Request Headers:\n")
-        for header, value in request.headers.items():
-            file.write(f"{header}: {value}\n")
+        file.writelines(
+            f"{header}: {value}\n" for header, value in request.headers.items()
+        )
         log("Request headers written, Grabbing Form_Data Next", Ansi.GRAY)
         form_data = await get_form_data(type, request)
         log("Grabbed Form Data", Ansi.GRAY)
@@ -442,8 +449,10 @@ async def write_log_file(type: str, file_path: str, request: Request) -> None:
         files = await get_request_files(type, request)
         if files is not None:
             file.write("\nFiles:\n")
-            for field, uploaded_file in files.items():
-                file.write(f"{field}: {uploaded_file.filename}\n")
+            file.writelines(
+                f"{field}: {uploaded_file.filename}\n"
+                for field, uploaded_file in files.items()
+            )
         if type == "SCORE":
             log("Log File for Old Client Submission written successfully", Ansi.GRAY)
 
@@ -456,7 +465,7 @@ class DebugLevelWatcher:
         DebugLevelWatcher.set_debug_level()
 
         while True:
-            if app.settings.DEBUG_LEVEL != current_debug_level:
+            if current_debug_level != app.settings.DEBUG_LEVEL:
                 # DEBUG_LEVEL has changed, execute something
                 DebugLevelWatcher.set_debug_level()
 

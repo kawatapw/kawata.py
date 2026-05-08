@@ -52,11 +52,13 @@ from __future__ import annotations
 import textwrap
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
+from fastapi import status
 from fastapi.param_functions import Query
 
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure, Success
+from app.api.v2.common.responses import Failure
+from app.api.v2.common.responses import Success
 from app.logging import log
 from app.state.services import database
 

@@ -44,6 +44,8 @@ Related Files:
     - app/api/domains/cho.py: Packet handler implementations
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 
 import app.packets
@@ -51,7 +53,8 @@ import app.settings
 import app.state
 import app.usecases.performance
 import app.utils
-from app.packets import BasePacket, ClientPackets
+from app.packets import BasePacket
+from app.packets import ClientPackets
 
 
 def register(

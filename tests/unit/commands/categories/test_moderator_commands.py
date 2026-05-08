@@ -2,17 +2,19 @@
 Tests for moderator commands.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.moderator import (
-    SHORTHAND_REASONS,
-    addnote,
-    notes,
-    silence,
-    unsilence,
-)
+from app.commands.categories.moderator import SHORTHAND_REASONS
+from app.commands.categories.moderator import addnote
+from app.commands.categories.moderator import notes
+from app.commands.categories.moderator import silence
+from app.commands.categories.moderator import unsilence
 from app.commands.context import Context
 from app.constants.privileges import Privileges
 

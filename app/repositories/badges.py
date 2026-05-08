@@ -78,10 +78,13 @@ Related Files:
 from __future__ import annotations
 
 import textwrap
-from typing import Any, TypedDict, cast
+from typing import Any
+from typing import TypedDict
+from typing import cast
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 
 READ_PARAMS = textwrap.dedent(
     """\
@@ -142,8 +145,9 @@ async def create(
         params,
     )
 
-    assert badge is not None
-    return cast(Badge, badge)
+    if badge is None:
+        raise ValueError(f"Badge with id {rec_id} not found after creation")
+    return cast("Badge", badge)
 
 
 async def fetch_one(
@@ -175,7 +179,7 @@ async def fetch_one(
         params,
     )
 
-    return cast(Badge, badge) if badge is not None else None
+    return cast("Badge", badge) if badge is not None else None
 
 
 async def fetch_styles(badge_id: int) -> list[BadgeStyle]:
@@ -192,7 +196,7 @@ async def fetch_styles(badge_id: int) -> list[BadgeStyle]:
         query,
         params,
     )
-    return cast(list[BadgeStyle], styles) if styles is not None else []
+    return cast("list[BadgeStyle]", styles) if styles is not None else []
 
 
 async def fetch_count() -> int:
@@ -202,8 +206,9 @@ async def fetch_count() -> int:
           FROM badges
     """
     rec: dict[str, Any] | None = await app.state.services.database.fetch_one(query)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise ValueError("Failed to fetch badge count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -229,7 +234,7 @@ async def fetch_many(
         query,
         params,
     )
-    return cast(list[Badge], badges) if badges is not None else []
+    return cast("list[Badge]", badges) if badges is not None else []
 
 
 async def update(
@@ -267,7 +272,7 @@ async def update(
         query,
         params,
     )
-    return cast(Badge, badge) if badge is not None else None
+    return cast("Badge", badge) if badge is not None else None
 
 
 async def delete(id: int) -> Badge | None:
@@ -293,4 +298,4 @@ async def delete(id: int) -> Badge | None:
     """
     params = {"id": id}
     await app.state.services.database.execute(query, params)
-    return cast(Badge, rec)
+    return cast("Badge", rec)

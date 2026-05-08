@@ -6,8 +6,6 @@ Commands for moderator role.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from pytimeparse.timeparse import timeparse
 
 from app.commands.base import moderator_command
@@ -23,10 +21,6 @@ ACTION_STRINGS = {
     "unsilence": "Unsilenced for",
     "note": "Note added:",
 }
-
-if TYPE_CHECKING:
-    from app.repositories import logs as logs_repo
-
 
 @moderator_command(
     name="notes",
@@ -46,7 +40,7 @@ async def notes(ctx: Context) -> str:
 
     if days > 365:
         return "Please contact a developer to fetch >365 day old information."
-    elif days <= 0:
+    if days <= 0:
         return "Invalid syntax: !notes <name> <days_back>"
 
     res = await ctx.state.services.database.fetch_all(

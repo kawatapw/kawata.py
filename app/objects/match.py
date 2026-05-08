@@ -103,8 +103,10 @@ from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime as datetime
 from datetime import timedelta as timedelta
-from enum import IntEnum, unique
-from typing import TYPE_CHECKING, TypedDict
+from enum import IntEnum
+from enum import unique
+from typing import TYPE_CHECKING
+from typing import TypedDict
 
 import app.packets
 import app.settings
@@ -114,7 +116,8 @@ from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.repositories.tourney_pools import TourneyPool
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
 
 if TYPE_CHECKING:
     from asyncio import TimerHandle
@@ -460,7 +463,8 @@ class Match:
             # continue trying to fetch each player's
             # scores until they've all been submitted.
             while True:
-                assert s.player is not None
+                if s.player is None:
+                    raise RuntimeError("Slot has no player during score submission")
                 rc_score = s.player.recent_score
 
                 max_age = datetime.now() - timedelta(
@@ -523,7 +527,7 @@ class Match:
 
         if not scores:
             self.chat.send_bot("Scores could not be calculated.")
-            return None
+            return
 
         ffa = self.team_type in (
             MatchTeamTypes.head_to_head,
@@ -534,7 +538,7 @@ class Match:
         if len(scores) != 1 and len(set(scores.values())) == 1:
             self.winners.append(None)
             self.chat.send_bot("The point has ended in a tie!")
-            return None
+            return
 
         # Find the winner & increment their matchpoints.
         winner: Player | MatchTeams = max(scores, key=lambda k: scores[k])
@@ -546,17 +550,17 @@ class Match:
         def add_suffix(score: int | float) -> str | int | float:
             if self.use_pp_scoring:
                 return f"{score:.2f}pp"
-            elif self.win_condition == MatchWinConditions.accuracy:
+            if self.win_condition == MatchWinConditions.accuracy:
                 return f"{score:.2f}%"
-            elif self.win_condition == MatchWinConditions.combo:
+            if self.win_condition == MatchWinConditions.combo:
                 return f"{score}x"
-            else:
-                return str(score)
+            return str(score)
 
         if ffa:
             from app.objects.player import Player
 
-            assert isinstance(winner, Player)
+            if not isinstance(winner, Player):
+                raise TypeError(f"Expected Player, got {type(winner).__name__}")
 
             msg.append(
                 f"{winner.name} takes the point! ({add_suffix(scores[winner])} "
@@ -582,8 +586,9 @@ class Match:
             msg.append(m)
             del m
 
-        else:  # teams
-            assert isinstance(winner, MatchTeams)
+        else:
+            if not isinstance(winner, MatchTeams):
+                raise TypeError(f"Expected MatchTeams, got {type(winner).__name__}")
 
             r_match = regexes.TOURNEY_MATCHNAME.match(self.name)
             if r_match:

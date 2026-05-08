@@ -78,12 +78,18 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Index, Integer, insert, select
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 
@@ -124,8 +130,9 @@ async def create(user_id: int, achievement_id: int) -> UserAchievement:
         .where(UserAchievementsTable.achid == achievement_id)
     )
     user_achievement = await app.state.services.database.fetch_one(select_stmt)
-    assert user_achievement is not None
-    return cast(UserAchievement, user_achievement)
+    if user_achievement is None:
+        raise RuntimeError("Failed to fetch user achievement")
+    return cast("UserAchievement", user_achievement)
 
 
 async def fetch_many(
@@ -145,7 +152,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     user_achievements = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[UserAchievement], user_achievements)
+    return cast("list[UserAchievement]", user_achievements)
 
 
 # TODO: delete?

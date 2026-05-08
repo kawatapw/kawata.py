@@ -52,7 +52,8 @@ Related Files:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -271,10 +272,7 @@ class IFCScheduleProvider(ScheduleTypeProvider):
         if config.get("new_years_day", True):
             total_days += 1
 
-        if total_days != 365:
-            return False
-
-        return True
+        return total_days == 365
 
     def calculate_seasons_for_range(
         self,

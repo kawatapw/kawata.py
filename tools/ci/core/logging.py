@@ -6,6 +6,8 @@ across all modules while keeping the public API minimal: a single
 `logging.getLogger`.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 from typing import Any

@@ -2,46 +2,46 @@
 Tests for multiplayer commands.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.multiplayer import (
-    mp_abort,
-    mp_addref,
-    mp_ban,
-    mp_condition,
-    mp_endscrim,
-    mp_force,
-    mp_freemods,
-    mp_help,
-    mp_host,
-    mp_invite,
-    mp_listref,
-    mp_loadpool,
-    mp_lock,
-    mp_map,
-    mp_mods,
-    mp_pick,
-    mp_randpw,
-    mp_rematch,
-    mp_rmref,
-    mp_scrim,
-    mp_start,
-    mp_teams,
-    mp_unban,
-    mp_unloadpool,
-    mp_unlock,
-)
+from app.commands.categories.multiplayer import mp_abort
+from app.commands.categories.multiplayer import mp_addref
+from app.commands.categories.multiplayer import mp_ban
+from app.commands.categories.multiplayer import mp_condition
+from app.commands.categories.multiplayer import mp_endscrim
+from app.commands.categories.multiplayer import mp_force
+from app.commands.categories.multiplayer import mp_freemods
+from app.commands.categories.multiplayer import mp_help
+from app.commands.categories.multiplayer import mp_host
+from app.commands.categories.multiplayer import mp_invite
+from app.commands.categories.multiplayer import mp_listref
+from app.commands.categories.multiplayer import mp_loadpool
+from app.commands.categories.multiplayer import mp_lock
+from app.commands.categories.multiplayer import mp_map
+from app.commands.categories.multiplayer import mp_mods
+from app.commands.categories.multiplayer import mp_pick
+from app.commands.categories.multiplayer import mp_randpw
+from app.commands.categories.multiplayer import mp_rematch
+from app.commands.categories.multiplayer import mp_rmref
+from app.commands.categories.multiplayer import mp_scrim
+from app.commands.categories.multiplayer import mp_start
+from app.commands.categories.multiplayer import mp_teams
+from app.commands.categories.multiplayer import mp_unban
+from app.commands.categories.multiplayer import mp_unloadpool
+from app.commands.categories.multiplayer import mp_unlock
 from app.commands.context import Context
 from app.constants.gamemodes import Mods
 from app.constants.privileges import Privileges
-from app.objects.match import (
-    Match,
-    MatchTeamTypes,
-    MatchWinConditions,
-    SlotStatus,
-)
+from app.objects.match import Match
+from app.objects.match import MatchTeamTypes
+from app.objects.match import MatchWinConditions
+from app.objects.match import SlotStatus
 
 
 @pytest.fixture

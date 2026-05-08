@@ -7,20 +7,16 @@ Commands for nominator role.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
 
 from app import settings
 from app.commands.base import nominator_command
 from app.commands.context import Context
-from app.logging import Ansi, log
-from app.objects.beatmap import Beatmap, RankedStatus
+from app.logging import Ansi
+from app.logging import log
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import RankedStatus
 from app.repositories import map_requests as map_requests_repo
 from app.repositories import maps as maps_repo
-
-if TYPE_CHECKING:
-    from app.objects.beatmap import Beatmap
-    from app.repositories import map_requests as map_requests_repo
-    from app.repositories import maps as maps_repo
 
 
 @nominator_command(
@@ -82,7 +78,8 @@ async def requests(ctx: Context) -> str:
 
     request_lines = [f"Total requested beatmaps: {len(grouped)}"]
     for map_id, reviews in grouped.items():
-        assert len(reviews) != 0
+        if len(reviews) == 0:
+            raise ValueError("Reviews list is empty")
 
         bmap = await Beatmap.from_bid(map_id)
         if not bmap:
@@ -138,9 +135,8 @@ async def _map(ctx: Context) -> str:
     if ctx.args[1] == "map":
         if bmap.status == new_status:
             return f"{bmap.embed} is already {new_status!s}!"
-    else:  # ctx.args[1] == "set"
-        if all(map.status == new_status for map in bmap.set.maps):
-            return f"All maps from the set are already {new_status!s}!"
+    elif all(map.status == new_status for map in bmap.set.maps):
+        return f"All maps from the set are already {new_status!s}!"
 
     # update sql & cache based on scope
     # XXX: not sure if getting md5s from sql

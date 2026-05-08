@@ -2,20 +2,23 @@
 Tests for clan commands.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.clan import (
-    clan_create,
-    clan_disband,
-    clan_info,
-    clan_leave,
-    clan_list,
-)
+from app.commands.categories.clan import clan_create
+from app.commands.categories.clan import clan_disband
+from app.commands.categories.clan import clan_info
+from app.commands.categories.clan import clan_leave
+from app.commands.categories.clan import clan_list
 from app.commands.context import Context
-from app.constants.privileges import ClanPrivileges, Privileges
+from app.constants.privileges import ClanPrivileges
+from app.constants.privileges import Privileges
 
 
 @pytest.fixture
@@ -187,9 +190,7 @@ class TestClanDisband:
                     assert "disbanded" in result
 
     @pytest.mark.asyncio
-    async def test_disband_other_clan_as_admin(
-        self, mock_context, mock_player
-    ):
+    async def test_disband_other_clan_as_admin(self, mock_context, mock_player):
         """Test admin disbanding another clan."""
         mock_context.args = ["OTHER"]
         mock_player.priv = Privileges.ADMINISTRATOR

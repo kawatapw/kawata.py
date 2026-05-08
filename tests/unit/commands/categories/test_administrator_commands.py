@@ -2,19 +2,21 @@
 Tests for administrator commands.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.administrator import (
-    alert,
-    alertuser,
-    restrict,
-    shutdown,
-    switchserv,
-    unrestrict,
-    user,
-)
+from app.commands.categories.administrator import alert
+from app.commands.categories.administrator import alertuser
+from app.commands.categories.administrator import restrict
+from app.commands.categories.administrator import shutdown
+from app.commands.categories.administrator import switchserv
+from app.commands.categories.administrator import unrestrict
+from app.commands.categories.administrator import user
 from app.commands.context import Context
 from app.constants.privileges import Privileges
 
@@ -197,9 +199,7 @@ class TestRestrictCommand:
         assert "already restricted!" in result
 
     @pytest.mark.asyncio
-    async def test_restrict_success(
-        self, mock_context, mock_target_player
-    ):
+    async def test_restrict_success(self, mock_context, mock_target_player):
         """Test restrict command success."""
         mock_context.args = ["TargetPlayer", "cheating"]
         mock_context.state.sessions.players.from_cache_or_sql = AsyncMock(
@@ -290,9 +290,7 @@ class TestUnrestrictCommand:
         assert "is not restricted!" in result
 
     @pytest.mark.asyncio
-    async def test_unrestrict_success(
-        self, mock_context, mock_target_player
-    ):
+    async def test_unrestrict_success(self, mock_context, mock_target_player):
         """Test unrestrict command success."""
         mock_target_player.restricted = True
         mock_context.args = ["TargetPlayer", "appeal accepted"]

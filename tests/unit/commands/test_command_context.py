@@ -2,12 +2,18 @@
 Tests for the command context module.
 """
 
-from unittest.mock import AsyncMock, Mock
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 
-from app.commands.base import Command, CommandCategory, CommandMetadata
-from app.commands.context import CommandResponse, Context
+from app.commands.base import Command
+from app.commands.base import CommandCategory
+from app.commands.base import CommandMetadata
+from app.commands.context import CommandResponse
+from app.commands.context import Context
 
 
 @pytest.fixture

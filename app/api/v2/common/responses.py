@@ -55,7 +55,11 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import Any, Generic, Literal, TypeVar, cast
+from typing import Any
+from typing import Generic
+from typing import Literal
+from typing import TypeVar
+from typing import cast
 
 from pydantic import BaseModel
 
@@ -80,7 +84,7 @@ def success(
         meta = {}
     data = {"status": "success", "data": content, "meta": meta}
     # XXX:HACK to make typing work
-    return cast(Success[T], json.ORJSONResponse(data, status_code, headers))
+    return cast("Success[T]", json.ORJSONResponse(data, status_code, headers))
 
 
 class Failure(BaseModel):
@@ -95,4 +99,4 @@ def failure(
 ) -> Failure:
     data = {"status": "error", "error": message}
     # XXX:HACK to make typing work
-    return cast(Failure, json.ORJSONResponse(data, status_code, headers))
+    return cast("Failure", json.ORJSONResponse(data, status_code, headers))

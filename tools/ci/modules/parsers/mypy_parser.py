@@ -1,9 +1,12 @@
 """Mypy type checker parser."""
 
+from __future__ import annotations
+
 import re
 from typing import Any
 
-from .registry import Parser, register_parser
+from .registry import Parser
+from .registry import register_parser
 
 
 class MypyParser(Parser):

@@ -5,6 +5,8 @@ the project as well as a helper for consistently surfacing errors to users
 and, when available, to the GitHub Actions job summary.
 """
 
+from __future__ import annotations
+
 import sys
 import traceback
 from typing import Any

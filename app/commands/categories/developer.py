@@ -12,7 +12,7 @@ import os
 import pprint
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urlparse
 
 import cpuinfo
@@ -23,9 +23,6 @@ from app import settings
 from app.commands.base import developer_command
 from app.commands.context import Context
 from app.constants.privileges import Privileges
-
-if TYPE_CHECKING:
-    pass
 
 
 @developer_command(
@@ -357,15 +354,12 @@ if settings.DEVELOPER_MODE:
         definition = "\n ".join(["async def __py(ctx):", " ".join(ctx.args)])
 
         try:  # def __py(ctx)
-            exec(
-                definition, __py_namespace
-            )  # noqa: S102  # nosec B102  # add to namespace
+            exec(definition, __py_namespace)  # noqa: S102  # nosec B102  # add to namespace
             ret = await __py_namespace["__py"](ctx)  # await it's return
         except Exception as exc:  # return exception in osu! chat
             ret = f"{exc.__class__}: {exc}"
 
-        if "__py" in __py_namespace:
-            del __py_namespace["__py"]
+        __py_namespace.pop("__py", None)
 
         if not isinstance(ret, str):
             ret = pprint.pformat(ret, compact=True)

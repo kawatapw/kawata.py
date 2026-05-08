@@ -61,7 +61,8 @@ Related Files:
 from __future__ import annotations
 
 import app.repositories.user_achievements
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories.user_achievements import UserAchievement
 
 

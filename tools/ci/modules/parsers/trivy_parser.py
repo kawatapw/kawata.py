@@ -1,9 +1,12 @@
 """Trivy vulnerability scanner parser."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 
-from .registry import Parser, register_parser
+from .registry import Parser
+from .registry import register_parser
 
 
 class TrivyParser(Parser):
@@ -16,11 +19,10 @@ class TrivyParser(Parser):
         # Detect format
         if "$schema" in data and "sarif" in data.get("$schema", "").lower():
             return self._parse_sarif(data)
-        elif "Results" in data or "results" in data:
+        if "Results" in data or "results" in data:
             return self._parse_json(data)
-        else:
-            # Try to parse as generic JSON
-            return self._parse_json(data)
+        # Try to parse as generic JSON
+        return self._parse_json(data)
 
     def _parse_sarif(self, data: dict[str, Any]) -> dict[str, Any]:
         """Parse Trivy SARIF output."""

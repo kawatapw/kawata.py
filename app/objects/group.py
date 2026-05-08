@@ -80,6 +80,8 @@ Related Files:
     - app/objects/match.py: Match system integration
 """
 
+from __future__ import annotations
+
 import uuid
 
 import app

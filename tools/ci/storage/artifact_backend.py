@@ -6,9 +6,12 @@ single artifact from GitHub Actions. Other workflows can then download and
 re-use this directory to aggregate results across jobs.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 from core.storage import StorageBackend
 
@@ -75,7 +78,7 @@ class ArtifactBackend(StorageBackend):  # type: ignore[misc]
         filename = self.state_dir / f"{key}.json"
         if filename.exists():
             with open(filename) as f:
-                return cast(dict[str, Any], json.load(f))
+                return cast("dict[str, Any]", json.load(f))
         return {}
 
     def list_results(self, commit: str) -> list[str]:

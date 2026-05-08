@@ -9,18 +9,22 @@ from __future__ import annotations
 import random
 import time
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from app import packets, settings
+from app import packets
+from app import settings
 from app.commands.base import user_command
 from app.commands.context import Context
 from app.constants import regexes
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
-from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import RankedStatus
+from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.score import SubmissionStatus
 from app.repositories import map_requests as map_requests_repo
 from app.repositories import users as users_repo
@@ -28,12 +32,6 @@ from app.usecases.performance import ScoreParams
 
 # Define BEATMAPS_PATH
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
-
-if TYPE_CHECKING:
-    from app.objects.beatmap import Beatmap
-    from app.repositories import map_requests as map_requests_repo
-    from app.repositories import users as users_repo
-
 
 @user_command(
     name="roll",
@@ -215,16 +213,15 @@ async def recent(ctx: Context) -> str:
     if score.passed:
         rank = score.rank if score.status == SubmissionStatus.BEST else "NA"
         score_lines.append(f"PASS {{{score.pp:.2f}pp #{rank}}}")
+    # XXX: prior to v3.2.0, bancho.py didn't parse total_length from
+    # the osu!api, and thus this can do some zerodivision moments.
+    # this can probably be removed in the future, or better yet
+    # replaced with a better system to fix the maps.
+    elif score.bmap.total_length != 0:
+        completion = score.time_elapsed / (score.bmap.total_length * 1000)
+        score_lines.append(f"FAIL {{{completion * 100:.2f}% complete}})")
     else:
-        # XXX: prior to v3.2.0, bancho.py didn't parse total_length from
-        # the osu!api, and thus this can do some zerodivision moments.
-        # this can probably be removed in the future, or better yet
-        # replaced with a better system to fix the maps.
-        if score.bmap.total_length != 0:
-            completion = score.time_elapsed / (score.bmap.total_length * 1000)
-            score_lines.append(f"FAIL {{{completion * 100:.2f}% complete}})")
-        else:
-            score_lines.append("FAIL")
+        score_lines.append("FAIL")
 
     return " | ".join(score_lines)
 

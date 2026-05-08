@@ -8,15 +8,12 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from app.commands.base import season_command
 from app.commands.context import Context
 from app.repositories import seasons as seasons_repo
 from app.repositories import users as users_repo
-
-if TYPE_CHECKING:
-    pass
 
 
 async def _is_seasons_enabled(database: Any) -> bool:
@@ -168,7 +165,7 @@ async def recalc_season_stats(ctx: Context) -> str | None:
             player.send_bot(f"Done! Recalculated stats for {len(all_seasons)} seasons.")
 
         # Background task - intentionally not awaited
-        asyncio.create_task(_recalc_all())  # type: ignore[unused-awaitable]
+        asyncio.create_task(_recalc_all())  # type: ignore[unused-awaitable]  # noqa: RUF006
         return f"Started recalculating {len(all_seasons)} seasons in background. You'll get a message when done."
 
     if not ctx.args[0].isdecimal():
@@ -184,7 +181,7 @@ async def recalc_season_stats(ctx: Context) -> str | None:
         player.send_bot(f"Done! Recalculated stats for season '{season['name']}'.")
 
         # Background task - intentionally not awaited
-        asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]
+        asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]  # noqa: RUF006
 
     return f"Started recalculating season '{season['name']}' in background. You'll get a message when done."
 
@@ -259,7 +256,7 @@ async def season_schedule(ctx: Context) -> str | None:
 
         return f"Schedule '{name}' created with ID {schedule['id']}."
 
-    elif action == "list":
+    if action == "list":
         schedules = await seasons_repo.fetch_many_schedules()
         if not schedules:
             return "No schedules found."
@@ -272,8 +269,7 @@ async def season_schedule(ctx: Context) -> str | None:
 
         return "\n".join(msg)
 
-    else:
-        return "Invalid action. Use: create, list, or info"
+    return "Invalid action. Use: create, list, or info"
 
 
 @season_command(
@@ -297,13 +293,12 @@ async def seasons(ctx: Context) -> str | None:
                 preferred_lb_view="seasonal",
             )
             return "Switched to seasonal view."
-        else:
-            ctx.player.preferred_lb_view = "all_time"
-            await users_repo.partial_update(
-                id=ctx.player.id,
-                preferred_lb_view="all_time",
-            )
-            return "Switched to all-time view."
+        ctx.player.preferred_lb_view = "all_time"
+        await users_repo.partial_update(
+            id=ctx.player.id,
+            preferred_lb_view="all_time",
+        )
+        return "Switched to all-time view."
 
     # Handle specific season ID or "all"
     arg = ctx.args[0].lower()

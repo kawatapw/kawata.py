@@ -12,7 +12,6 @@ from asgi_lifespan._types import ASGIApp
 from fastapi import status
 
 from app.api.init_api import asgi_app
-from app.state import services
 
 # TODO: fixtures for postgres database connection(s) for itests
 
@@ -112,5 +111,3 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_db: mark test as requiring database connection"
     )
-
-

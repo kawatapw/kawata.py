@@ -2,16 +2,18 @@
 Tests for nominator commands.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from app.commands.categories.nominator import (
-    _map,
-    request,
-    requests,
-)
+from app.commands.categories.nominator import _map
+from app.commands.categories.nominator import request
+from app.commands.categories.nominator import requests
 from app.commands.context import Context
 from app.constants.privileges import Privileges
 from app.objects.beatmap import RankedStatus

@@ -7,10 +7,10 @@ Commands for managing tournament mappools.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
 
 import app.settings
-from app.commands.base import CommandCategory, mappool_command
+from app.commands.base import CommandCategory
+from app.commands.base import mappool_command
 from app.commands.context import Context
 from app.constants import regexes
 from app.constants.mods import Mods
@@ -18,9 +18,6 @@ from app.objects.beatmap import Beatmap
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
 from app.repositories import users as users_repo
-
-if TYPE_CHECKING:
-    pass
 
 
 @mappool_command(
@@ -140,7 +137,8 @@ async def pool_add(ctx: Context) -> str:
     for pool_map in tourney_pool_maps:
         if mods == pool_map["mods"] and slot == pool_map["slot"]:
             pool_beatmap = await Beatmap.from_bid(pool_map["map_id"])
-            assert pool_beatmap is not None
+            if pool_beatmap is None:
+                raise ValueError("Pool beatmap not found")
             return f"{mods_slot} is already {pool_beatmap.embed}!"
 
         if pool_map["map_id"] == bmap.id:
