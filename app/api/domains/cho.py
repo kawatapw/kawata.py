@@ -108,8 +108,8 @@ import app.settings
 import app.state
 import app.usecases.performance
 import app.utils
-from app import commands
 from app._typing import IPAddress
+from app.commands import execute_command
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import SPEED_CHANGING_MODS, Mods
@@ -563,16 +563,24 @@ class SendMessage(BasePacket):
             )
 
         if msg.startswith(app.settings.COMMAND_PREFIX):
-            cmd = await commands.process_commands(player, t_chan, msg)
+            cmd = await execute_command(
+                player=player,
+                recipient=t_chan,
+                message=msg,
+                database=app.state.services.database,
+                cache=app.state.cache,
+                settings=app.settings,
+                state=app.state,
+            )
         else:
             cmd = None
 
         if cmd:
             # a command was triggered.
-            if not cmd["hidden"]:
+            if not cmd.hidden:
                 t_chan.send(msg, sender=player)
-                if cmd["resp"] is not None:
-                    t_chan.send_bot(cmd["resp"])
+                if cmd.resp is not None:
+                    t_chan.send_bot(cmd.resp)
             else:
                 staff = app.state.sessions.players.staff
                 t_chan.send_selective(
@@ -580,9 +588,9 @@ class SendMessage(BasePacket):
                     sender=player,
                     recipients=staff - {player},
                 )
-                if cmd["resp"] is not None:
+                if cmd.resp is not None:
                     t_chan.send_selective(
-                        msg=cmd["resp"],
+                        msg=cmd.resp,
                         sender=app.state.sessions.bot,
                         recipients=staff | {player},
                     )
@@ -1963,14 +1971,22 @@ class SendPrivateMessage(BasePacket):
         else:
             # messaging the bot, check for commands & /np.
             if msg.startswith(app.settings.COMMAND_PREFIX):
-                cmd = await commands.process_commands(player, target, msg)
+                cmd = await execute_command(
+                    player=player,
+                    recipient=target,
+                    message=msg,
+                    database=app.state.services.database,
+                    cache=app.state.cache,
+                    settings=app.settings,
+                    state=app.state,
+                )
             else:
                 cmd = None
 
             if cmd:
                 # command triggered, send response if any.
-                if cmd["resp"] is not None:
-                    player.send(cmd["resp"], sender=target)
+                if cmd.resp is not None:
+                    player.send(cmd.resp, sender=target)
             else:
                 # no commands triggered.
                 r_match = NOW_PLAYING_RGX.match(msg)

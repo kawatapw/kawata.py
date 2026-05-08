@@ -91,7 +91,7 @@ api_keys: dict[str, int] = {}
 
 housekeeping_tasks: set[asyncio.Task[Any]] = set()
 
-bot: Player
+bot: Player | None = None
 
 
 # use cases

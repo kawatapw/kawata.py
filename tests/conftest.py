@@ -11,6 +11,8 @@ from asgi_lifespan import LifespanManager
 from asgi_lifespan._types import ASGIApp
 from fastapi import status
 
+from app.state import services
+
 from app.api.init_api import asgi_app
 
 # TODO: fixtures for postgres database connection(s) for itests
@@ -104,3 +106,41 @@ def configure_test_logging():
 
 
 pytest_plugins = []
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "requires_db: mark test as requiring database connection"
+    )
+
+
+@pytest.fixture(scope="session")
+def db_available() -> bool:
+    """Check if database is available for testing.
+
+    Returns True if the database connection can be established,
+    False otherwise. Use this fixture to skip tests that require
+    a real database connection when running without test containers.
+    """
+    try:
+        # Try to get a database connection
+        import asyncio
+
+        async def check_connection():
+            if services.database is None:
+                return False
+            # Try to ping the database
+            await services.database.fetch_val("SELECT 1")
+            return True
+
+        return asyncio.get_event_loop().run_until_complete(check_connection())
+    except Exception:
+        return False
+
+
+@pytest.fixture
+def skip_if_no_db(db_available: bool):
+    """Skip test if database is not available."""
+    if not db_available:
+        pytest.skip("Database not available - skipping test that requires DB connection")

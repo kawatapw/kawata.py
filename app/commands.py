@@ -73,14 +73,12 @@ import random
 import secrets
 import signal
 import time
-import traceback
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
-from time import perf_counter_ns as clock_ns
 from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn, TypedDict
 from urllib.parse import urlparse
 
@@ -166,7 +164,11 @@ class CommandSet:
                     # NOTE: this method assumes that functions without any
                     # triggers will be named like '{self.trigger}_{trigger}'.
                     triggers=(
-                        [getattr(f, "__name__", "unknown").removeprefix(f"{self.trigger}_").strip()]
+                        [
+                            getattr(f, "__name__", "unknown")
+                            .removeprefix(f"{self.trigger}_")
+                            .strip()
+                        ]
                         + (aliases if aliases is not None else [])
                     ),
                     callback=f,
@@ -1435,7 +1437,9 @@ if app.settings.DEVELOPER_MODE:
         definition = "\n ".join(["async def __py(ctx):", " ".join(ctx.args)])
 
         try:  # def __py(ctx)
-            exec(definition, __py_namespace)  # noqa: S102  # nosec B102  # add to namespace
+            exec(
+                definition, __py_namespace
+            )  # noqa: S102  # nosec B102  # add to namespace
             ret = await __py_namespace["__py"](ctx)  # await it's return
         except Exception as exc:  # return exception in osu! chat
             ret = f"{exc.__class__}: {exc}"
@@ -2642,62 +2646,21 @@ async def process_commands(
     target: Channel | Player,
     msg: str,
 ) -> CommandResponse | None:
-    # response is either a CommandResponse if we hit a command,
-    # or simply False if we don't have any command hits.
-    start_time = clock_ns()
+    """Process commands using the new registry-based system."""
+    from app.commands import execute_command
 
-    prefix_len = len(app.settings.COMMAND_PREFIX)
-    trigger, *args = msg[prefix_len:].strip().split(" ")
+    # Execute command using the new registry system
+    result = await execute_command(
+        player=player,
+        recipient=target,
+        message=msg,
+        database=app.state.services.database,
+        cache=app.state.cache,
+        settings=app.settings,
+        state=app.state,
+    )
 
-    # case-insensitive triggers
-    trigger = trigger.lower()
-
-    # check if any command sets match.
-    commands: list[Command] = []
-    for cmd_set in command_sets:
-        if trigger == cmd_set.trigger:
-            if not args:
-                args = ["help"]
-
-            trigger, *args = args  # get subcommand
-
-            # case-insensitive triggers
-            trigger = trigger.lower()
-
-            commands = cmd_set.commands
-            break
-    else:
-        # no set commands matched, check normal commands.
-        commands = regular_commands
-
-    for cmd in commands:
-        if trigger in cmd.triggers and player.priv & cmd.priv == cmd.priv:
-            # found matching trigger with sufficient privs
-            try:
-                res = await cmd.callback(
-                    Context(
-                        player=player,
-                        trigger=trigger,
-                        args=args,
-                        recipient=target,
-                    ),
-                )
-            except Exception:
-                # print exception info to the console,
-                # but do not break the player's session.
-                traceback.print_exc()
-
-                res = "An exception occurred when running the command."
-
-            if res is not None:
-                # we have a message to return, include elapsed time
-                elapsed = app.logging.magnitude_fmt_time(clock_ns() - start_time)
-                return {"resp": f"{res} | Elapsed: {elapsed}", "hidden": cmd.hidden}
-            else:
-                # no message to return
-                return {"resp": None, "hidden": False}
-
-    return None
+    return result
 
 
 """ Season management commands
@@ -2864,6 +2827,7 @@ async def recalc_season_stats(ctx: Context) -> str | None:
 
         # Background task - intentionally not awaited
         asyncio.create_task(_recalc_one())  # type: ignore[unused-awaitable]
+
     return f"Started recalculating season '{season['name']}' in background. You'll get a message when done."
 
 
