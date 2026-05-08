@@ -12,6 +12,7 @@ from app.commands.base import CommandCategory
 
 if TYPE_CHECKING:
     from app.commands import CommandRegistry
+    from app.commands.base import Command
     from app.objects.player import Player
 
 
@@ -67,7 +68,7 @@ def generate_general_help(
     available_commands = registry.get_available(player)
 
     # Group by category
-    commands_by_category: dict[CommandCategory, list] = {}
+    commands_by_category: dict[CommandCategory, list[Command]] = {}
     for cmd in available_commands:
         if cmd.metadata.hidden:
             continue
@@ -197,10 +198,10 @@ def generate_command_help(
     # Show privileges
     from app.constants.privileges import Privileges
 
-    priv_names = []
+    priv_names: list[str] = []
     for priv in Privileges:
         if priv.value != 0 and cmd.privileges & priv.value:
-            priv_names.append(priv.name)
+            priv_names.append(str(priv.name))
     if priv_names:
         lines.append(f"Required privileges: {', '.join(priv_names)}")
 
@@ -268,7 +269,7 @@ def generate_search_results(
     ]
 
     # Group matches by category
-    matches_by_category: dict[CommandCategory, list] = {}
+    matches_by_category: dict[CommandCategory, list[Command]] = {}
     for cmd in matches:
         if cmd.metadata.category not in matches_by_category:
             matches_by_category[cmd.metadata.category] = []

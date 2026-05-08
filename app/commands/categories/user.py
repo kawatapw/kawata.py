@@ -21,9 +21,10 @@ from app.constants.gamemodes import GAMEMODE_REPR_LIST
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
 from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
-from app.objects.score import ScoreParams, SubmissionStatus
+from app.objects.score import SubmissionStatus
 from app.repositories import map_requests as map_requests_repo
 from app.repositories import users as users_repo
+from app.usecases.performance import ScoreParams
 
 # Define BEATMAPS_PATH
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
@@ -349,7 +350,9 @@ async def _with(ctx: Context) -> str:
         score_args.acc = acc
         msg_fields.append(f"{acc:.2f}%")
 
-    result = ctx.state.usecases.performance.calculate_performances(
+    import app.usecases.performance
+
+    result = app.usecases.performance.calculate_performances(
         osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
         scores=[score_args],  # calculate one score
     )

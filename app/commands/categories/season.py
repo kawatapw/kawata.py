@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.commands.base import season_command
 from app.commands.context import Context
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     pass
 
 
-async def _is_seasons_enabled(database) -> bool:
+async def _is_seasons_enabled(database: Any) -> bool:
     """Check if seasons are enabled via server_data."""
     try:
         enabled = await database.fetch_val(

@@ -2657,7 +2657,7 @@ async def process_commands(
         database=app.state.services.database,
         cache=app.state.cache,
         settings=app.settings,
-        state=app.state,
+        state=app.state.state,
     )
 
     # Convert ContextCommandResponse to our CommandResponse TypedDict

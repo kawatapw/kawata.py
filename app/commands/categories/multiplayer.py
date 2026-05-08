@@ -11,12 +11,11 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from app import packets
-from app.commands.base import multiplayer_command
+from app import packets, state
+from app.commands.base import CommandCategory, multiplayer_command
 from app.commands.context import Context
 from app.constants import regexes
-from app.constants.gamemodes import Mods
-from app.constants.mods import SPEED_CHANGING_MODS
+from app.constants.mods import SPEED_CHANGING_MODS, Mods
 from app.constants.privileges import Privileges
 from app.objects.beatmap import Beatmap
 from app.objects.match import (
@@ -82,12 +81,17 @@ async def mp_help(ctx: Context, match: Match) -> str:
     )
     cmds = []
 
-    for cmd in match.commands:
-        if not cmd.doc or ctx.player.priv & cmd.priv != cmd.priv:
+    from app.commands import get_registry
+
+    for cmd in get_registry().get_by_category(CommandCategory.MULTIPLAYER):
+        if (
+            not cmd.metadata.description
+            or ctx.player.priv & cmd.privileges != cmd.privileges
+        ):
             # no doc, or insufficient permissions.
             continue
 
-        cmds.append(f"{prefix}mp {cmd.triggers[0]}: {cmd.doc}")
+        cmds.append(f"{prefix}mp {cmd.metadata.triggers[0]}: {cmd.metadata.description}")
 
     return "\n".join(cmds)
 
@@ -155,9 +159,9 @@ async def mp_start(ctx: Context, match: Match) -> str | None:
         # add timers to our match object,
         # so we can cancel them if needed.
         match.starting = {
-            "start": ctx.state.loop.call_later(duration, _start),
+            "start": state.loop.call_later(duration, _start),
             "alerts": [
-                ctx.state.loop.call_later(duration - t, lambda t=t: _alert_start(t))
+                state.loop.call_later(duration - t, lambda t=t: _alert_start(t))
                 for t in (60, 30, 10, 5, 4, 3, 2, 1)
                 if t < duration
             ],

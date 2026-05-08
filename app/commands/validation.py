@@ -261,7 +261,7 @@ class NumericValidator(Validator):
         value_str = ctx.args[self.arg_index]
         try:
             if self.integer_only:
-                value = int(value_str)
+                value: float = float(int(value_str))
             else:
                 value = float(value_str)
         except ValueError as e:

@@ -50,7 +50,7 @@ class ValidationError(CommandError):
 class CommandValidator(Protocol):
     """Protocol for command validators."""
 
-    def __call__(self, ctx: Context, *args: Any) -> None: ...
+    def __call__(self, ctx: Context, *args: Any) -> Any: ...
 
 
 @dataclass
@@ -84,9 +84,7 @@ class CommandMetadata:
 
     # Pipeline
     pre_hooks: list[Callable[[Context], Awaitable[None]]] = field(default_factory=list)
-    post_hooks: list[Callable[[Context, str | None], Awaitable[None]]] = field(
-        default_factory=list
-    )
+    post_hooks: list[Callable[..., Awaitable[None]]] = field(default_factory=list)
 
 
 @dataclass
@@ -97,7 +95,7 @@ class Command:
     callback: Callable[[Context], Awaitable[str | None]]
     privileges: int  # Bitmask of required privileges
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate command configuration."""
         if not self.metadata.triggers:
             raise ValueError("Command must have at least one trigger")
@@ -111,7 +109,7 @@ class CommandBuilder:
     def __init__(self, name: str, category: CommandCategory):
         self.metadata = CommandMetadata(name=name, triggers=[name], category=category)
         self._privileges = 0
-        self.callback = None
+        self.callback: Callable[[Context], Awaitable[str | None]] | None = None
 
     def trigger(self, *triggers: str) -> CommandBuilder:
         """Add triggers/aliases for the command."""
@@ -164,7 +162,9 @@ class CommandBuilder:
         return self
 
     def post_hook(
-        self, hook: Callable[[Context, str | None], Awaitable[None]]
+        self,
+        hook: Callable[[Context, str | None], Awaitable[None]]
+        | Callable[[Context], Awaitable[None]],
     ) -> CommandBuilder:
         """Add a post-execution hook."""
         self.metadata.post_hooks.append(hook)
@@ -193,7 +193,7 @@ def command(
     namespace: str | None = None,
     validators: list[CommandValidator] | None = None,
     pre_hooks: list[Callable[[Context], Awaitable[None]]] | None = None,
-    post_hooks: list[Callable[[Context, str | None], Awaitable[None]]] | None = None,
+    post_hooks: list[Callable[..., Awaitable[None]]] | None = None,
 ) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """
     Decorator for registering commands.
@@ -262,7 +262,9 @@ def command(
 
 
 # Convenience decorators for common categories
-def user_command(**kwargs):
+def user_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for user-level commands."""
     from app.constants.privileges import Privileges
 
@@ -273,7 +275,9 @@ def user_command(**kwargs):
     )
 
 
-def nominator_command(**kwargs):
+def nominator_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for nominator-level commands."""
     from app.constants.privileges import Privileges
 
@@ -284,7 +288,9 @@ def nominator_command(**kwargs):
     )
 
 
-def moderator_command(**kwargs):
+def moderator_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for moderator-level commands."""
     from app.constants.privileges import Privileges
 
@@ -295,7 +301,9 @@ def moderator_command(**kwargs):
     )
 
 
-def administrator_command(**kwargs):
+def administrator_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for administrator-level commands."""
     from app.constants.privileges import Privileges
 
@@ -306,7 +314,9 @@ def administrator_command(**kwargs):
     )
 
 
-def developer_command(**kwargs):
+def developer_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for developer-level commands."""
     from app.constants.privileges import Privileges
 
@@ -317,21 +327,29 @@ def developer_command(**kwargs):
     )
 
 
-def multiplayer_command(**kwargs):
+def multiplayer_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for multiplayer commands."""
     return command(category=CommandCategory.MULTIPLAYER, namespace="mp", **kwargs)
 
 
-def mappool_command(**kwargs):
+def mappool_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for mappool commands."""
     return command(category=CommandCategory.MAPPOOL, namespace="pool", **kwargs)
 
 
-def clan_command(**kwargs):
+def clan_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for clan commands."""
     return command(category=CommandCategory.CLAN, namespace="clan", **kwargs)
 
 
-def season_command(**kwargs):
+def season_command(
+    **kwargs: Any,
+) -> Callable[[Callable[[Context], Awaitable[str | None]]], Command]:
     """Decorator for season commands."""
     return command(category=CommandCategory.SEASON, namespace="season", **kwargs)

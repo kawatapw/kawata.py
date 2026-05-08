@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from app import state
+import app.settings
 from app.commands.base import CommandCategory, mappool_command
 from app.commands.context import Context
 from app.constants import regexes
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 )
 async def pool_help(ctx: Context) -> str:
     """Show all documented mappool commands the player can access."""
-    prefix = state.settings.COMMAND_PREFIX
+    prefix = app.settings.COMMAND_PREFIX
     cmds = []
 
     # Get all mappool commands from the registry

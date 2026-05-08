@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     # Cache and Settings are modules, not classes, so we use Any for type hints
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from app.commands.base import Command
     from app.objects.channel import Channel
     from app.objects.player import Player
-    from app.state.services import State
+    from app.state import State
 
     Cache = Any
     Settings = Any
@@ -73,7 +73,7 @@ class Context:
         Returns:
             Player object if found, None otherwise
         """
-        return await self.state.sessions.players.from_cache_or_sql(name=name)
+        return cast(Player | None, await self.state.sessions.players.from_cache_or_sql(name=name))
 
     async def get_player_by_id(self, player_id: int) -> Player | None:
         """
@@ -85,7 +85,7 @@ class Context:
         Returns:
             Player object if found, None otherwise
         """
-        return await self.state.sessions.players.from_cache_or_sql(id=player_id)
+        return cast(Player | None, await self.state.sessions.players.from_cache_or_sql(id=player_id))
 
     def reply(self, message: str, hidden: bool = False) -> CommandResponse:
         """

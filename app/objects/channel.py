@@ -172,6 +172,8 @@ class Channel:
     def send_bot(self, msg: str) -> None:
         """Enqueue `msg` to all connected clients from bot."""
         bot = app.state.sessions.bot
+        if bot is None:
+            return
 
         msg_len = len(msg)
 

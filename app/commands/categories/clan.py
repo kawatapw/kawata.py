@@ -33,9 +33,9 @@ async def clan_help(ctx: Context) -> str:
     cmds = []
 
     # Get all clan commands from the registry
-    from app.commands import registry
+    from app.commands import get_registry
 
-    for cmd in registry.get_by_category(CommandCategory.CLAN):
+    for cmd in get_registry().get_by_category(CommandCategory.CLAN):
         if (
             not cmd.metadata.description
             or ctx.player.priv & cmd.privileges != cmd.privileges

@@ -1309,6 +1309,8 @@ class Player:
     def send_bot(self, msg: str) -> None:
         """Enqueue `msg` to `self` from bot."""
         bot = app.state.sessions.bot
+        if bot is None:
+            return
 
         self.enqueue(
             app.packets.send_message(

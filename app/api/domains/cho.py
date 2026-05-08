@@ -570,7 +570,7 @@ class SendMessage(BasePacket):
                 database=app.state.services.database,
                 cache=app.state.cache,
                 settings=app.settings,
-                state=app.state,
+                state=app.state.state,
             )
         else:
             cmd = None
@@ -1653,6 +1653,7 @@ async def handle_osu_login_request(
             # Continue anyway, mail isn't critical for login
 
         try:
+            assert app.state.sessions.bot is not None
             if not player.priv & Privileges.VERIFIED:
                 # this is the player's first login, verify their
                 # account & send info about the server/its usage.
@@ -1691,6 +1692,7 @@ async def handle_osu_login_request(
             # Continue anyway, they can still play even if verification failed
 
     else:
+        assert app.state.sessions.bot is not None
         try:
             # player is restricted, one way data
             for o in app.state.sessions.players.unrestricted:
@@ -1979,7 +1981,7 @@ class SendPrivateMessage(BasePacket):
                     database=app.state.services.database,
                     cache=app.state.cache,
                     settings=app.settings,
-                    state=app.state,
+                    state=app.state.state,
                 )
             else:
                 cmd = None

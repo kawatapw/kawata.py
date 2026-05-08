@@ -111,7 +111,7 @@ if TYPE_CHECKING:
     from app.adapters.database import Database
     from app.objects.channel import Channel
     from app.objects.player import Player
-    from app.state.services import State
+    from app.state import State
 
 
 class CommandRegistry:
@@ -125,7 +125,7 @@ class CommandRegistry:
     - Rich help system
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._commands: dict[str, Command] = {}
         self._namespaces: dict[str, dict[str, Command]] = {}
         self._categories: dict[CommandCategory, list[Command]] = {}
@@ -318,7 +318,12 @@ class CommandRegistry:
             # Run post-execution hooks
             for hook in command.metadata.post_hooks:
                 try:
-                    await hook(context, result)
+                    # post_hooks may accept (Context, str | None) or just (Context)
+                    sig = inspect.signature(hook)
+                    if len(sig.parameters) >= 2:
+                        await hook(context, result)
+                    else:
+                        await hook(context)
                 except Exception:
                     # Log but don't fail the command
                     traceback.print_exc()
@@ -393,7 +398,7 @@ class CommandRegistry:
 
 
 # Global registry instance
-_registry = CommandRegistry()
+_registry: CommandRegistry = CommandRegistry()
 
 
 def get_registry() -> CommandRegistry:

@@ -61,13 +61,15 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from typing import TYPE_CHECKING, Literal
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal
 
 from . import cache, services, sessions
 
 if TYPE_CHECKING:
     from asyncio import AbstractEventLoop
 
+    from app.adapters.database import Database
     from app.packets import BasePacket, ClientPackets
 
 loop: AbstractEventLoop
@@ -78,6 +80,24 @@ packets: dict[Literal["all", "restricted"], dict[ClientPackets, type[BasePacket]
 }
 shutting_down = False
 
+
+@dataclass
+class State:
+    """Application state container for dependency injection."""
+
+    sessions: Any  # sessions module with players, channels, etc.
+    services: Any  # services module with database, http_client, etc.
+    cache: Any  # cache module
+    database: Database | None = None
+
+
+# Create a global state instance for dependency injection
+state = State(
+    sessions=sessions,
+    services=services,
+    cache=cache,
+)
+
 __all__ = [
     "cache",
     "services",
@@ -86,4 +106,6 @@ __all__ = [
     "score_submission_locks",
     "packets",
     "shutting_down",
+    "State",
+    "state",
 ]
