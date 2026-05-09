@@ -1057,7 +1057,6 @@ async def osuSubmitModularSelector(
                 ":checksum, 0)",
                 {
                     "map_md5": score.bmap.md5,
-                    "user_id": score.player.id,
                     "score": score.score,
                     "pp": score.pp,
                     "acc": score.acc,

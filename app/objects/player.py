@@ -913,7 +913,8 @@ class Player:
                 f"{self} tried leaving a match, but slot couldn't be found?",
                 Ansi.LYELLOW,
             )
-        elif slot.status == SlotStatus.locked:
+            return
+        if slot.status == SlotStatus.locked:
             # player was kicked, keep the slot locked.
             new_status = SlotStatus.locked
         else:
