@@ -37,6 +37,7 @@ from app.commands.categories.multiplayer import mp_unloadpool
 from app.commands.categories.multiplayer import mp_unlock
 from app.commands.context import Context
 from app.constants.gamemodes import Mods
+from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.privileges import Privileges
 from app.objects.match import Match
 from app.objects.match import MatchTeamTypes
@@ -231,6 +232,80 @@ class TestMpStart:
         assert result is not None
         assert "Match timer cancelled" in result
 
+    @pytest.mark.asyncio
+    async def test_start_too_many_args(self, mock_context, mock_match):
+        """Test starting match with too many arguments."""
+        mock_context.args = ["force", "extra"]
+        mock_context.player.match = mock_match
+
+        result = await mp_start.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_start_no_args_timer_active(self, mock_context, mock_match):
+        """Test starting match with no args when timer already active."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+
+        import time
+
+        mock_match.starting = {"time": time.time() + 30}
+
+        result = await mp_start.callback(mock_context)
+
+        assert result is not None
+        assert "Match starting in" in result
+
+    @pytest.mark.asyncio
+    async def test_start_decimal_timer_already_active(self, mock_context, mock_match):
+        """Test starting match with decimal arg when timer already active."""
+        mock_context.args = ["30"]
+        mock_context.player.match = mock_match
+
+        import time
+
+        mock_match.starting = {"time": time.time() + 60}
+
+        result = await mp_start.callback(mock_context)
+
+        assert result is not None
+        assert "Match starting in" in result
+
+    @pytest.mark.asyncio
+    async def test_start_invalid_timer_range(self, mock_context, mock_match):
+        """Test starting match with out-of-range timer."""
+        mock_context.args = ["0"]
+        mock_context.player.match = mock_match
+
+        result = await mp_start.callback(mock_context)
+
+        assert result is not None
+        assert "Timer range is 1-300 seconds" in result
+
+    @pytest.mark.asyncio
+    async def test_start_timer_too_large(self, mock_context, mock_match):
+        """Test starting match with timer exceeding 300 seconds."""
+        mock_context.args = ["301"]
+        mock_context.player.match = mock_match
+
+        result = await mp_start.callback(mock_context)
+
+        assert result is not None
+        assert "Timer range is 1-300 seconds" in result
+
+    @pytest.mark.asyncio
+    async def test_start_invalid_arg(self, mock_context, mock_match):
+        """Test starting match with invalid argument."""
+        mock_context.args = ["invalid"]
+        mock_context.player.match = mock_match
+
+        result = await mp_start.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
 
 class TestMpAbort:
     """Test mp abort command."""
@@ -248,6 +323,18 @@ class TestMpAbort:
         assert "Match aborted" in result
         mock_match.unready_players.assert_called_once()
         mock_match.enqueue.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_abort_not_in_progress(self, mock_context, mock_match):
+        """Test aborting match that is not in progress."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.in_progress = False
+
+        result = await mp_abort.callback(mock_context)
+
+        assert result is not None
+        assert "Abort what?" in result
 
 
 class TestMpMap:
@@ -342,6 +429,45 @@ class TestMpMods:
         assert result is not None
         assert "Invalid syntax" in result
 
+    @pytest.mark.asyncio
+    async def test_mods_freemods_host_sets_speed_changing(
+        self, mock_context, mock_match
+    ):
+        """Test host setting speed-changing mods with freemods enabled."""
+
+        mock_context.args = ["DT"]
+        mock_context.player.match = mock_match
+        mock_match.freemods = True
+        mock_match.host = mock_context.player
+
+        result = await mp_mods.callback(mock_context)
+
+        assert result is not None
+        assert "Match mods updated" in result
+        # Host can only set speed-changing mods to match
+        assert mock_match.mods == (Mods.DOUBLETIME & SPEED_CHANGING_MODS)
+
+    @pytest.mark.asyncio
+    async def test_mods_freemods_non_host_sets_slot_mods(
+        self, mock_context, mock_match
+    ):
+        """Test non-host setting slot mods with freemods enabled."""
+        mock_context.args = ["HD"]
+        mock_context.player.match = mock_match
+        mock_match.freemods = True
+        mock_match.host = Mock()  # Different player is host
+
+        slot = Mock()
+        slot.mods = Mods.NOMOD
+        mock_match.get_slot = Mock(return_value=slot)
+
+        result = await mp_mods.callback(mock_context)
+
+        assert result is not None
+        assert "Match mods updated" in result
+        # Non-host sets slot mods (non-speed-changing)
+        assert slot.mods == (Mods.HIDDEN & ~SPEED_CHANGING_MODS)
+
 
 class TestMpFreemods:
     """Test mp freemods command."""
@@ -380,6 +506,37 @@ class TestMpFreemods:
 
         assert result is not None
         assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_freemods_off_host_mods_transferred(self, mock_context, mock_match):
+        """Test that turning freemods off transfers host mods to match."""
+        mock_context.args = ["off"]
+        mock_context.player.match = mock_match
+        mock_match.freemods = True
+        mock_match.mods = Mods.DOUBLETIME
+
+        host_slot = Mock()
+        host_slot.mods = Mods.HIDDEN
+        mock_match.get_host_slot = Mock(return_value=host_slot)
+
+        slot1 = Mock()
+        slot1.player = Mock()
+        slot1.mods = Mods.HIDDEN
+        slot2 = Mock()
+        slot2.player = Mock()
+        slot2.mods = Mods.HARDROCK
+        mock_match.slots = [slot1, slot2]
+
+        result = await mp_freemods.callback(mock_context)
+
+        assert result is not None
+        assert "Match freemod status updated" in result
+        assert mock_match.freemods is False
+        # Match mods should be speed-changing | host slot mods
+        assert mock_match.mods == (Mods.DOUBLETIME | Mods.HIDDEN)
+        # All slot mods should be reset to NOMOD
+        assert slot1.mods == Mods.NOMOD
+        assert slot2.mods == Mods.NOMOD
 
 
 class TestMpHost:
@@ -432,6 +589,34 @@ class TestMpHost:
         assert result is not None
         assert "Found no such player in the match" in result
 
+    @pytest.mark.asyncio
+    async def test_host_already_host(self, mock_context, mock_match):
+        """Test setting host to the current host."""
+        mock_context.args = ["TargetPlayer"]
+        mock_context.player.match = mock_match
+
+        target = Mock()
+        target.name = "TargetPlayer"
+        mock_match.host = target
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await mp_host.callback(mock_context)
+
+        assert result is not None
+        assert "already host" in result
+
+    @pytest.mark.asyncio
+    async def test_host_player_not_found(self, mock_context, mock_match):
+        """Test setting host to a non-existent player."""
+        mock_context.args = ["NonExistent"]
+        mock_context.player.match = mock_match
+        mock_context.state.sessions.players.get = Mock(return_value=None)
+
+        result = await mp_host.callback(mock_context)
+
+        assert result is not None
+        assert "Could not find" in result
+
 
 class TestMpRandpw:
     """Test mp randpw command."""
@@ -479,6 +664,46 @@ class TestMpInvite:
         assert result is not None
         assert "Invalid syntax" in result
 
+    @pytest.mark.asyncio
+    async def test_invite_bot(self, mock_context, mock_match):
+        """Test inviting the bot."""
+        mock_context.args = ["Bot"]
+        mock_context.player.match = mock_match
+
+        bot = Mock()
+        bot.name = "Bot"
+        mock_context.state.sessions.bot = bot
+        mock_context.state.sessions.players.get = Mock(return_value=bot)
+
+        result = await mp_invite.callback(mock_context)
+
+        assert result is not None
+        assert "too busy" in result
+
+    @pytest.mark.asyncio
+    async def test_invite_self(self, mock_context, mock_match):
+        """Test inviting yourself."""
+        mock_context.args = ["TestPlayer"]
+        mock_context.player.match = mock_match
+        mock_context.state.sessions.players.get = Mock(return_value=mock_context.player)
+
+        result = await mp_invite.callback(mock_context)
+
+        assert result is not None
+        assert "can't invite yourself" in result
+
+    @pytest.mark.asyncio
+    async def test_invite_player_not_found(self, mock_context, mock_match):
+        """Test inviting a non-existent player."""
+        mock_context.args = ["NonExistent"]
+        mock_context.player.match = mock_match
+        mock_context.state.sessions.players.get = Mock(return_value=None)
+
+        result = await mp_invite.callback(mock_context)
+
+        assert result is not None
+        assert "Could not find" in result
+
 
 class TestMpAddref:
     """Test mp addref command."""
@@ -513,6 +738,39 @@ class TestMpAddref:
 
         assert result is not None
         assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_addref_not_in_match(self, mock_context, mock_match):
+        """Test adding referee who is not in the match."""
+        mock_context.args = ["TargetPlayer"]
+        mock_context.player.match = mock_match
+
+        target = Mock()
+        target.name = "TargetPlayer"
+        mock_match.slots = []  # No slots with players
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await mp_addref.callback(mock_context)
+
+        assert result is not None
+        assert "must be in the current match" in result
+
+    @pytest.mark.asyncio
+    async def test_addref_already_ref(self, mock_context, mock_match):
+        """Test adding referee who is already a ref."""
+        mock_context.args = ["TargetPlayer"]
+        mock_context.player.match = mock_match
+
+        target = Mock()
+        target.name = "TargetPlayer"
+        mock_match.slots = [Mock(player=target)]
+        mock_match.refs = {mock_context.player, target}
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await mp_addref.callback(mock_context)
+
+        assert result is not None
+        assert "already a match referee" in result
 
 
 class TestMpRmref:
@@ -549,6 +807,41 @@ class TestMpRmref:
 
         assert result is not None
         assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_rmref_not_a_ref(self, mock_context, mock_match):
+        """Test removing a player who is not a referee."""
+        mock_context.args = ["TargetPlayer"]
+        mock_context.player.match = mock_match
+
+        target = Mock()
+        target.name = "TargetPlayer"
+        mock_match.refs = {mock_context.player}
+        mock_match.referees = set()
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await mp_rmref.callback(mock_context)
+
+        assert result is not None
+        assert "is not a match referee" in result
+
+    @pytest.mark.asyncio
+    async def test_rmref_is_host(self, mock_context, mock_match):
+        """Test removing the host from referees."""
+        mock_context.args = ["TargetPlayer"]
+        mock_context.player.match = mock_match
+
+        target = Mock()
+        target.name = "TargetPlayer"
+        mock_match.refs = {mock_context.player, target}
+        mock_match.referees = {target}
+        mock_match.host = target
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await mp_rmref.callback(mock_context)
+
+        assert result is not None
+        assert "host is always a referee" in result
 
 
 class TestMpListref:
@@ -653,6 +946,43 @@ class TestMpTeams:
         assert result is not None
         assert "Unknown team type" in result
 
+    @pytest.mark.asyncio
+    async def test_teams_tag_coop(self, mock_context, mock_match):
+        """Test setting team type to tag coop."""
+        mock_context.args = ["tag"]
+        mock_context.player.match = mock_match
+
+        result = await mp_teams.callback(mock_context)
+
+        assert result is not None
+        assert "Match team type updated" in result
+        assert mock_match.team_type == MatchTeamTypes.tag_coop
+
+    @pytest.mark.asyncio
+    async def test_teams_tag_team_vs(self, mock_context, mock_match):
+        """Test setting team type to tag team vs."""
+        mock_context.args = ["tag-teams"]
+        mock_context.player.match = mock_match
+
+        result = await mp_teams.callback(mock_context)
+
+        assert result is not None
+        assert "Match team type updated" in result
+        assert mock_match.team_type == MatchTeamTypes.tag_team_vs
+
+    @pytest.mark.asyncio
+    async def test_teams_scrim_reset(self, mock_context, mock_match):
+        """Test that changing team type resets scrim scores."""
+        mock_context.args = ["teams"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = True
+
+        result = await mp_teams.callback(mock_context)
+
+        assert result is not None
+        assert "Match team type updated" in result
+        mock_match.reset_scrim.assert_called_once()
+
 
 class TestMpCondition:
     """Test mp condition command."""
@@ -693,6 +1023,80 @@ class TestMpCondition:
         assert result is not None
         assert "Invalid win condition" in result
 
+    @pytest.mark.asyncio
+    async def test_condition_pp_not_scrimming(self, mock_context, mock_match):
+        """Test setting PP win condition when not scrimming."""
+        mock_context.args = ["pp"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = False
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "only useful as a win condition during scrims" in result
+
+    @pytest.mark.asyncio
+    async def test_condition_pp_already_enabled(self, mock_context, mock_match):
+        """Test setting PP win condition when already enabled."""
+        mock_context.args = ["pp"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = True
+        mock_match.use_pp_scoring = True
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "PP scoring already enabled" in result
+
+    @pytest.mark.asyncio
+    async def test_condition_accuracy(self, mock_context, mock_match):
+        """Test setting win condition to accuracy."""
+        mock_context.args = ["acc"]
+        mock_context.player.match = mock_match
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "Match win condition updated" in result
+        assert mock_match.win_condition == MatchWinConditions.accuracy
+
+    @pytest.mark.asyncio
+    async def test_condition_combo(self, mock_context, mock_match):
+        """Test setting win condition to combo."""
+        mock_context.args = ["combo"]
+        mock_context.player.match = mock_match
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "Match win condition updated" in result
+        assert mock_match.win_condition == MatchWinConditions.combo
+
+    @pytest.mark.asyncio
+    async def test_condition_scorev2(self, mock_context, mock_match):
+        """Test setting win condition to scorev2."""
+        mock_context.args = ["scorev2"]
+        mock_context.player.match = mock_match
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "Match win condition updated" in result
+        assert mock_match.win_condition == MatchWinConditions.scorev2
+
+    @pytest.mark.asyncio
+    async def test_condition_disables_pp_scoring(self, mock_context, mock_match):
+        """Test that switching from PP to another condition disables PP."""
+        mock_context.args = ["score"]
+        mock_context.player.match = mock_match
+        mock_match.use_pp_scoring = True
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "Match win condition updated" in result
+        assert mock_match.use_pp_scoring is False
+
 
 class TestMpScrim:
     """Test mp scrim command."""
@@ -732,6 +1136,42 @@ class TestMpScrim:
 
         assert result is not None
         assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_scrim_range_too_high(self, mock_context, mock_match):
+        """Test starting scrim with best of >= 16."""
+        mock_context.args = ["bo17"]
+        mock_context.player.match = mock_match
+
+        result = await mp_scrim.callback(mock_context)
+
+        assert result is not None
+        assert "Best of must be in range 0-15" in result
+
+    @pytest.mark.asyncio
+    async def test_scrim_even_number(self, mock_context, mock_match):
+        """Test starting scrim with even best of."""
+        mock_context.args = ["bo4"]
+        mock_context.player.match = mock_match
+
+        result = await mp_scrim.callback(mock_context)
+
+        assert result is not None
+        assert "Best of must be an odd number" in result
+
+    @pytest.mark.asyncio
+    async def test_scrim_bo0_even_rejected(self, mock_context, mock_match):
+        """Test that bo0 is rejected as even (dead code path for else)."""
+        mock_context.args = ["bo0"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = False
+
+        result = await mp_scrim.callback(mock_context)
+
+        assert result is not None
+        # bo0 has winning_pts=1 so it enters the "real num" branch,
+        # where 0 is even, so it's rejected as "odd number" required.
+        assert "Best of must be an odd number" in result
 
 
 class TestMpEndscrim:
@@ -785,6 +1225,80 @@ class TestMpRematch:
         assert result is not None
         assert "Only available to the host" in result
 
+    @pytest.mark.asyncio
+    async def test_rematch_extra_args(self, mock_context, mock_match):
+        """Test rematch with extra arguments."""
+        mock_context.args = ["extra"]
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_rematch_not_scrimming_no_old_points(self, mock_context, mock_match):
+        """Test rematch when not scrimming and no old points."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+        mock_match.is_scrimming = False
+        mock_match.winning_pts = 0
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+        assert "No scrim to rematch" in result
+
+    @pytest.mark.asyncio
+    async def test_rematch_not_scrimming_restart(self, mock_context, mock_match):
+        """Test rematch restarts scrim with old points."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+        mock_match.is_scrimming = False
+        mock_match.winning_pts = 3
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+        assert "rematch has been started" in result
+        assert mock_match.is_scrimming is True
+
+    @pytest.mark.asyncio
+    async def test_rematch_no_winners(self, mock_context, mock_match):
+        """Test rematch with no winners recorded."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+        mock_match.is_scrimming = True
+        mock_match.winners = []
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+        assert "No match points have yet been awarded" in result
+
+    @pytest.mark.asyncio
+    async def test_rematch_tie_point(self, mock_context, mock_match):
+        """Test rematch when last point was a tie."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+        mock_match.is_scrimming = True
+        mock_match.winners = [None]
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+        assert "last point was a tie" in result
+
 
 class TestMpForce:
     """Test mp force command."""
@@ -828,6 +1342,35 @@ class TestMpLoadpool:
             assert "selected" in result
             assert mock_match.tourney_pool is not None
 
+    @pytest.mark.asyncio
+    async def test_loadpool_already_selected(self, mock_context, mock_match):
+        """Test loading a pool that is already selected."""
+        mock_context.args = ["TestPool"]
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.tourney_pool = {"id": 1, "name": "TestPool"}
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pools_repo.fetch_by_name",
+            AsyncMock(return_value={"id": 1, "name": "TestPool"}),
+        ):
+            result = await mp_loadpool.callback(mock_context)
+
+            assert result is not None
+            assert "already selected" in result
+
+    @pytest.mark.asyncio
+    async def test_loadpool_not_host(self, mock_context, mock_match):
+        """Test loading pool when not the host."""
+        mock_context.args = ["TestPool"]
+        mock_context.player.match = mock_match
+        mock_match.host = Mock()  # Different player is host
+
+        result = await mp_loadpool.callback(mock_context)
+
+        assert result is not None
+        assert "Only available to the host" in result
+
 
 class TestMpUnloadpool:
     """Test mp unloadpool command."""
@@ -845,6 +1388,19 @@ class TestMpUnloadpool:
         assert result is not None
         assert "Mappool unloaded" in result
         assert mock_match.tourney_pool is None
+
+    @pytest.mark.asyncio
+    async def test_unloadpool_extra_args(self, mock_context, mock_match):
+        """Test unloading pool with extra arguments."""
+        mock_context.args = ["extra"]
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.tourney_pool = {"id": 1, "name": "TestPool"}
+
+        result = await mp_unloadpool.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
 
 
 class TestMpBan:
@@ -960,6 +1516,81 @@ class TestMpPick:
             assert result is not None
             assert "no" in result.lower() or "not" in result.lower()
 
+    @pytest.mark.asyncio
+    async def test_pick_banned(self, mock_context, mock_match):
+        """Test picking a banned map."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.bans = {(Mods.HIDDEN, 2)}
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value={"pool_id": 1, "map_id": 123}),
+        ):
+            result = await mp_pick.callback(mock_context)
+
+            assert result is not None
+            assert "has been banned" in result
+
+    @pytest.mark.asyncio
+    async def test_pick_beatmap_not_found(self, mock_context, mock_match):
+        """Test picking a map where beatmap doesn't exist."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value={"pool_id": 1, "map_id": 123}),
+        ):
+            with patch(
+                "app.commands.categories.multiplayer.Beatmap.from_bid",
+                AsyncMock(return_value=None),
+            ):
+                result = await mp_pick.callback(mock_context)
+
+                assert result is not None
+                assert "Found no beatmap" in result
+
+    @pytest.mark.asyncio
+    async def test_pick_freemods_disabled(self, mock_context, mock_match):
+        """Test picking disables freemods and resets slot mods."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.freemods = True
+
+        slot1 = Mock()
+        slot1.player = Mock()
+        slot1.mods = Mods.HIDDEN
+        slot2 = Mock()
+        slot2.player = Mock()
+        slot2.mods = Mods.HARDROCK
+        mock_match.slots = [slot1, slot2]
+
+        mock_bmap = Mock()
+        mock_bmap.md5 = "abc123"
+        mock_bmap.id = 123
+        mock_bmap.full_name = "Test Map"
+        mock_bmap.embed = "[https://osu.test/b/123 Test Map]"
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value={"pool_id": 1, "map_id": 123}),
+        ):
+            with patch(
+                "app.commands.categories.multiplayer.Beatmap.from_bid",
+                AsyncMock(return_value=mock_bmap),
+            ):
+                result = await mp_pick.callback(mock_context)
+
+                assert result is not None
+                assert "Picked" in result
+                assert mock_match.freemods is False
+                assert slot1.mods == Mods.NOMOD
+                assert slot2.mods == Mods.NOMOD
+
 
 class TestMpBanEdgeCases:
     """Test mp ban command edge cases."""
@@ -987,6 +1618,35 @@ class TestMpBanEdgeCases:
 
         assert result is not None
         assert "No pool currently" in result or "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_ban_invalid_pick_syntax(self, mock_context, mock_match):
+        """Test banning with invalid pick syntax."""
+        mock_context.args = ["invalid"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+
+        result = await mp_ban.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid pick syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_ban_already_banned(self, mock_context, mock_match):
+        """Test banning a pick that is already banned."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.bans = {(Mods.HIDDEN, 2)}
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value={"pool_id": 1, "map_id": 123}),
+        ):
+            result = await mp_ban.callback(mock_context)
+
+            assert result is not None
+            assert "already banned" in result
 
     @pytest.mark.asyncio
     async def test_ban_map_not_in_pool(self, mock_context, mock_match):
@@ -1022,6 +1682,19 @@ class TestMpUnbanEdgeCases:
         assert "Invalid syntax" in result
 
     @pytest.mark.asyncio
+    async def test_unban_invalid_pick_syntax(self, mock_context, mock_match):
+        """Test unbanning with invalid pick syntax."""
+        mock_context.args = ["invalid"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.bans = {(Mods.HIDDEN, 2)}
+
+        result = await mp_unban.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid pick syntax" in result
+
+    @pytest.mark.asyncio
     async def test_unban_no_pool(self, mock_context, mock_match):
         """Test unbanning without a pool loaded."""
         mock_context.args = ["HD2"]
@@ -1032,6 +1705,23 @@ class TestMpUnbanEdgeCases:
 
         assert result is not None
         assert "No pool currently" in result or "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_unban_not_banned(self, mock_context, mock_match):
+        """Test unbanning a pick that is not currently banned."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.bans = set()  # Nothing banned
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value={"pool_id": 1, "map_id": 123}),
+        ):
+            result = await mp_unban.callback(mock_context)
+
+            assert result is not None
+            assert "not currently banned" in result
 
     @pytest.mark.asyncio
     async def test_unban_map_not_banned(self, mock_context, mock_match):
@@ -1259,7 +1949,9 @@ class TestMpHelpEdgeCases:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_help_not_in_match_channel(self, mock_context, mock_match, mock_player):
+    async def test_help_not_in_match_channel(
+        self, mock_context, mock_match, mock_player
+    ):
         """Test mp help when message is not in match channel."""
         mock_player.match = mock_match
         mock_context.recipient = Mock()  # Different recipient, not match chat
@@ -1285,8 +1977,12 @@ class TestMpHelpEdgeCases:
     @pytest.mark.asyncio
     async def test_help_success(self, mock_context, mock_match, mock_player):
         """Test mp help shows available commands."""
-        from unittest.mock import patch, MagicMock
-        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
+
+        from app.commands.base import Command
+        from app.commands.base import CommandCategory
+        from app.commands.base import CommandMetadata
 
         mock_player.match = mock_match
         mock_player.priv = Privileges.UNRESTRICTED
@@ -1316,10 +2012,16 @@ class TestMpHelpEdgeCases:
             assert "mp start" in result.lower() or "start" in result.lower()
 
     @pytest.mark.asyncio
-    async def test_help_excludes_hidden_commands(self, mock_context, mock_match, mock_player):
+    async def test_help_excludes_hidden_commands(
+        self, mock_context, mock_match, mock_player
+    ):
         """Test mp help excludes commands without description."""
-        from unittest.mock import patch, MagicMock
-        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
+
+        from app.commands.base import Command
+        from app.commands.base import CommandCategory
+        from app.commands.base import CommandMetadata
 
         mock_player.match = mock_match
         mock_player.priv = Privileges.UNRESTRICTED
@@ -1350,10 +2052,16 @@ class TestMpHelpEdgeCases:
             assert "secret" not in result.lower()
 
     @pytest.mark.asyncio
-    async def test_help_excludes_insufficient_privileges(self, mock_context, mock_match, mock_player):
+    async def test_help_excludes_insufficient_privileges(
+        self, mock_context, mock_match, mock_player
+    ):
         """Test mp help excludes commands player can't use."""
-        from unittest.mock import patch, MagicMock
-        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
+
+        from app.commands.base import Command
+        from app.commands.base import CommandCategory
+        from app.commands.base import CommandMetadata
 
         mock_player.match = mock_match
         mock_player.priv = Privileges.UNRESTRICTED
@@ -1403,7 +2111,9 @@ class TestEnsureMatchDecorator:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_ensure_match_message_not_in_match_channel(self, mock_context, mock_player, mock_match):
+    async def test_ensure_match_message_not_in_match_channel(
+        self, mock_context, mock_player, mock_match
+    ):
         """Test ensure_match returns None when message not in match channel."""
         mock_player.match = mock_match
         mock_context.recipient = Mock()  # Not match chat
@@ -1418,7 +2128,9 @@ class TestEnsureMatchDecorator:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_ensure_match_no_permission(self, mock_context, mock_player, mock_match):
+    async def test_ensure_match_no_permission(
+        self, mock_context, mock_player, mock_match
+    ):
         """Test ensure_match returns None when player has no permission."""
         mock_player.match = mock_match
         mock_player.priv = Privileges.UNRESTRICTED
@@ -1435,7 +2147,9 @@ class TestEnsureMatchDecorator:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_ensure_match_with_tournament_manager(self, mock_context, mock_player, mock_match):
+    async def test_ensure_match_with_tournament_manager(
+        self, mock_context, mock_player, mock_match
+    ):
         """Test ensure_match allows tournament managers."""
         mock_player.match = mock_match
         mock_player.priv = Privileges.TOURNEY_MANAGER

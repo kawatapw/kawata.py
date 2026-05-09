@@ -183,8 +183,6 @@ select = [
     "FURB", # refurb
     # --- Logging ---
     "LOG",  # flake8-logging
-    # --- FastAPI ---
-    "FAST", # fastapi
     # --- Ruff-specific ---
     "RUF",  # ruff rules
 ]

@@ -803,5 +803,3 @@ class TestIsSeasonsEnabled:
         result = await _is_seasons_enabled(mock_context.state.services.database)
 
         assert result is False
-
-

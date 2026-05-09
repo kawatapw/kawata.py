@@ -418,8 +418,12 @@ class TestClanHelp:
     @pytest.mark.asyncio
     async def test_help_success(self, mock_context):
         """Test clan help shows available commands."""
-        from unittest.mock import patch, MagicMock
-        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
+
+        from app.commands.base import Command
+        from app.commands.base import CommandCategory
+        from app.commands.base import CommandMetadata
 
         # Create mock commands
         mock_cmd1 = MagicMock(spec=Command)
@@ -457,7 +461,8 @@ class TestClanHelp:
     @pytest.mark.asyncio
     async def test_help_no_commands(self, mock_context):
         """Test clan help when no commands available."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
 
         mock_registry = MagicMock()
         mock_registry.get_by_category.return_value = []
@@ -474,8 +479,12 @@ class TestClanHelp:
     @pytest.mark.asyncio
     async def test_help_excludes_hidden_commands(self, mock_context):
         """Test clan help excludes commands without description."""
-        from unittest.mock import patch, MagicMock
-        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
+
+        from app.commands.base import Command
+        from app.commands.base import CommandCategory
+        from app.commands.base import CommandMetadata
 
         # Command without description (hidden)
         mock_cmd_hidden = MagicMock(spec=Command)
@@ -517,8 +526,12 @@ class TestClanHelp:
     @pytest.mark.asyncio
     async def test_help_excludes_insufficient_privileges(self, mock_context):
         """Test clan help excludes commands player can't use."""
-        from unittest.mock import patch, MagicMock
-        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from unittest.mock import MagicMock
+        from unittest.mock import patch
+
+        from app.commands.base import Command
+        from app.commands.base import CommandCategory
+        from app.commands.base import CommandMetadata
         from app.constants.privileges import Privileges as Priv
 
         # Command requiring admin
@@ -789,7 +802,9 @@ class TestClanLeaveEdgeCases:
             assert "not in a clan" in result
 
     @pytest.mark.asyncio
-    async def test_leave_disbands_clan_when_last_member(self, mock_context, mock_player):
+    async def test_leave_disbands_clan_when_last_member(
+        self, mock_context, mock_player
+    ):
         """Test leaving a clan when you're the last member disbands it."""
         mock_context.args = []
         mock_player.clan_id = 1
@@ -815,9 +830,7 @@ class TestClanLeaveEdgeCases:
                     ) as mock_delete:
                         # Mock announce channel
                         mock_announce_chan = Mock()
-                        mock_context.state.sessions.channels.get_by_name.return_value = (
-                            mock_announce_chan
-                        )
+                        mock_context.state.sessions.channels.get_by_name.return_value = mock_announce_chan
 
                         result = await clan_leave.callback(mock_context)
 
@@ -856,9 +869,7 @@ class TestClanLeaveEdgeCases:
                         # Mock announce channel
                         mock_announce_chan = Mock()
                         mock_announce_chan.send = Mock()
-                        mock_context.state.sessions.channels.get_by_name.return_value = (
-                            mock_announce_chan
-                        )
+                        mock_context.state.sessions.channels.get_by_name.return_value = mock_announce_chan
 
                         result = await clan_leave.callback(mock_context)
 

@@ -576,6 +576,7 @@ class TestCommandExecutionEdgeCases:
             mock_state,
         )
         assert result is not None
+        assert result.resp is not None
         assert "rolls" in result.resp
 
     @pytest.mark.asyncio
@@ -695,6 +696,7 @@ class TestCommandExecutionEdgeCases:
             mock_state,
         )
         assert result is not None
+        assert result.resp is not None
         assert "rolls" in result.resp
 
     @pytest.mark.asyncio
@@ -719,6 +721,7 @@ class TestCommandExecutionEdgeCases:
             mock_state,
         )
         assert result is not None
+        assert result.resp is not None
         assert "rolls" in result.resp
 
 

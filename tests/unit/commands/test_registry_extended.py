@@ -168,6 +168,7 @@ class TestDeprecatedCommands:
                     mock_state,
                 )
                 assert result is not None
+                assert result.resp is not None
                 assert cmd.metadata.deprecation_message in result.resp
                 return
 
@@ -215,6 +216,7 @@ class TestPreExecutionHooks:
             mock_state,
         )
         assert result is not None
+        assert result.resp is not None
         assert "Pre-hook failed" in result.resp
 
 
@@ -577,7 +579,7 @@ class TestCommandExecutionEdgeCasesExtended:
         mock_player.priv = Privileges.UNRESTRICTED
 
         results = []
-        for i in range(5):
+        for _i in range(5):
             result = await execute_command(
                 mock_player,
                 mock_recipient,
