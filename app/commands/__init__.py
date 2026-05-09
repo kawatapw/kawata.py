@@ -13,6 +13,7 @@ from collections.abc import Awaitable
 from typing import TYPE_CHECKING
 from typing import Any
 
+from app import settings
 from app.commands.base import Command
 from app.commands.base import CommandCategory
 from app.commands.base import CommandError
@@ -69,7 +70,6 @@ from app.commands.categories import pool_help
 from app.commands.categories import pool_info
 from app.commands.categories import pool_list
 from app.commands.categories import pool_remove
-from app.commands.categories import py
 from app.commands.categories import recalc
 from app.commands.categories import recalc_season_stats
 from app.commands.categories import recent
@@ -479,7 +479,9 @@ def _register_all_commands() -> None:
     _registry.register(wipemap)
     _registry.register(reload)
     _registry.register(server)
-    _registry.register(py)
+    if settings.DEVELOPER_MODE:
+        from app.commands.categories import py
+        _registry.register(py)
 
     # Multiplayer commands
     _registry.register(mp_help)
