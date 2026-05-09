@@ -23,13 +23,17 @@ from .developer import addpriv
 from .developer import debug
 from .developer import debug_focus
 from .developer import givedonator
-from .developer import py
 from .developer import recalc
 from .developer import reload
 from .developer import rmpriv
 from .developer import server
 from .developer import stealth
 from .developer import wipemap
+
+# py command is only available when DEVELOPER_MODE is enabled
+from app import settings
+if settings.DEVELOPER_MODE:
+    from .developer import py
 from .mappool import pool_add
 from .mappool import pool_create
 from .mappool import pool_delete
@@ -137,7 +141,6 @@ __all__ = [
     "pool_info",
     "pool_list",
     "pool_remove",
-    "py",
     "recalc",
     "recalc_season_stats",
     "recent",
@@ -167,3 +170,7 @@ __all__ = [
     "user",
     "wipemap",
 ]
+
+# Add py command to __all__ only if DEVELOPER_MODE is enabled
+if settings.DEVELOPER_MODE:
+    __all__.append("py")
