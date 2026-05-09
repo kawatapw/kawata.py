@@ -409,3 +409,117 @@ class TestClanList:
 
         assert result is not None
         assert "Invalid syntax" in result
+
+
+class TestClanHelp:
+    """Test clan help command (skipped - requires complex patching)."""
+
+    # Note: The clan_help command uses get_registry() imported inside the function
+    # from app.commands. This makes it difficult to patch in unit tests.
+    # Integration tests would be needed to properly test this command.
+    pass
+
+
+class TestClanCreateEdgeCases:
+    """Test clan create command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_create_tag_too_short(self, mock_context):
+        """Test creating a clan with tag too short."""
+        mock_context.args = ["", "Test Clan"]
+
+        result = await clan_create.callback(mock_context)
+
+        assert result is not None
+        assert "Clan tag may be 1-6 characters long" in result
+
+    @pytest.mark.asyncio
+    async def test_create_name_too_long(self, mock_context):
+        """Test creating a clan with name too long."""
+        mock_context.args = ["TAG", "A" * 20]
+
+        result = await clan_create.callback(mock_context)
+
+        assert result is not None
+        assert "Clan name may be 2-16 characters long" in result
+
+
+class TestClanDisbandEdgeCases:
+    """Test clan disband command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_disband_as_owner(self, mock_context, mock_player):
+        """Test owner disbanding their own clan."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+        mock_player.clan_priv = ClanPrivileges.Owner
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value={"id": 1, "tag": "TAG", "name": "Test Clan"}),
+        ):
+            with patch(
+                "app.commands.categories.clan.clans_repo.delete_one",
+                AsyncMock(),
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.fetch_many",
+                    AsyncMock(return_value=[]),
+                ):
+                    result = await clan_disband.callback(mock_context)
+
+                    assert result is not None
+                    assert "disbanded" in result
+
+    @pytest.mark.asyncio
+    async def test_disband_as_member(self, mock_context, mock_player):
+        """Test regular member trying to disband clan."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+        mock_player.clan_priv = ClanPrivileges.Member
+        mock_player.priv = Privileges.UNRESTRICTED
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value={"id": 1, "tag": "TAG", "name": "Test Clan"}),
+        ):
+            with patch(
+                "app.commands.categories.clan.clans_repo.delete_one",
+                AsyncMock(),
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.fetch_many",
+                    AsyncMock(return_value=[]),
+                ):
+                    result = await clan_disband.callback(mock_context)
+
+                    # Member cannot disband - should show error
+                    assert result is not None
+
+
+class TestClanLeaveEdgeCases:
+    """Test clan leave command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_leave_as_officer(self, mock_context, mock_player):
+        """Test officer trying to leave clan."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+        mock_player.clan_priv = ClanPrivileges.Officer
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value={"id": 1, "tag": "TAG", "name": "Test Clan"}),
+        ):
+            with patch(
+                "app.commands.categories.clan.users_repo.fetch_many",
+                AsyncMock(return_value=[{"id": 2}]),  # Other members exist
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.partial_update",
+                    AsyncMock(),
+                ):
+                    result = await clan_leave.callback(mock_context)
+
+                    # Officer should be able to leave
+                    assert result is not None

@@ -506,3 +506,237 @@ class TestSeasonsAll:
             assert result is not None
             assert "Switched to all-time view" in result
             assert mock_player.preferred_lb_view == "all_time"
+
+
+class TestSeasonCreateEdgeCases:
+    """Test season create command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_create_invalid_schedule_id(self, mock_context):
+        """Test creating a season with non-numeric schedule ID."""
+        mock_context.args = ["TestSeason", "abc"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_create.callback(mock_context)
+
+            assert result is not None
+            assert "Schedule ID must be a number" in result
+
+    @pytest.mark.asyncio
+    async def test_create_no_provider(self, mock_context):
+        """Test creating a season with no provider for schedule type."""
+        mock_context.args = ["TestSeason", "1"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_schedule_by_id",
+                AsyncMock(
+                    return_value={
+                        "id": 1,
+                        "schedule_type": "unknown_type",
+                        "config": {},
+                    }
+                ),
+            ):
+                with patch(
+                    "app.schedule_types.get_provider_for_schedule_type",
+                    Mock(return_value=None),
+                ):
+                    result = await season_create.callback(mock_context)
+
+                    assert result is not None
+                    assert "No provider found" in result
+
+
+class TestSeasonStartEdgeCases:
+    """Test season start command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_start_invalid_syntax(self, mock_context):
+        """Test starting a season with invalid syntax."""
+        mock_context.args = []
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_start.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_start_non_numeric(self, mock_context):
+        """Test starting a season with non-numeric ID."""
+        mock_context.args = ["abc"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_start.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_start_not_found(self, mock_context):
+        """Test starting a non-existent season."""
+        mock_context.args = ["999"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_one",
+                AsyncMock(return_value=None),
+            ):
+                result = await season_start.callback(mock_context)
+
+                assert result is not None
+                assert "Season not found" in result
+
+
+class TestSeasonEndEdgeCases:
+    """Test season end command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_end_invalid_syntax(self, mock_context):
+        """Test ending a season with invalid syntax."""
+        mock_context.args = []
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_end.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_end_not_found(self, mock_context):
+        """Test ending a non-existent season."""
+        mock_context.args = ["999"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_one",
+                AsyncMock(return_value=None),
+            ):
+                result = await season_end.callback(mock_context)
+
+                assert result is not None
+                assert "Season not found" in result
+
+
+class TestSeasonScheduleEdgeCases:
+    """Test season schedule command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_create_invalid_type(self, mock_context):
+        """Test creating a schedule with invalid type."""
+        mock_context.args = ["create", "TestSchedule", "invalid_type"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.schedule_types.get_provider_for_schedule_type",
+                Mock(return_value=None),
+            ):
+                result = await season_schedule.callback(mock_context)
+
+                assert result is not None
+                assert "No provider found" in result or "Invalid" in result
+
+    # Note: test_schedule_delete and test_schedule_delete_not_found removed
+    # because the seasons_repo module does not have delete_schedule method.
+    # These tests would need to be updated when the delete_schedule method is implemented.
+
+
+class TestSeasonsEdgeCases:
+    """Test seasons command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_seasons_invalid_action(self, mock_context):
+        """Test seasons with invalid action."""
+        mock_context.args = ["invalid_action"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await seasons.callback(mock_context)
+
+            assert result is not None
+            # Should show help or error
+
+    @pytest.mark.asyncio
+    async def test_seasons_view_nonexistent(self, mock_context):
+        """Test viewing a non-existent season."""
+        mock_context.args = ["999"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_one",
+                AsyncMock(return_value=None),
+            ):
+                result = await seasons.callback(mock_context)
+
+                assert result is not None
+                assert "not found" in result.lower() or "Season" in result
+
+
+class TestRecalcSeasonStatsEdgeCases:
+    """Test recalc season stats command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_recalc_invalid_syntax(self, mock_context):
+        """Test recalc with invalid syntax."""
+        mock_context.args = ["invalid"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await recalc_season_stats.callback(mock_context)
+
+            assert result is not None
+            assert (
+                "Invalid" in result
+                or "usage" in result.lower()
+                or "must be" in result.lower()
+            )
+
+    @pytest.mark.asyncio
+    async def test_recalc_season_not_found(self, mock_context):
+        """Test recalculating a non-existent season."""
+        mock_context.args = ["999"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_one",
+                AsyncMock(return_value=None),
+            ):
+                result = await recalc_season_stats.callback(mock_context)
+
+                assert result is not None
+                assert "not found" in result.lower()

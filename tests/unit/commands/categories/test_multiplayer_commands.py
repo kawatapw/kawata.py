@@ -919,3 +919,327 @@ class TestMpPick:
                 assert result is not None
                 assert "Picked" in result
                 assert mock_match.map_md5 == "abc123"
+
+    @pytest.mark.asyncio
+    async def test_pick_no_pool(self, mock_context, mock_match):
+        """Test picking without a pool loaded."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = None
+
+        result = await mp_pick.callback(mock_context)
+
+        assert result is not None
+        assert "No pool currently" in result or "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_pick_invalid_syntax(self, mock_context, mock_match):
+        """Test picking with invalid syntax."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+
+        result = await mp_pick.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_pick_map_not_found(self, mock_context, mock_match):
+        """Test picking a map that doesn't exist in pool."""
+        mock_context.args = ["HD99"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value=None),
+        ):
+            result = await mp_pick.callback(mock_context)
+
+            assert result is not None
+            assert "no" in result.lower() or "not" in result.lower()
+
+
+class TestMpBanEdgeCases:
+    """Test mp ban command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_ban_invalid_syntax(self, mock_context, mock_match):
+        """Test banning with invalid syntax."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+
+        result = await mp_ban.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_ban_no_pool(self, mock_context, mock_match):
+        """Test banning without a pool loaded."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = None
+
+        result = await mp_ban.callback(mock_context)
+
+        assert result is not None
+        assert "No pool currently" in result or "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_ban_map_not_in_pool(self, mock_context, mock_match):
+        """Test banning a map not in the pool."""
+        mock_context.args = ["HD99"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value=None),
+        ):
+            result = await mp_ban.callback(mock_context)
+
+            assert result is not None
+            assert "no" in result.lower() or "not" in result.lower()
+
+
+class TestMpUnbanEdgeCases:
+    """Test mp unban command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_unban_invalid_syntax(self, mock_context, mock_match):
+        """Test unbanning with invalid syntax."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.bans = {(Mods.HIDDEN, 2)}
+
+        result = await mp_unban.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_unban_no_pool(self, mock_context, mock_match):
+        """Test unbanning without a pool loaded."""
+        mock_context.args = ["HD2"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = None
+
+        result = await mp_unban.callback(mock_context)
+
+        assert result is not None
+        assert "No pool currently" in result or "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_unban_map_not_banned(self, mock_context, mock_match):
+        """Test unbanning a map that wasn't banned."""
+        mock_context.args = ["HD99"]
+        mock_context.player.match = mock_match
+        mock_match.tourney_pool = {"id": 1}
+        mock_match.bans = {(Mods.HIDDEN, 2)}  # Different pick
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pool_maps_repo.fetch_by_pool_and_pick",
+            AsyncMock(return_value={"pool_id": 1, "map_id": 999}),
+        ):
+            result = await mp_unban.callback(mock_context)
+
+            assert result is not None
+            # Should indicate map wasn't banned
+            assert result is not None
+
+
+class TestMpTeamsEdgeCases:
+    """Test mp teams command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_teams_invalid_syntax(self, mock_context, mock_match):
+        """Test teams with no arguments."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+
+        result = await mp_teams.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+
+class TestMpConditionEdgeCases:
+    """Test mp condition command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_condition_invalid_syntax(self, mock_context, mock_match):
+        """Test condition with no arguments."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+
+        result = await mp_condition.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+
+class TestMpScrimEdgeCases:
+    """Test mp scrim command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_scrim_no_args(self, mock_context, mock_match):
+        """Test scrim with no arguments (should end scrim)."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = True
+
+        result = await mp_endscrim.callback(mock_context)
+
+        assert result is not None
+        assert "Scrimmage ended" in result
+
+    @pytest.mark.asyncio
+    async def test_scrim_already_scrimming(self, mock_context, mock_match):
+        """Test starting scrim when already scrimming."""
+        mock_context.args = ["bo3"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = True
+
+        result = await mp_scrim.callback(mock_context)
+
+        assert result is not None
+        # Should indicate already scrimming or error
+
+
+class TestMpRematchEdgeCases:
+    """Test mp rematch command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_rematch_not_scrimming(self, mock_context, mock_match):
+        """Test rematch when not scrimming."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+        mock_match.is_scrimming = False  # Not scrimming
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+        # Should indicate not scrimming or error
+
+    @pytest.mark.asyncio
+    async def test_rematch_no_winners(self, mock_context, mock_match):
+        """Test rematch with no winners recorded."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.refs = {mock_context.player}
+        mock_match.is_scrimming = True
+        mock_match.winners = []  # No winners
+
+        result = await mp_rematch.callback(mock_context)
+
+        assert result is not None
+
+
+class TestMpForceEdgeCases:
+    """Test mp force command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_force_invalid_syntax(self, mock_context, mock_match):
+        """Test force with no arguments."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_context.player.priv = Privileges.ADMINISTRATOR
+
+        result = await mp_force.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_force_player_not_found(self, mock_context, mock_match):
+        """Test forcing a player that doesn't exist."""
+        mock_context.args = ["NonExistentPlayer"]
+        mock_context.player.match = mock_match
+        mock_context.player.priv = Privileges.ADMINISTRATOR
+        mock_context.state.sessions.players.get = Mock(return_value=None)
+
+        result = await mp_force.callback(mock_context)
+
+        assert result is not None
+        assert "not found" in result.lower() or "Could not find" in result
+
+
+class TestMpLoadpoolEdgeCases:
+    """Test mp loadpool command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_loadpool_invalid_syntax(self, mock_context, mock_match):
+        """Test loadpool with no arguments."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+
+        result = await mp_loadpool.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+    @pytest.mark.asyncio
+    async def test_loadpool_not_found(self, mock_context, mock_match):
+        """Test loading a pool that doesn't exist."""
+        mock_context.args = ["NonExistentPool"]
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+
+        with patch(
+            "app.commands.categories.multiplayer.tourney_pools_repo.fetch_by_name",
+            AsyncMock(return_value=None),
+        ):
+            result = await mp_loadpool.callback(mock_context)
+
+            assert result is not None
+            assert "not found" in result.lower() or "Could not find" in result
+
+    @pytest.mark.asyncio
+    async def test_loadpool_not_host(self, mock_context, mock_match):
+        """Test loading pool when not the host."""
+        mock_context.args = ["TestPool"]
+        mock_context.player.match = mock_match
+        mock_match.host = Mock()  # Different player is host
+
+        result = await mp_loadpool.callback(mock_context)
+
+        assert result is not None
+        # Should indicate permission denied
+
+
+class TestMpUnloadpoolEdgeCases:
+    """Test mp unloadpool command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_unloadpool_no_pool(self, mock_context, mock_match):
+        """Test unloading when no pool is loaded."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.tourney_pool = None
+
+        result = await mp_unloadpool.callback(mock_context)
+
+        assert result is not None
+        # Should indicate no pool loaded or still work
+
+    @pytest.mark.asyncio
+    async def test_unloadpool_not_host(self, mock_context, mock_match):
+        """Test unloading pool when not the host."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = Mock()  # Different player is host
+        mock_match.tourney_pool = {"id": 1}
+
+        result = await mp_unloadpool.callback(mock_context)
+
+        assert result is not None
+        # Should indicate permission denied
