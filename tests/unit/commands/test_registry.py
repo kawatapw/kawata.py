@@ -86,6 +86,10 @@ class TestCommandRegistration:
         async def dup_cmd(ctx: Context) -> str:
             return "test"
 
+        # First registration should succeed
+        register_command(dup_cmd)
+
+        # Second registration should raise
         with pytest.raises(ValueError, match="already registered"):
             register_command(dup_cmd)
 
@@ -104,7 +108,7 @@ class TestCommandRegistration:
         """Test looking up a command by namespace and name."""
         cmd = registry.get_by_namespace("mp", "start")
         assert cmd is not None
-        assert cmd.metadata.name == "mp_start"
+        assert cmd.metadata.name == "start"
 
     def test_get_by_namespace_not_found(self, registry):
         """Test looking up a non-existent namespace command."""
