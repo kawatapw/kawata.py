@@ -659,11 +659,35 @@ class TestSeasonScheduleEdgeCases:
                 result = await season_schedule.callback(mock_context)
 
                 assert result is not None
-                assert "No provider found" in result or "Invalid" in result
+                assert "No provider found" in result
 
-    # Note: test_schedule_delete and test_schedule_delete_not_found removed
-    # because the seasons_repo module does not have delete_schedule method.
-    # These tests would need to be updated when the delete_schedule method is implemented.
+    @pytest.mark.asyncio
+    async def test_schedule_invalid_action(self, mock_context):
+        """Test schedule with invalid action."""
+        mock_context.args = ["invalid"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_schedule.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid action" in result
+
+    @pytest.mark.asyncio
+    async def test_schedule_create_missing_args(self, mock_context):
+        """Test creating a schedule with missing arguments."""
+        mock_context.args = ["create", "TestSchedule"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_schedule.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid syntax" in result
 
 
 class TestSeasonsEdgeCases:
@@ -740,3 +764,44 @@ class TestRecalcSeasonStatsEdgeCases:
 
                 assert result is not None
                 assert "not found" in result.lower()
+
+
+class TestIsSeasonsEnabled:
+    """Test _is_seasons_enabled helper function."""
+
+    @pytest.mark.asyncio
+    async def test_seasons_enabled_true(self, mock_context):
+        """Test when seasons are enabled."""
+        from app.commands.categories.season import _is_seasons_enabled
+
+        mock_context.state.services.database.fetch_val = AsyncMock(return_value="1")
+
+        result = await _is_seasons_enabled(mock_context.state.services.database)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_seasons_enabled_false(self, mock_context):
+        """Test when seasons are disabled."""
+        from app.commands.categories.season import _is_seasons_enabled
+
+        mock_context.state.services.database.fetch_val = AsyncMock(return_value="0")
+
+        result = await _is_seasons_enabled(mock_context.state.services.database)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_seasons_enabled_exception(self, mock_context):
+        """Test when database query raises exception."""
+        from app.commands.categories.season import _is_seasons_enabled
+
+        mock_context.state.services.database.fetch_val = AsyncMock(
+            side_effect=Exception("DB error")
+        )
+
+        result = await _is_seasons_enabled(mock_context.state.services.database)
+
+        assert result is False
+
+

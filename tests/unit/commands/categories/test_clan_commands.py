@@ -13,6 +13,7 @@ import pytest
 
 from app.commands.categories.clan import clan_create
 from app.commands.categories.clan import clan_disband
+from app.commands.categories.clan import clan_help
 from app.commands.categories.clan import clan_info
 from app.commands.categories.clan import clan_leave
 from app.commands.categories.clan import clan_list
@@ -412,12 +413,149 @@ class TestClanList:
 
 
 class TestClanHelp:
-    """Test clan help command (skipped - requires complex patching)."""
+    """Test clan help command."""
 
-    # Note: The clan_help command uses get_registry() imported inside the function
-    # from app.commands. This makes it difficult to patch in unit tests.
-    # Integration tests would be needed to properly test this command.
-    pass
+    @pytest.mark.asyncio
+    async def test_help_success(self, mock_context):
+        """Test clan help shows available commands."""
+        from unittest.mock import patch, MagicMock
+        from app.commands.base import Command, CommandMetadata, CommandCategory
+
+        # Create mock commands
+        mock_cmd1 = MagicMock(spec=Command)
+        mock_cmd1.metadata = CommandMetadata(
+            name="create",
+            triggers=["create", "c"],
+            category=CommandCategory.CLAN,
+            description="Create a clan.",
+        )
+        mock_cmd1.privileges = Privileges.UNRESTRICTED
+
+        mock_cmd2 = MagicMock(spec=Command)
+        mock_cmd2.metadata = CommandMetadata(
+            name="info",
+            triggers=["info", "i"],
+            category=CommandCategory.CLAN,
+            description="Get clan info.",
+        )
+        mock_cmd2.privileges = Privileges.UNRESTRICTED
+
+        # Mock registry
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = [mock_cmd1, mock_cmd2]
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await clan_help.callback(mock_context)
+
+            assert result is not None
+            assert "clan create" in result.lower() or "create" in result.lower()
+            assert "clan info" in result.lower() or "info" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_help_no_commands(self, mock_context):
+        """Test clan help when no commands available."""
+        from unittest.mock import patch, MagicMock
+
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = []
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await clan_help.callback(mock_context)
+
+            # Should return empty string or message
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_help_excludes_hidden_commands(self, mock_context):
+        """Test clan help excludes commands without description."""
+        from unittest.mock import patch, MagicMock
+        from app.commands.base import Command, CommandMetadata, CommandCategory
+
+        # Command without description (hidden)
+        mock_cmd_hidden = MagicMock(spec=Command)
+        mock_cmd_hidden.metadata = CommandMetadata(
+            name="secret",
+            triggers=["secret"],
+            category=CommandCategory.CLAN,
+            description=None,  # No description = hidden
+        )
+        mock_cmd_hidden.privileges = Privileges.UNRESTRICTED
+
+        # Command with description
+        mock_cmd_visible = MagicMock(spec=Command)
+        mock_cmd_visible.metadata = CommandMetadata(
+            name="create",
+            triggers=["create"],
+            category=CommandCategory.CLAN,
+            description="Create a clan.",
+        )
+        mock_cmd_visible.privileges = Privileges.UNRESTRICTED
+
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = [
+            mock_cmd_hidden,
+            mock_cmd_visible,
+        ]
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await clan_help.callback(mock_context)
+
+            # Should only include visible command
+            assert result is not None
+            # Hidden command should not appear
+            assert "secret" not in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_help_excludes_insufficient_privileges(self, mock_context):
+        """Test clan help excludes commands player can't use."""
+        from unittest.mock import patch, MagicMock
+        from app.commands.base import Command, CommandMetadata, CommandCategory
+        from app.constants.privileges import Privileges as Priv
+
+        # Command requiring admin
+        mock_cmd_admin = MagicMock(spec=Command)
+        mock_cmd_admin.metadata = CommandMetadata(
+            name="admin_cmd",
+            triggers=["admin_cmd"],
+            category=CommandCategory.CLAN,
+            description="Admin command.",
+        )
+        mock_cmd_admin.privileges = Priv.ADMINISTRATOR
+
+        # Command available to everyone
+        mock_cmd_user = MagicMock(spec=Command)
+        mock_cmd_user.metadata = CommandMetadata(
+            name="create",
+            triggers=["create"],
+            category=CommandCategory.CLAN,
+            description="Create a clan.",
+        )
+        mock_cmd_user.privileges = Privileges.UNRESTRICTED
+
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = [
+            mock_cmd_admin,
+            mock_cmd_user,
+        ]
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await clan_help.callback(mock_context)
+
+            assert result is not None
+            # Admin command should not appear (player doesn't have admin priv)
+            assert "admin_cmd" not in result.lower()
 
 
 class TestClanCreateEdgeCases:
@@ -496,6 +634,115 @@ class TestClanDisbandEdgeCases:
                     # Member cannot disband - should show error
                     assert result is not None
 
+    @pytest.mark.asyncio
+    async def test_disband_clan_not_found_by_tag(self, mock_context, mock_player):
+        """Test disbanding a clan that doesn't exist by tag."""
+        mock_context.args = ["NONEXISTENT"]
+        mock_player.priv = Privileges.ADMINISTRATOR
+        mock_context.state.sessions.players.staff = [mock_player]
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=None),
+        ):
+            result = await clan_disband.callback(mock_context)
+
+            assert result is not None
+            assert "Could not find a clan" in result
+
+    @pytest.mark.asyncio
+    async def test_disband_player_clan_not_found(self, mock_context, mock_player):
+        """Test disbanding when player's clan no longer exists."""
+        mock_context.args = []
+        mock_player.clan_id = 999
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=None),
+        ):
+            result = await clan_disband.callback(mock_context)
+
+            assert result is not None
+            assert "not a member of a clan" in result
+
+    @pytest.mark.asyncio
+    async def test_disband_removes_all_members(self, mock_context, mock_player):
+        """Test disbanding removes all members from clan."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+
+        clan_data = {"id": 1, "tag": "TAG", "name": "Test Clan"}
+        members = [
+            {"id": 1, "name": "Owner", "clan_priv": ClanPrivileges.Owner},
+            {"id": 2, "name": "Member1", "clan_priv": ClanPrivileges.Member},
+            {"id": 3, "name": "Member2", "clan_priv": ClanPrivileges.Member},
+        ]
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=clan_data),
+        ):
+            with patch(
+                "app.commands.categories.clan.clans_repo.delete_one",
+                AsyncMock(),
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.fetch_many",
+                    AsyncMock(return_value=members),
+                ):
+                    with patch(
+                        "app.commands.categories.clan.users_repo.partial_update",
+                        AsyncMock(),
+                    ) as mock_update:
+                        result = await clan_disband.callback(mock_context)
+
+                        assert result is not None
+                        assert "disbanded" in result
+                        # Should update all members
+                        assert mock_update.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_disband_updates_cached_players(self, mock_context, mock_player):
+        """Test disbanding updates cached player objects."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+
+        clan_data = {"id": 1, "tag": "TAG", "name": "Test Clan"}
+        members = [{"id": 2, "name": "Member1", "clan_priv": ClanPrivileges.Member}]
+
+        # Mock a cached player
+        cached_member = Mock()
+        cached_member.clan_id = 1
+        cached_member.clan_priv = ClanPrivileges.Member
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=clan_data),
+        ):
+            with patch(
+                "app.commands.categories.clan.clans_repo.delete_one",
+                AsyncMock(),
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.fetch_many",
+                    AsyncMock(return_value=members),
+                ):
+                    with patch(
+                        "app.commands.categories.clan.users_repo.partial_update",
+                        AsyncMock(),
+                    ):
+                        # Mock the state to return a cached player
+                        mock_context.state.sessions.players.get.return_value = (
+                            cached_member
+                        )
+
+                        result = await clan_disband.callback(mock_context)
+
+                        assert result is not None
+                        # Cached player should be updated
+                        assert cached_member.clan_id is None
+                        assert cached_member.clan_priv is None
+
 
 class TestClanLeaveEdgeCases:
     """Test clan leave command edge cases."""
@@ -523,3 +770,98 @@ class TestClanLeaveEdgeCases:
 
                     # Officer should be able to leave
                     assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_leave_clan_not_found_after_check(self, mock_context, mock_player):
+        """Test leaving when clan no longer exists after clan_id check."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+        mock_player.clan_priv = ClanPrivileges.Member
+
+        # First fetch_one returns clan, second returns None (race condition)
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=None),  # Clan not found
+        ):
+            result = await clan_leave.callback(mock_context)
+
+            assert result is not None
+            assert "not in a clan" in result
+
+    @pytest.mark.asyncio
+    async def test_leave_disbands_clan_when_last_member(self, mock_context, mock_player):
+        """Test leaving a clan when you're the last member disbands it."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+        mock_player.clan_priv = ClanPrivileges.Member
+
+        clan_data = {"id": 1, "tag": "TAG", "name": "Test Clan"}
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=clan_data),
+        ):
+            with patch(
+                "app.commands.categories.clan.users_repo.fetch_many",
+                AsyncMock(return_value=[]),  # No other members
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.partial_update",
+                    AsyncMock(),
+                ):
+                    with patch(
+                        "app.commands.categories.clan.clans_repo.delete_one",
+                        AsyncMock(),
+                    ) as mock_delete:
+                        # Mock announce channel
+                        mock_announce_chan = Mock()
+                        mock_context.state.sessions.channels.get_by_name.return_value = (
+                            mock_announce_chan
+                        )
+
+                        result = await clan_leave.callback(mock_context)
+
+                        assert result is not None
+                        assert "successfully left" in result
+                        # Should delete the clan (no members left)
+                        mock_delete.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_leave_announces_disband_when_last_member(
+        self, mock_context, mock_player
+    ):
+        """Test leaving announces clan disbanding when last member leaves."""
+        mock_context.args = []
+        mock_player.clan_id = 1
+        mock_player.clan_priv = ClanPrivileges.Member
+
+        clan_data = {"id": 1, "tag": "TAG", "name": "Test Clan"}
+
+        with patch(
+            "app.commands.categories.clan.clans_repo.fetch_one",
+            AsyncMock(return_value=clan_data),
+        ):
+            with patch(
+                "app.commands.categories.clan.users_repo.fetch_many",
+                AsyncMock(return_value=[]),  # No other members
+            ):
+                with patch(
+                    "app.commands.categories.clan.users_repo.partial_update",
+                    AsyncMock(),
+                ):
+                    with patch(
+                        "app.commands.categories.clan.clans_repo.delete_one",
+                        AsyncMock(),
+                    ):
+                        # Mock announce channel
+                        mock_announce_chan = Mock()
+                        mock_announce_chan.send = Mock()
+                        mock_context.state.sessions.channels.get_by_name.return_value = (
+                            mock_announce_chan
+                        )
+
+                        result = await clan_leave.callback(mock_context)
+
+                        assert result is not None
+                        # Should announce disbanding
+                        mock_announce_chan.send.assert_called_once()

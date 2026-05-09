@@ -1243,3 +1243,227 @@ class TestMpUnloadpoolEdgeCases:
 
         assert result is not None
         # Should indicate permission denied
+
+
+class TestMpHelpEdgeCases:
+    """Test mp help command edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_help_no_match(self, mock_context, mock_player):
+        """Test mp help when player is not in a match."""
+        mock_player.match = None
+
+        result = await mp_help.callback(mock_context)
+
+        # Should return None when not in a match
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_help_not_in_match_channel(self, mock_context, mock_match, mock_player):
+        """Test mp help when message is not in match channel."""
+        mock_player.match = mock_match
+        mock_context.recipient = Mock()  # Different recipient, not match chat
+
+        result = await mp_help.callback(mock_context)
+
+        # Should return None when not in match channel
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_help_no_permission(self, mock_context, mock_match, mock_player):
+        """Test mp help when player is not a ref or tournament manager."""
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.UNRESTRICTED  # Not tournament manager
+        mock_match.refs = set()  # Player not in refs
+        mock_context.recipient = mock_match.chat
+
+        result = await mp_help.callback(mock_context)
+
+        # Should return None when no permission
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_help_success(self, mock_context, mock_match, mock_player):
+        """Test mp help shows available commands."""
+        from unittest.mock import patch, MagicMock
+        from app.commands.base import Command, CommandMetadata, CommandCategory
+
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.UNRESTRICTED
+        mock_match.refs = {mock_player}
+        mock_context.recipient = mock_match.chat
+
+        # Create mock commands
+        mock_cmd = MagicMock(spec=Command)
+        mock_cmd.metadata = CommandMetadata(
+            name="start",
+            triggers=["start", "st"],
+            category=CommandCategory.MULTIPLAYER,
+            description="Start the match.",
+        )
+        mock_cmd.privileges = Privileges.UNRESTRICTED
+
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = [mock_cmd]
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await mp_help.callback(mock_context)
+
+            assert result is not None
+            assert "mp start" in result.lower() or "start" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_help_excludes_hidden_commands(self, mock_context, mock_match, mock_player):
+        """Test mp help excludes commands without description."""
+        from unittest.mock import patch, MagicMock
+        from app.commands.base import Command, CommandMetadata, CommandCategory
+
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.UNRESTRICTED
+        mock_match.refs = {mock_player}
+        mock_context.recipient = mock_match.chat
+
+        # Command without description (hidden)
+        mock_cmd_hidden = MagicMock(spec=Command)
+        mock_cmd_hidden.metadata = CommandMetadata(
+            name="secret",
+            triggers=["secret"],
+            category=CommandCategory.MULTIPLAYER,
+            description=None,
+        )
+        mock_cmd_hidden.privileges = Privileges.UNRESTRICTED
+
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = [mock_cmd_hidden]
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await mp_help.callback(mock_context)
+
+            assert result is not None
+            # Hidden command should not appear
+            assert "secret" not in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_help_excludes_insufficient_privileges(self, mock_context, mock_match, mock_player):
+        """Test mp help excludes commands player can't use."""
+        from unittest.mock import patch, MagicMock
+        from app.commands.base import Command, CommandMetadata, CommandCategory
+
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.UNRESTRICTED
+        mock_match.refs = {mock_player}
+        mock_context.recipient = mock_match.chat
+
+        # Command requiring admin
+        mock_cmd_admin = MagicMock(spec=Command)
+        mock_cmd_admin.metadata = CommandMetadata(
+            name="admin_cmd",
+            triggers=["admin_cmd"],
+            category=CommandCategory.MULTIPLAYER,
+            description="Admin command.",
+        )
+        mock_cmd_admin.privileges = Privileges.ADMINISTRATOR
+
+        mock_registry = MagicMock()
+        mock_registry.get_by_category.return_value = [mock_cmd_admin]
+
+        with patch(
+            "app.commands.get_registry",
+            return_value=mock_registry,
+        ):
+            result = await mp_help.callback(mock_context)
+
+            assert result is not None
+            # Admin command should not appear
+            assert "admin_cmd" not in result.lower()
+
+
+class TestEnsureMatchDecorator:
+    """Test the ensure_match decorator edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_match_player_not_in_match(self, mock_context, mock_player):
+        """Test ensure_match returns None when player not in match."""
+        mock_player.match = None
+
+        # Import the decorator
+        from app.commands.categories.multiplayer import ensure_match
+
+        @ensure_match
+        async def test_cmd(ctx, match):
+            return "should not reach"
+
+        result = await test_cmd(mock_context)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_ensure_match_message_not_in_match_channel(self, mock_context, mock_player, mock_match):
+        """Test ensure_match returns None when message not in match channel."""
+        mock_player.match = mock_match
+        mock_context.recipient = Mock()  # Not match chat
+
+        from app.commands.categories.multiplayer import ensure_match
+
+        @ensure_match
+        async def test_cmd(ctx, match):
+            return "should not reach"
+
+        result = await test_cmd(mock_context)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_ensure_match_no_permission(self, mock_context, mock_player, mock_match):
+        """Test ensure_match returns None when player has no permission."""
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.UNRESTRICTED
+        mock_match.refs = set()
+        mock_context.recipient = mock_match.chat
+
+        from app.commands.categories.multiplayer import ensure_match
+
+        @ensure_match
+        async def test_cmd(ctx, match):
+            return "should not reach"
+
+        result = await test_cmd(mock_context)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_ensure_match_with_tournament_manager(self, mock_context, mock_player, mock_match):
+        """Test ensure_match allows tournament managers."""
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.TOURNEY_MANAGER
+        mock_match.refs = set()
+        mock_context.recipient = mock_match.chat
+
+        from app.commands.categories.multiplayer import ensure_match
+
+        @ensure_match
+        async def test_cmd(ctx, match):
+            return "success"
+
+        result = await test_cmd(mock_context)
+        assert result == "success"
+
+    @pytest.mark.asyncio
+    async def test_ensure_match_with_ref(self, mock_context, mock_player, mock_match):
+        """Test ensure_match allows refs."""
+        mock_player.match = mock_match
+        mock_player.priv = Privileges.UNRESTRICTED
+        mock_match.refs = {mock_player}
+        mock_context.recipient = mock_match.chat
+
+        from app.commands.categories.multiplayer import ensure_match
+
+        @ensure_match
+        async def test_cmd(ctx, match):
+            return "success"
+
+        result = await test_cmd(mock_context)
+        assert result == "success"
