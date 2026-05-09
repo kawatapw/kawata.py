@@ -533,7 +533,7 @@ class BanchoPacketReader:
     # complex types
 
     _MAX_LIST_LENGTH = 256  # sane upper bound for id lists
-    
+
     # XXX: some osu! packets use i16 for
     # array length, while others use i32
     def read_i32_list_i16l(self) -> tuple[int, ...]:
