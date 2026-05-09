@@ -2181,3 +2181,79 @@ class TestEnsureMatchDecorator:
 
         result = await test_cmd(mock_context)
         assert result == "success"
+
+
+class TestMpScrimAlreadyScrimming:
+    """Test mp scrim when already scrimming."""
+
+    @pytest.mark.asyncio
+    async def test_scrim_already_scrimming(self, mock_context, mock_match):
+        """Test starting scrim when already scrimming returns error."""
+        mock_context.args = ["bo3"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = True
+
+        result = await mp_scrim.callback(mock_context)
+
+        assert result is not None
+        assert "Already scrimming" in result
+
+    @pytest.mark.asyncio
+    async def test_scrim_cancel_not_scrimming(self, mock_context, mock_match):
+        """Test cancelling scrim with bo0 when not scrimming."""
+        mock_context.args = ["bo0"]
+        mock_context.player.match = mock_match
+        mock_match.is_scrimming = False
+
+        result = await mp_scrim.callback(mock_context)
+
+        assert result is not None
+        assert "Not currently scrimming" in result
+
+
+class TestMpModsFreemodsRuntimeError:
+    """Test mp_mods RuntimeError when slot not found in freemods mode."""
+
+    @pytest.mark.asyncio
+    async def test_mods_freemods_slot_not_found(self, mock_context, mock_match):
+        """Test that RuntimeError is raised when player slot not found."""
+        mock_context.args = ["HD"]
+        mock_context.player.match = mock_match
+        mock_match.freemods = True
+        mock_match.host = Mock()  # Different player is host
+        mock_match.get_slot = Mock(return_value=None)  # Slot not found
+
+        with pytest.raises(RuntimeError, match="Player slot not found"):
+            await mp_mods.callback(mock_context)
+
+
+class TestMpFreemodsOffHostSlotNotFound:
+    """Test mp_freemods RuntimeError when host slot not found in off mode."""
+
+    @pytest.mark.asyncio
+    async def test_freemods_off_host_slot_not_found(self, mock_context, mock_match):
+        """Test that RuntimeError is raised when host slot not found."""
+        mock_context.args = ["off"]
+        mock_context.player.match = mock_match
+        mock_match.freemods = True
+        mock_match.get_host_slot = Mock(return_value=None)  # Host slot not found
+
+        with pytest.raises(RuntimeError, match="Host slot not found"):
+            await mp_freemods.callback(mock_context)
+
+
+class TestMpUnloadpoolNoPool:
+    """Test mp_unloadpool when no pool is selected."""
+
+    @pytest.mark.asyncio
+    async def test_unloadpool_no_pool_selected(self, mock_context, mock_match):
+        """Test unloading when no pool is currently selected."""
+        mock_context.args = []
+        mock_context.player.match = mock_match
+        mock_match.host = mock_context.player
+        mock_match.tourney_pool = None
+
+        result = await mp_unloadpool.callback(mock_context)
+
+        assert result is not None
+        assert "No mappool currently selected" in result

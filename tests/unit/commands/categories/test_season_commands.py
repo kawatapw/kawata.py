@@ -803,3 +803,205 @@ class TestIsSeasonsEnabled:
         result = await _is_seasons_enabled(mock_context.state.services.database)
 
         assert result is False
+
+
+class TestSeasonStartDisabled:
+    """Test season start when seasons are disabled."""
+
+    @pytest.mark.asyncio
+    async def test_start_disabled(self, mock_context):
+        """Test starting a season when seasons are disabled."""
+        mock_context.args = ["1"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=False),
+        ):
+            result = await season_start.callback(mock_context)
+
+            assert result is None
+
+
+class TestSeasonEndDisabled:
+    """Test season end when seasons are disabled."""
+
+    @pytest.mark.asyncio
+    async def test_end_disabled(self, mock_context):
+        """Test ending a season when seasons are disabled."""
+        mock_context.args = ["1"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=False),
+        ):
+            result = await season_end.callback(mock_context)
+
+            assert result is None
+
+
+class TestRecalcSeasonStatsDisabled:
+    """Test recalc season stats when seasons are disabled."""
+
+    @pytest.mark.asyncio
+    async def test_recalc_disabled(self, mock_context):
+        """Test recalc when seasons are disabled."""
+        mock_context.args = ["1"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=False),
+        ):
+            result = await recalc_season_stats.callback(mock_context)
+
+            assert result is not None
+            assert "Seasons are not enabled" in result
+
+
+class TestRecalcSeasonStatsNoArgs:
+    """Test recalc season stats with no arguments."""
+
+    @pytest.mark.asyncio
+    async def test_recalc_no_args(self, mock_context):
+        """Test recalc with no arguments."""
+        mock_context.args = []
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await recalc_season_stats.callback(mock_context)
+
+            assert result is not None
+            assert "Usage" in result
+
+
+class TestRecalcSeasonStatsAllEmpty:
+    """Test recalc season stats for all seasons when none exist."""
+
+    @pytest.mark.asyncio
+    async def test_recalc_all_no_seasons(self, mock_context):
+        """Test recalc all when no seasons exist."""
+        mock_context.args = ["all"]
+
+        mock_context.state.services.database.fetch_all = AsyncMock(
+            return_value=[],
+        )
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await recalc_season_stats.callback(mock_context)
+
+            assert result is not None
+            assert "No seasons found" in result
+
+
+class TestRecalcSeasonStatsSingle:
+    """Test recalc season stats for a single season."""
+
+    @pytest.mark.asyncio
+    async def test_recalc_single_success(self, mock_context):
+        """Test recalc for a single season returns expected message."""
+        mock_context.args = ["1"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_one",
+                AsyncMock(return_value={"id": 1, "name": "TestSeason"}),
+            ):
+                result = await recalc_season_stats.callback(mock_context)
+
+                assert result is not None
+                assert "Started recalculating season 'TestSeason'" in result
+
+
+class TestSeasonListDisabled:
+    """Test season list when seasons are disabled."""
+
+    @pytest.mark.asyncio
+    async def test_list_disabled(self, mock_context):
+        """Test listing seasons when seasons are disabled."""
+        mock_context.args = []
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=False),
+        ):
+            result = await season_list.callback(mock_context)
+
+            assert result is None
+
+
+class TestSeasonScheduleDisabled:
+    """Test season schedule when seasons are disabled."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_disabled(self, mock_context):
+        """Test schedule command when seasons are disabled."""
+        mock_context.args = ["list"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=False),
+        ):
+            result = await season_schedule.callback(mock_context)
+
+            assert result is None
+
+
+class TestSeasonScheduleNoArgs:
+    """Test season schedule with no arguments."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_no_args(self, mock_context):
+        """Test schedule command with no arguments."""
+        mock_context.args = []
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            result = await season_schedule.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid syntax" in result
+
+
+class TestSeasonScheduleListEmpty:
+    """Test season schedule list when no schedules exist."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_list_empty(self, mock_context):
+        """Test listing schedules when none exist."""
+        mock_context.args = ["list"]
+
+        with patch(
+            "app.commands.categories.season._is_seasons_enabled",
+            AsyncMock(return_value=True),
+        ):
+            with patch(
+                "app.commands.categories.season.seasons_repo.fetch_many_schedules",
+                AsyncMock(return_value=[]),
+            ):
+                result = await season_schedule.callback(mock_context)
+
+                assert result is not None
+                assert "No schedules found" in result
+
+
+class TestSeasonsInvalidSeasonId:
+    """Test seasons command with invalid season ID."""
+
+    @pytest.mark.asyncio
+    async def test_seasons_non_numeric(self, mock_context):
+        """Test seasons with non-numeric argument."""
+        mock_context.args = ["abc"]
+
+        result = await seasons.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid season ID" in result

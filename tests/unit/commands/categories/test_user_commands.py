@@ -10,11 +10,13 @@ from unittest.mock import patch
 
 import pytest
 
+from app.commands.categories.user import ParsingError
 from app.commands.categories.user import _with
 from app.commands.categories.user import apikey
 from app.commands.categories.user import block
 from app.commands.categories.user import changename
 from app.commands.categories.user import maplink
+from app.commands.categories.user import parse__with__command_args
 from app.commands.categories.user import recent
 from app.commands.categories.user import reconnect
 from app.commands.categories.user import request
@@ -980,3 +982,288 @@ class TestApikeyCommand:
             assert "API key generated" in result
             assert mock_player.api_key != "old-key-123"
             assert "old-key-123" not in mock_context.state.sessions.api_keys
+
+
+class TestUnblockBotOrSelf:
+    """Test unblocking the bot or self."""
+
+    @pytest.mark.asyncio
+    async def test_unblock_bot(self, mock_context, mock_bot):
+        """Test unblocking the bot."""
+        mock_context.args = ["Bot"]
+        mock_context.state.sessions.players.from_cache_or_sql = AsyncMock(
+            return_value=mock_bot,
+        )
+
+        result = await unblock.callback(mock_context)
+
+        assert result is not None
+        assert "What?" in result
+
+    @pytest.mark.asyncio
+    async def test_unblock_self(self, mock_context):
+        """Test unblocking self."""
+        mock_context.args = ["TestPlayer"]
+        mock_context.state.sessions.players.from_cache_or_sql = AsyncMock(
+            return_value=mock_context.player,
+        )
+
+        result = await unblock.callback(mock_context)
+
+        assert result is not None
+        assert "What?" in result
+
+
+class TestRecentOtherPlayerNotFound:
+    """Test recent command when other player not found."""
+
+    @pytest.mark.asyncio
+    async def test_recent_other_not_found(self, mock_context):
+        """Test recent for a non-existent player."""
+        mock_context.args = ["NonExistent"]
+        mock_context.state.sessions.players.get = Mock(return_value=None)
+
+        result = await recent.callback(mock_context)
+
+        assert result is not None
+        assert "Player not found." in result
+
+
+class TestTopTooManyArgs:
+    """Test top command with too many arguments."""
+
+    @pytest.mark.asyncio
+    async def test_top_too_many_args(self, mock_context):
+        """Test top with more than 2 arguments."""
+        mock_context.args = ["vn!std", "player", "extra"]
+
+        result = await top.callback(mock_context)
+
+        assert result is not None
+        assert "Invalid syntax" in result
+
+
+class TestTopPlayerNotFound:
+    """Test top command when specified player not found."""
+
+    @pytest.mark.asyncio
+    async def test_top_player_not_found(self, mock_context):
+        """Test top with a player that doesn't exist."""
+        mock_context.args = ["vn!std", "GhostPlayer"]
+
+        with patch(
+            "app.commands.categories.user.users_repo.fetch_one",
+            AsyncMock(return_value=None),
+        ):
+            result = await top.callback(mock_context)
+
+            assert result is not None
+            assert "Player not found." in result
+
+
+class TestWithBotNone:
+    """Test _with command when bot is None."""
+
+    @pytest.mark.asyncio
+    async def test_with_bot_none(self, mock_context, mock_player):
+        """Test _with when bot is None."""
+        mock_context.recipient = Mock()
+        mock_context.recipient.name = "SomeChannel"
+        mock_context.state.sessions.bot = None
+
+        result = await _with.callback(mock_context)
+
+        assert result is not None
+        assert "This command can only be used in DM with" in result
+
+
+class TestWithMapfileNotFound:
+    """Test _with command when mapfile is not available."""
+
+    @pytest.mark.asyncio
+    async def test_with_mapfile_not_found(self, mock_context, mock_player, mock_bot):
+        """Test _with when osu file is not available."""
+        mock_context.recipient = mock_bot
+        mock_context.args = ["95%"]
+
+        mock_bmap = Mock()
+        mock_bmap.id = 123456
+        mock_bmap.md5 = "abc123"
+
+        mock_player.last_np = {
+            "bmap": mock_bmap,
+            "mode_vn": 0,
+            "timeout": 9999999999,
+        }
+
+        with patch(
+            "app.commands.categories.user.ensure_osu_file_is_available",
+            AsyncMock(return_value=False),
+        ):
+            result = await _with.callback(mock_context)
+
+            assert result is not None
+            assert "Mapfile could not be found" in result
+
+
+class TestWithParsingError:
+    """Test _with command when argument parsing fails."""
+
+    @pytest.mark.asyncio
+    async def test_with_invalid_syntax(self, mock_context, mock_player, mock_bot):
+        """Test _with with no arguments."""
+        mock_context.recipient = mock_bot
+        mock_context.args = []
+
+        mock_bmap = Mock()
+        mock_bmap.id = 123456
+        mock_bmap.md5 = "abc123"
+
+        mock_player.last_np = {
+            "bmap": mock_bmap,
+            "mode_vn": 0,
+            "timeout": 9999999999,
+        }
+
+        with patch(
+            "app.commands.categories.user.ensure_osu_file_is_available",
+            AsyncMock(return_value=True),
+        ):
+            result = await _with.callback(mock_context)
+
+            assert result is not None
+            assert "Invalid syntax" in result
+
+
+class TestParseWithCommandArgs:
+    """Test parse__with__command_args function directly."""
+
+    def test_parse_valid_args(self):
+        """Test parsing valid arguments."""
+        result = parse__with__command_args(0, ["95%", "1m", "429x", "hddt"])
+
+        assert not isinstance(result, ParsingError)
+        assert result["acc"] == 95.0
+        assert result["nmiss"] == 1
+        assert result["combo"] == 429
+        assert result["mods"] is not None
+
+    def test_parse_empty_args(self):
+        """Test parsing empty arguments."""
+        result = parse__with__command_args(0, [])
+
+        assert isinstance(result, ParsingError)
+        assert "Invalid syntax" in result
+
+    def test_parse_too_many_args(self):
+        """Test parsing too many arguments."""
+        result = parse__with__command_args(0, ["95%", "1m", "429x", "hddt", "extra"])
+
+        assert isinstance(result, ParsingError)
+        assert "Invalid syntax" in result
+
+    def test_parse_unknown_arg(self):
+        """Test parsing unknown argument."""
+        result = parse__with__command_args(0, ["invalid"])
+
+        assert isinstance(result, ParsingError)
+        assert "Unknown argument" in result
+
+    def test_parse_invalid_accuracy(self):
+        """Test parsing accuracy out of range."""
+        result = parse__with__command_args(0, ["150%"])
+
+        assert isinstance(result, ParsingError)
+        assert "Invalid accuracy" in result
+
+    def test_parse_only_acc(self):
+        """Test parsing only accuracy."""
+        result = parse__with__command_args(0, ["95.5%"])
+
+        assert not isinstance(result, ParsingError)
+        assert result["acc"] == 95.5
+        assert result["mods"] is None
+        assert result["combo"] is None
+        assert result["nmiss"] is None
+
+    def test_parse_only_mods(self):
+        """Test parsing only mods."""
+        result = parse__with__command_args(0, ["+hddt"])
+
+        assert not isinstance(result, ParsingError)
+        assert result["mods"] is not None
+        assert result["acc"] is None
+
+
+class TestRecentOtherPlayerWithScore:
+    """Test recent command for another player with a score."""
+
+    @pytest.mark.asyncio
+    async def test_recent_other_player_no_score(self, mock_context):
+        """Test recent for another player who has no score."""
+        target = Mock()
+        target.name = "TargetPlayer"
+        target.recent_score = None
+
+        mock_context.args = ["TargetPlayer"]
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await recent.callback(mock_context)
+
+        assert result is not None
+        assert "No scores found" in result
+
+    @pytest.mark.asyncio
+    async def test_recent_other_player_with_beatmap(self, mock_context):
+        """Test recent for another player with a passed score."""
+        target = Mock()
+        target.name = "TargetPlayer"
+
+        mock_score = Mock()
+        mock_score.bmap = Mock()
+        mock_score.bmap.embed = "[https://osu.test/b/123 Test Map]"
+        mock_score.acc = 98.5
+        mock_score.mods = None
+        mock_score.mode = Mock()
+        mock_score.mode.__repr__ = Mock(return_value="std")
+        mock_score.passed = True
+        mock_score.pp = 300.0
+        mock_score.rank = 1
+        mock_score.status = Mock()
+        target.recent_score = mock_score
+
+        mock_context.args = ["TargetPlayer"]
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await recent.callback(mock_context)
+
+        assert result is not None
+        assert "Test Map" in result
+        assert "98.50%" in result
+
+    @pytest.mark.asyncio
+    async def test_recent_other_player_failed(self, mock_context):
+        """Test recent for another player with a failed score."""
+        target = Mock()
+        target.name = "TargetPlayer"
+
+        mock_bmap = Mock()
+        mock_bmap.total_length = 180
+
+        mock_score = Mock()
+        mock_score.bmap = mock_bmap
+        mock_score.acc = 45.0
+        mock_score.mods = None
+        mock_score.mode = Mock()
+        mock_score.mode.__repr__ = Mock(return_value="std")
+        mock_score.passed = False
+        mock_score.time_elapsed = 90000
+        target.recent_score = mock_score
+
+        mock_context.args = ["TargetPlayer"]
+        mock_context.state.sessions.players.get = Mock(return_value=target)
+
+        result = await recent.callback(mock_context)
+
+        assert result is not None
+        assert "FAIL" in result
