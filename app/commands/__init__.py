@@ -37,6 +37,7 @@ from app.commands.categories import clan_list
 from app.commands.categories import debug
 from app.commands.categories import debug_focus
 from app.commands.categories import givedonator
+from app.commands.categories import help_cmd
 from app.commands.categories import maplink
 from app.commands.categories import mp_abort
 from app.commands.categories import mp_addref
@@ -435,6 +436,7 @@ def generate_help(
 def _register_all_commands() -> None:
     """Register all command functions with the registry."""
     # User commands
+    _registry.register(help_cmd)
     _registry.register(roll)
     _registry.register(recent)
     _registry.register(top)

@@ -16,8 +16,11 @@ from typing import Any
 
 from app import packets
 from app import settings
+from app.commands.base import CommandCategory
 from app.commands.base import user_command
 from app.commands.context import Context
+from app.commands.help import generate_command_help
+from app.commands.help import generate_help_message
 from app.constants import regexes
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
 from app.constants.mods import Mods
@@ -32,6 +35,52 @@ from app.usecases.performance import ScoreParams
 
 # Define BEATMAPS_PATH
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
+
+
+@user_command(
+    name="help",
+    triggers=["help", "h"],
+    description="Show help for commands. Usage: !help [command|category]",
+)
+async def help_cmd(ctx: Context) -> str:
+    """Show help for commands."""
+    from app.commands import get_registry
+
+    registry = get_registry()
+    prefix = ctx.settings.COMMAND_PREFIX
+
+    # No args - show general help
+    if not ctx.args:
+        return generate_help_message(registry, ctx.player)
+
+    query = ctx.args[0].lower()
+
+    # Check if query matches a category name
+    for category in CommandCategory:
+        if query == category.value.lower():
+            return generate_help_message(registry, ctx.player, category=category)
+
+    # Check if it's a namespaced command (e.g., "mp start")
+    if len(ctx.args) >= 2:
+        namespaced = registry.get_by_namespace(ctx.args[0].lower(), ctx.args[1].lower())
+        if namespaced:
+            return generate_command_help(
+                registry, ctx.player, f"{ctx.args[0]} {ctx.args[1]}", prefix
+            )
+
+    # Check if it's a direct command trigger
+    cmd = registry.get_by_trigger(query)
+    if cmd:
+        return generate_command_help(registry, ctx.player, query, prefix)
+
+    # Check if it's a namespaced command trigger (e.g., "mp_help")
+    namespaced_trigger = f"{query}_help"
+    cmd = registry.get_by_trigger(namespaced_trigger)
+    if cmd:
+        return generate_command_help(registry, ctx.player, namespaced_trigger, prefix)
+
+    # Search for partial matches
+    return generate_help_message(registry, ctx.player, search_query=query)
 
 
 @user_command(

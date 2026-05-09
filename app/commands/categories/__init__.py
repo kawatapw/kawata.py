@@ -78,6 +78,7 @@ from .user import _with
 from .user import apikey
 from .user import block
 from .user import changename
+from .user import help_cmd
 from .user import maplink
 from .user import recent
 from .user import reconnect
@@ -104,6 +105,7 @@ __all__ = [
     "debug",
     "debug_focus",
     "givedonator",
+    "help_cmd",
     "maplink",
     "mp_abort",
     "mp_addref",

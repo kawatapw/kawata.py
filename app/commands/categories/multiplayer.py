@@ -596,7 +596,6 @@ async def mp_scrim(ctx: Context, match: Match) -> str | None:
         f"A scrimmage has been started by {ctx.player.name}; "
         f"first to {winning_pts} points wins. Best of luck!"
     )
-    return msg
 
 
 @multiplayer_command(

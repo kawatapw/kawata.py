@@ -245,7 +245,7 @@ async def switchserv(ctx: Context) -> str:
 
 @administrator_command(
     name="shutdown",
-    description="Toggle the developer's stealth, allowing them to be hidden.",
+    description="Gracefully shutdown the server, optionally with a delay and reason.",
 )
 async def shutdown(ctx: Context) -> str | None:
     """Gracefully shutdown the server."""

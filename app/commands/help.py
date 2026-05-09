@@ -57,11 +57,9 @@ def generate_general_help(
     lines = [
         "Command Help System",
         "===================",
-        "",
         f"Type '{prefix}help <command>' for detailed help on a specific command.",
         f"Type '{prefix}help <category>' for commands in a specific category.",
         f"Type '{prefix}help <search>' to search for commands.",
-        "",
     ]
 
     # Get available commands for player
@@ -92,7 +90,6 @@ def generate_general_help(
         cmd_list = ", ".join(sorted([cmd.metadata.name for cmd in category_commands]))
         lines.append(f"{category_name:20} ({len(category_commands)} commands)")
         lines.append(f"  Commands: {cmd_list}")
-        lines.append("")
 
     # Show some examples
     lines.append("Example commands:")
@@ -103,8 +100,10 @@ def generate_general_help(
         category_commands = commands_by_category[category]
         if category_commands:
             cmd = category_commands[0]
+            # Show full command with namespace if applicable
+            cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
             lines.append(
-                f"  !{cmd.metadata.name:15} - {cmd.metadata.description or 'No description'}"
+                f"  !{cmd_prefix}{cmd.metadata.name:15} - {cmd.metadata.description or 'No description'}"
             )
 
     return "\n".join(lines)
@@ -132,12 +131,13 @@ def generate_category_help(
     lines = [
         f"{category.value.title()} Commands",
         "=" * 50,
-        "",
     ]
 
     # Sort commands by name
     for cmd in sorted(available_commands, key=lambda c: c.metadata.name):
-        lines.append(f"!{cmd.metadata.name}")
+        # Show full command with namespace if applicable
+        cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
+        lines.append(f"!{cmd_prefix}{cmd.metadata.name}")
         if cmd.metadata.description:
             lines.append(f"  {cmd.metadata.description}")
         if cmd.metadata.usage:
@@ -146,7 +146,6 @@ def generate_category_help(
             lines.append("  Examples:")
             for example in cmd.metadata.examples:
                 lines.append(f"    {example}")
-        lines.append("")
 
     return "\n".join(lines)
 
@@ -173,24 +172,24 @@ def generate_command_help(
     if player.priv & cmd.privileges != cmd.privileges:
         return f"Command '{command_name}' not found."
 
+    # Build command display name with namespace if applicable
+    cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
+    cmd_display = f"!{cmd_prefix}{cmd.metadata.name}"
+
     lines = [
-        f"Command: !{cmd.metadata.name}",
+        f"Command: {cmd_display}",
         "=" * 50,
-        "",
     ]
 
     if cmd.metadata.description:
         lines.append(f"Description: {cmd.metadata.description}")
-        lines.append("")
 
     if cmd.metadata.usage:
         lines.append(f"Usage: {cmd.metadata.usage}")
-        lines.append("")
 
     # Show all triggers/aliases
     if len(cmd.metadata.triggers) > 1:
         lines.append(f"Aliases: {', '.join(cmd.metadata.triggers[1:])}")
-        lines.append("")
 
     # Show category
     lines.append(f"Category: {cmd.metadata.category.value.title()}")
@@ -205,21 +204,17 @@ def generate_command_help(
     if priv_names:
         lines.append(f"Required privileges: {', '.join(priv_names)}")
 
-    lines.append("")
-
     # Show examples
     if cmd.metadata.examples:
         lines.append("Examples:")
         for example in cmd.metadata.examples:
             lines.append(f"  {example}")
-        lines.append("")
 
     # Show detailed help
     if cmd.metadata.detailed_help:
         lines.append("Detailed Help:")
         lines.append("-" * 50)
         lines.append(cmd.metadata.detailed_help)
-        lines.append("")
 
     # Show deprecation warning if applicable
     if cmd.metadata.deprecated:
@@ -265,7 +260,6 @@ def generate_search_results(
     lines = [
         f"Search results for '{search_query}':",
         "=" * 50,
-        "",
     ]
 
     # Group matches by category
@@ -284,7 +278,9 @@ def generate_search_results(
         lines.append("-" * 30)
 
         for cmd in sorted(category_matches, key=lambda c: c.metadata.name):
-            lines.append(f"  !{cmd.metadata.name}")
+            # Show full command with namespace if applicable
+            cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
+            lines.append(f"  !{cmd_prefix}{cmd.metadata.name}")
             if cmd.metadata.description:
                 lines.append(f"    {cmd.metadata.description}")
             if cmd.metadata.usage:
@@ -293,7 +289,5 @@ def generate_search_results(
                 lines.append("    Examples:")
                 for example in cmd.metadata.examples:
                     lines.append(f"      {example}")
-
-        lines.append("")
 
     return "\n".join(lines)
