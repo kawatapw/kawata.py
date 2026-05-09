@@ -572,31 +572,30 @@ async def mp_scrim(ctx: Context, match: Match) -> str | None:
     if not 0 <= best_of < 16:
         return "Best of must be in range 0-15."
 
-    winning_pts = (best_of // 2) + 1
-
-    if winning_pts != 0:
-        # setting to real num
-        if match.is_scrimming:
-            return "Already scrimming!"
-
-        if best_of % 2 == 0:
-            return "Best of must be an odd number!"
-
-        match.is_scrimming = True
-        msg = (
-            f"A scrimmage has been started by {ctx.player.name}; "
-            f"first to {winning_pts} points wins. Best of luck!"
-        )
-    else:
-        # setting to 0
+    if best_of == 0:
+        # cancelling scrim
         if not match.is_scrimming:
             return "Not currently scrimming!"
 
         match.is_scrimming = False
         match.reset_scrim()
-        msg = "Scrimming cancelled."
+        match.winning_pts = 0
+        return "Scrimming cancelled."
 
+    winning_pts = (best_of // 2) + 1
+
+    if match.is_scrimming:
+        return "Already scrimming!"
+
+    if best_of % 2 == 0:
+        return "Best of must be an odd number!"
+
+    match.is_scrimming = True
     match.winning_pts = winning_pts
+    return (
+        f"A scrimmage has been started by {ctx.player.name}; "
+        f"first to {winning_pts} points wins. Best of luck!"
+    )
     return msg
 
 

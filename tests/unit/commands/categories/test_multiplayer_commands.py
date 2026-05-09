@@ -1161,7 +1161,7 @@ class TestMpScrim:
 
     @pytest.mark.asyncio
     async def test_scrim_bo0_even_rejected(self, mock_context, mock_match):
-        """Test that bo0 is rejected as even (dead code path for else)."""
+        """Test that bo0 cancels scrim; when not scrimming, returns error."""
         mock_context.args = ["bo0"]
         mock_context.player.match = mock_match
         mock_match.is_scrimming = False
@@ -1169,9 +1169,7 @@ class TestMpScrim:
         result = await mp_scrim.callback(mock_context)
 
         assert result is not None
-        # bo0 has winning_pts=1 so it enters the "real num" branch,
-        # where 0 is even, so it's rejected as "odd number" required.
-        assert "Best of must be an odd number" in result
+        assert "Not currently scrimming" in result
 
 
 class TestMpEndscrim:
