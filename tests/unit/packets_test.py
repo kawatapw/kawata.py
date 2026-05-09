@@ -196,7 +196,6 @@ def test_write_update_match(test_input, expected):
     ("test_input", "expected"),
     [
         ({}, b""),
-        ({}, b""),
     ],
 )
 def test_write_new_match(test_input, expected):
@@ -222,7 +221,6 @@ def test_write_toggle_block_non_friend_pm():
 @pytest.mark.parametrize(
     ("test_input", "expected"),
     [
-        ({}, b""),
         ({}, b""),
     ],
 )
@@ -260,7 +258,6 @@ def test_write_fellow_spectator_left(test_input, expected):
 @pytest.mark.parametrize(
     ("test_input", "expected"),
     [
-        ({}, b""),
         ({}, b""),
     ],
 )
@@ -526,7 +523,6 @@ def test_write_restart_server(test_input, expected):
 @pytest.mark.parametrize(
     ("test_input", "expected"),
     [
-        ({"p": None, "t_name": "cover"}, b""),
         ({"p": None, "t_name": "cover"}, b""),
     ],
 )

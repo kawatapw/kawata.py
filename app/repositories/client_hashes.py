@@ -83,9 +83,16 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import CHAR, Column, DateTime, Integer, func, or_, select
+from sqlalchemy import CHAR
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import func
+from sqlalchemy import or_
+from sqlalchemy import select
 from sqlalchemy.dialects.mysql import Insert as MysqlInsert
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.sql import ColumnElement
@@ -171,8 +178,9 @@ async def create(
     )
     client_hash = await app.state.services.database.fetch_one(select_stmt)
 
-    assert client_hash is not None
-    return cast(ClientHash, client_hash)
+    if client_hash is None:
+        raise ValueError("Client hash not found after creation")
+    return cast("ClientHash", client_hash)
 
 
 async def fetch_any_hardware_matches_for_user(
@@ -205,4 +213,4 @@ async def fetch_any_hardware_matches_for_user(
         select_stmt = select_stmt.where(or_(*oneof_filters))
 
     client_hashes = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[ClientHashWithPlayer], client_hashes)
+    return cast("list[ClientHashWithPlayer]", client_hashes)

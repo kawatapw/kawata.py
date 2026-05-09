@@ -6,8 +6,11 @@ and discovering repository context) so that higher-level modules do not
 need to know about environment variable names or HTTP details.
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 import requests
 
@@ -89,7 +92,7 @@ def create_check_run(
     try:
         response = requests.post(url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
-        return cast(dict[str, Any] | None, response.json())
+        return cast("dict[str, Any] | None", response.json())
     except Exception as e:
         print(f"Failed to create check run: {e}")
         return None
@@ -135,7 +138,7 @@ def update_check_run(
     try:
         response = requests.patch(url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
-        return cast(dict[str, Any] | None, response.json())
+        return cast("dict[str, Any] | None", response.json())
     except Exception as e:
         print(f"Failed to update check run: {e}")
         return None

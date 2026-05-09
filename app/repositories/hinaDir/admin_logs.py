@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, DateTime, Index, Integer, String, func, insert, select
-from sqlalchemy.dialects.mysql import TINYINT as TinyInt
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
 from app.repositories import Base
@@ -18,8 +26,10 @@ class AdminV2LogTable(Base):
     to_id = Column("to_id", Integer, nullable=False)
     action = Column("action", String(32), nullable=False)
     msg = Column("msg", String(2048, collation="utf8"), nullable=True)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
-    action_type = Column("action_type", TinyInt, nullable=False, server_default="0")
+    created_at = Column(
+        "created_at", DateTime, nullable=False, server_default=func.now()
+    )
+    action_type = Column("action_type", TINYINT, nullable=False, server_default="0")
 
     __table_args__ = (
         Index("idx_av2logs_action", "action"),
@@ -74,7 +84,7 @@ async def create(
     log = await app.state.services.database.fetch_one(select_stmt)
     if log is None:
         raise RuntimeError("Failed to fetch inserted admin log record")
-    return cast(AdminV2Log, log)
+    return cast("AdminV2Log", log)
 
 
 async def fetch_by_target(
@@ -89,7 +99,7 @@ async def fetch_by_target(
         .limit(limit)
     )
     rows = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[AdminV2Log], rows)
+    return cast("list[AdminV2Log]", rows)
 
 
 async def fetch_recent_by_actions(
@@ -104,7 +114,7 @@ async def fetch_recent_by_actions(
         .limit(limit)
     )
     rows = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[AdminV2Log], rows)
+    return cast("list[AdminV2Log]", rows)
 
 
 async def fetch_by_targets_and_type(
@@ -123,4 +133,4 @@ async def fetch_by_targets_and_type(
         .limit(limit)
     )
     rows = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[AdminV2Log], rows)
+    return cast("list[AdminV2Log]", rows)

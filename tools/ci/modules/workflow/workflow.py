@@ -1,8 +1,12 @@
 """Workflow lifecycle management."""
 
+from __future__ import annotations
+
 import argparse
-from datetime import UTC, datetime
-from typing import Any, cast
+from datetime import UTC
+from datetime import datetime
+from typing import Any
+from typing import cast
 
 from core.context import Context
 from core.storage import get_backend
@@ -64,7 +68,7 @@ def start(
     # Job-scoped start
     job_name = getattr(args, "job", None) or None
     if job_name:
-        jobs_list = cast(list[dict[str, Any]], state.setdefault("jobs", []))
+        jobs_list = cast("list[dict[str, Any]]", state.setdefault("jobs", []))
         now = datetime.now(UTC).isoformat()
 
         # Find existing job entry if any
@@ -131,7 +135,7 @@ def finish(
 
     # Job-scoped finish
     if job_name:
-        jobs_list = cast(list[dict[str, Any]], state.setdefault("jobs", []))
+        jobs_list = cast("list[dict[str, Any]]", state.setdefault("jobs", []))
         now_iso = datetime.now(UTC).isoformat()
 
         job_entry = next((j for j in jobs_list if j.get("job") == job_name), None)

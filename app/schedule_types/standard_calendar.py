@@ -75,7 +75,8 @@ Related Files:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -204,14 +205,13 @@ class StandardCalendarProvider(ScheduleTypeProvider):
         """
         if schedule_type == "custom":
             return self._calculate_custom_season(current_time, config)
-        elif schedule_type == "half_year":
+        if schedule_type == "half_year":
             return self._calculate_half_year_season(current_time, config)
-        elif schedule_type == "third_year":
+        if schedule_type == "third_year":
             return self._calculate_third_year_season(current_time, config)
-        elif schedule_type == "quarter_year":
+        if schedule_type == "quarter_year":
             return self._calculate_quarter_year_season(current_time, config)
-        else:
-            raise ValueError(f"Unknown schedule type: {schedule_type}")
+        raise ValueError(f"Unknown schedule type: {schedule_type}")
 
     def _calculate_custom_season(
         self,
@@ -412,17 +412,16 @@ class StandardCalendarProvider(ScheduleTypeProvider):
             day_of_year = start_date.timetuple().tm_yday
             season = (day_of_year - 1) // 30 + 1  # Approximate 30-day periods
             return f"SC-{year}-C{season}"
-        elif schedule_type == "half_year":
+        if schedule_type == "half_year":
             season = 1 if start_date.month < 7 else 2
             return f"SC-{year}-H{season}"
-        elif schedule_type == "third_year":
+        if schedule_type == "third_year":
             season = (start_date.month - 1) // 4 + 1
             return f"SC-{year}-T{season}"
-        elif schedule_type == "quarter_year":
+        if schedule_type == "quarter_year":
             season = (start_date.month - 1) // 3 + 1
             return f"SC-{year}-Q{season}"
-        else:
-            return f"SC-{year}-{start_date.strftime('%m%d')}"
+        return f"SC-{year}-{start_date.strftime('%m%d')}"
 
     def validate_config(
         self,
@@ -482,26 +481,25 @@ class StandardCalendarProvider(ScheduleTypeProvider):
                 end_date,
                 config,
             )
-        elif schedule_type == "half_year":
+        if schedule_type == "half_year":
             return self._calculate_half_year_seasons_for_range(
                 start_date,
                 end_date,
                 config,
             )
-        elif schedule_type == "third_year":
+        if schedule_type == "third_year":
             return self._calculate_third_year_seasons_for_range(
                 start_date,
                 end_date,
                 config,
             )
-        elif schedule_type == "quarter_year":
+        if schedule_type == "quarter_year":
             return self._calculate_quarter_year_seasons_for_range(
                 start_date,
                 end_date,
                 config,
             )
-        else:
-            return []
+        return []
 
     def _calculate_custom_seasons_for_range(
         self,
@@ -606,7 +604,7 @@ class StandardCalendarProvider(ScheduleTypeProvider):
                 ),
             ]
 
-            for i, (start_m, _) in enumerate(season_starts):  # noqa: B007
+            for i, (start_m, _) in enumerate(season_starts):
                 end_m = season_starts[(i + 1) % 3][0]
                 season_start = datetime(current_year, start_m, 1, tzinfo=tz)
                 if end_m > start_m:

@@ -56,12 +56,11 @@ from pydantic import BaseModel
 def _default_processor(data: Any) -> Any:
     if isinstance(data, BaseModel):
         return _default_processor(data.dict())
-    elif isinstance(data, dict):
+    if isinstance(data, dict):
         return {k: _default_processor(v) for k, v in data.items()}
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return [_default_processor(v) for v in data]
-    else:
-        return data
+    return data
 
 
 def dumps(data: Any) -> bytes:

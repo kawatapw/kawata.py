@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
 import orjson
 from fastapi import APIRouter
@@ -28,7 +29,9 @@ _INVALID_MODES = {
 async def get_hall_of_fame_podium(
     mode: int = Query(0, ge=0, le=11),
     sort: Literal["pp", "rscore", "tscore", "acc", "plays", "playtime"] = "pp",
-    country: str | None = Query(None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$"),
+    country: str | None = Query(
+        None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$"
+    ),
 ) -> ORJSONResponse:
     if mode in _INVALID_MODES:
         return ORJSONResponse(
@@ -37,7 +40,7 @@ async def get_hall_of_fame_podium(
         )
 
     country_norm = country.lower() if country else None
-    country_key = country_norm if country_norm else "global"
+    country_key = country_norm or "global"
     cache_key = f"{CACHE_KEY_PREFIX}:{mode}:{sort}:{country_key}"
 
     cached = await app.state.services.redis.get(cache_key)
@@ -74,8 +77,8 @@ async def get_hall_of_fame_podium(
         "FROM stats s "
         "INNER JOIN users u ON u.id = s.id "
         "LEFT JOIN clans c ON u.clan_id = c.id "
-        f"WHERE {where_clause} "  # noqa: E501  # nosec B608
-        f"ORDER BY s.{sort} DESC LIMIT 3",  # noqa: E501  # nosec B608
+        f"WHERE {where_clause} "  # nosec B608
+        f"ORDER BY s.{sort} DESC LIMIT 3",  # nosec B608
         where_params,
     )
     rows = rows or []
@@ -93,7 +96,7 @@ async def get_hall_of_fame_podium(
             "FROM user_badges ub "
             "INNER JOIN badges b ON b.id = ub.badge_id "
             "LEFT JOIN badge_styles bs ON bs.badge_id = ub.badge_id "
-            f"WHERE ub.userid IN ({placeholders})",  # noqa: E501  # nosec B608
+            f"WHERE ub.userid IN ({placeholders})",  # nosec B608
             badge_params,
         )
         badge_rows = badge_rows or []

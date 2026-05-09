@@ -81,7 +81,8 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 from databases import Database as _Database
 from databases.core import Transaction
@@ -90,7 +91,8 @@ from sqlalchemy.dialects.mysql.mysqldb import MySQLDialect_mysqldb
 from sqlalchemy.sql.compiler import Compiled
 from sqlalchemy.sql.expression import ClauseElement
 
-from app.logging import Ansi, log
+from app.logging import Ansi
+from app.logging import log
 from app.timer import Timer
 
 
@@ -297,7 +299,7 @@ class Database:
             level=14,
         )
 
-        return cast(int, rec_id)
+        return cast("int", rec_id)
 
     # NOTE: this accepts str since current execute_many uses are not using alchemy.
     #       alchemy does execute_many in a single query so this method will be unneeded once raw SQL is not in use.
@@ -323,7 +325,7 @@ class Database:
                 },
                 level=40,
             )
-            return None
+            return
 
         time_elapsed = timer.elapsed()
         log(

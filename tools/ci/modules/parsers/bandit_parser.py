@@ -1,9 +1,12 @@
 """Bandit security scanner parser."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 
-from .registry import Parser, register_parser
+from .registry import Parser
+from .registry import register_parser
 
 
 class BanditParser(Parser):

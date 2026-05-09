@@ -77,9 +77,11 @@ Related Files:
 from __future__ import annotations
 
 import functools
-from enum import IntFlag, unique
+from enum import IntFlag
+from enum import unique
 
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
 
 
 @unique
@@ -180,7 +182,7 @@ class Mods(IntFlag):
         # 4 remove multiple keymods
         keymods_used = self & KEY_MODS
 
-        if bin(keymods_used).count("1") > 1:
+        if (keymods_used).bit_count() > 1:
             # keep only the first
             first_keymod = None
             for mod in KEY_MODS:
@@ -188,7 +190,8 @@ class Mods(IntFlag):
                     first_keymod = mod
                     break
 
-            assert first_keymod is not None
+            if first_keymod is None:
+                raise RuntimeError("Expected a keymod but found none")
 
             # remove all but the first keymod.
             self &= ~(keymods_used & ~first_keymod)

@@ -5,12 +5,14 @@ across multiple modules (for example timing helpers and GitHub API
 wrappers). Public utilities are re-exported here for convenience.
 """
 
-from .github import (  # noqa: F401
-    create_check_run,
-    get_api_url,
-    get_github_headers,
-    get_github_token,
-    get_repository,
-    update_check_run,
-)
-from .timing import Timer, format_duration, get_timestamp  # noqa: F401
+from __future__ import annotations
+
+from .github import create_check_run
+from .github import get_api_url
+from .github import get_github_headers
+from .github import get_github_token
+from .github import get_repository
+from .github import update_check_run
+from .timing import Timer
+from .timing import format_duration
+from .timing import get_timestamp

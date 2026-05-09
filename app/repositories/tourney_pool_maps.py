@@ -89,9 +89,15 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Index, Integer, delete, insert, select
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import delete
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
 from app.repositories import Base
@@ -142,8 +148,9 @@ async def create(map_id: int, pool_id: int, mods: int, slot: int) -> TourneyPool
         .where(TourneyPoolMapsTable.pool_id == pool_id)
     )
     tourney_pool_map = await app.state.services.database.fetch_one(select_stmt)
-    assert tourney_pool_map is not None
-    return cast(TourneyPoolMap, tourney_pool_map)
+    if tourney_pool_map is None:
+        raise RuntimeError("Failed to fetch tourney pool map")
+    return cast("TourneyPoolMap", tourney_pool_map)
 
 
 async def fetch_many(
@@ -165,7 +172,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     tourney_pool_maps = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[TourneyPoolMap], tourney_pool_maps)
+    return cast("list[TourneyPoolMap]", tourney_pool_maps)
 
 
 async def fetch_by_pool_and_pick(
@@ -181,7 +188,7 @@ async def fetch_by_pool_and_pick(
         .where(TourneyPoolMapsTable.slot == slot)
     )
     tourney_pool_map = await app.state.services.database.fetch_one(select_stmt)
-    return cast(TourneyPoolMap | None, tourney_pool_map)
+    return cast("TourneyPoolMap | None", tourney_pool_map)
 
 
 async def delete_map_from_pool(pool_id: int, map_id: int) -> TourneyPoolMap | None:
@@ -203,7 +210,7 @@ async def delete_map_from_pool(pool_id: int, map_id: int) -> TourneyPoolMap | No
     )
 
     await app.state.services.database.execute(delete_stmt)
-    return cast(TourneyPoolMap, tourney_pool_map)
+    return cast("TourneyPoolMap", tourney_pool_map)
 
 
 async def delete_all_in_pool(pool_id: int) -> list[TourneyPoolMap]:
@@ -217,4 +224,4 @@ async def delete_all_in_pool(pool_id: int) -> list[TourneyPoolMap]:
         TourneyPoolMapsTable.pool_id == pool_id,
     )
     await app.state.services.database.execute(delete_stmt)
-    return cast(list[TourneyPoolMap], tourney_pool_maps)
+    return cast("list[TourneyPoolMap]", tourney_pool_maps)

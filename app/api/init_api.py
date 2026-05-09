@@ -67,12 +67,14 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import starlette.routing
-from fastapi import FastAPI, status
+from fastapi import FastAPI
+from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.requests import Request
-from fastapi.responses import ORJSONResponse, Response
+from fastapi.responses import ORJSONResponse
+from fastapi.responses import Response
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import ClientDisconnect
 
@@ -80,8 +82,11 @@ import app.bg_loops
 import app.settings
 import app.state
 import app.utils
-from app.api import api_router, domains, middlewares
-from app.logging import Ansi, log
+from app.api import api_router
+from app.api import domains
+from app.api import middlewares
+from app.logging import Ansi
+from app.logging import log
 from app.objects import collections
 
 
@@ -218,7 +223,7 @@ def init_middlewares(asgi_app: BanchoAPI) -> None:
                 return Response("Client is stupppod")
 
             # unrelated issue, raise normally
-            raise exc
+            raise
 
 
 def init_routes(asgi_app: BanchoAPI) -> None:
@@ -230,7 +235,7 @@ def init_routes(asgi_app: BanchoAPI) -> None:
         asgi_app.host(f"osu.{domain}", domains.osu.router)
         if app.settings.USINGROOTDOMAIN:
             asgi_app.host(f"{domain}", domains.osu.router)
-        asgi_app.host(f"b.{domain}", domains.map.router)
+        asgi_app.host(f"b.{domain}", domains.map_domain.router)
 
         # bancho.py's developer-facing api
         asgi_app.host(f"api.{domain}", api_router)
@@ -251,4 +256,4 @@ asgi_app: BanchoAPI = init_api()
 
 asgi_app.include_router(domains.osu.router)
 asgi_app.include_router(domains.cho.router)
-asgi_app.include_router(domains.map.router)
+asgi_app.include_router(domains.map_domain.router)

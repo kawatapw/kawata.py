@@ -61,20 +61,22 @@ async def get_hero_banners(
     banners: list[dict[str, Any]] = []
     for row in rows or []:
         set_id = int(row["set_id"])
-        banners.append({
-            "set_id": set_id,
-            "artist": row["artist"],
-            "title": row["title"],
-            "creator": row["creator"],
-            "mode": int(row["mode"]),
-            "status": int(row["max_status"]),
-            "total_plays": int(row["total_plays"]),
-            "total_passes": int(row["total_passes"]),
-            "diff_count": int(row["diff_count"]),
-            "fav_count": int(row["fav_count"]),
-            "hero_score": int(row["hero_score"]),
-            **cover_urls(set_id),
-        })
+        banners.append(
+            {
+                "set_id": set_id,
+                "artist": row["artist"],
+                "title": row["title"],
+                "creator": row["creator"],
+                "mode": int(row["mode"]),
+                "status": int(row["max_status"]),
+                "total_plays": int(row["total_plays"]),
+                "total_passes": int(row["total_passes"]),
+                "diff_count": int(row["diff_count"]),
+                "fav_count": int(row["fav_count"]),
+                "hero_score": int(row["hero_score"]),
+                **cover_urls(set_id),
+            }
+        )
 
     payload = {
         "status": "success",

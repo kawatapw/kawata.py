@@ -84,10 +84,12 @@ Related Files:
 from __future__ import annotations
 
 import ipaddress
-import pickle  # noqa: S403  # nosec B403
+import pickle  # nosec B403
 import re
 import secrets
-from collections.abc import AsyncGenerator, Mapping, MutableMapping
+from collections.abc import AsyncGenerator
+from collections.abc import Mapping
+from collections.abc import MutableMapping
 from pathlib import Path
 from typing import TypedDict
 
@@ -101,7 +103,8 @@ import app.settings
 import app.state
 from app._typing import IPAddress
 from app.adapters.database import Database
-from app.logging import Ansi, log
+from app.logging import Ansi
+from app.logging import log
 
 STRANGE_LOG_DIR = Path.cwd() / ".data/logs/strange_occurrences/"
 
@@ -521,7 +524,7 @@ async def run_sql_migrations() -> None:
                 update_ver = Version.from_str(r_match["ver"])
 
             continue
-        elif not update_ver:
+        if not update_ver:
             continue
 
         # we only need the updates between the

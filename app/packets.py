@@ -63,12 +63,21 @@ from __future__ import annotations
 import json
 import random
 import struct
-from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Iterator
-from dataclasses import dataclass, field
-from enum import IntEnum, unique
-from functools import cache, lru_cache
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import Callable
+from collections.abc import Collection
+from collections.abc import Iterator
+from dataclasses import dataclass
+from dataclasses import field
+from enum import IntEnum
+from enum import unique
+from functools import cache
+from functools import lru_cache
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import NamedTuple
+from typing import cast
 
 from app import logging
 from app.state.sessions import groups
@@ -445,6 +454,11 @@ class BanchoPacketReader:
 
     def _read_header(self) -> tuple[ClientPackets, int]:
         """Read the header of an osu! packet (id & length)."""
+        if len(self.body_view) < 7:
+            logging.log(
+                f"Packet too short to read header, skipping. {self.body_view}",
+            )
+            return ClientPackets.UNKNOWN_PACKET, 0
         # read type & length from the body
         data = struct.unpack("<HxI", self.body_view[:7])
         self.body_view = self.body_view[7:]
@@ -504,25 +518,29 @@ class BanchoPacketReader:
     def read_f16(self) -> float:
         (val,) = struct.unpack_from("<e", self.body_view[:2])
         self.body_view = self.body_view[2:]
-        return cast(float, val)
+        return cast("float", val)
 
     def read_f32(self) -> float:
         (val,) = struct.unpack_from("<f", self.body_view[:4])
         self.body_view = self.body_view[4:]
-        return cast(float, val)
+        return cast("float", val)
 
     def read_f64(self) -> float:
         (val,) = struct.unpack_from("<d", self.body_view[:8])
         self.body_view = self.body_view[8:]
-        return cast(float, val)
+        return cast("float", val)
 
     # complex types
+
+    _MAX_LIST_LENGTH = 256  # sane upper bound for id lists
 
     # XXX: some osu! packets use i16 for
     # array length, while others use i32
     def read_i32_list_i16l(self) -> tuple[int, ...]:
         length = int.from_bytes(self.body_view[:2], "little")
         self.body_view = self.body_view[2:]
+
+        length = min(length, self._MAX_LIST_LENGTH)
 
         val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
@@ -531,6 +549,8 @@ class BanchoPacketReader:
     def read_i32_list_i32l(self) -> tuple[int, ...]:
         length = int.from_bytes(self.body_view[:4], "little")
         self.body_view = self.body_view[4:]
+
+        length = min(length, self._MAX_LIST_LENGTH)
 
         val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
         self.body_view = self.body_view[length * 4 :]
@@ -745,7 +765,8 @@ def write_match(m: Match, send_pw: bool = True) -> bytearray:
 
     for s in m.slots:
         if s.status & 0b01111100 != 0:  # SlotStatus.has_player
-            assert s.player is not None
+            if s.player is None:
+                raise RuntimeError("Slot has player status but player is None")
             ret += s.player.id.to_bytes(4, "little")
 
     ret += m.host.id.to_bytes(4, "little")
@@ -832,7 +853,11 @@ def write(packid: int, *args: tuple[Any, osuTypes]) -> bytes:
             ret += p_args
         elif p_type in _noexpand_types:
             bounds = _INT_BOUNDS.get(p_type)
-            if bounds is not None and isinstance(p_args, int) and not bounds[0] <= p_args <= bounds[1]:
+            if (
+                bounds is not None
+                and isinstance(p_args, int)
+                and not bounds[0] <= p_args <= bounds[1]
+            ):
                 logging.log(
                     f"Integer value out of range for {p_type!r}",
                     level=logging.logLevel.WARNING,
@@ -1296,7 +1321,8 @@ def restart_server(ms: int) -> bytes:
 
 # packet id: 88
 def match_invite(player: Player, target_name: str) -> bytes:
-    assert player.match is not None
+    if player.match is None:
+        raise RuntimeError("Player is not in a match")
     msg = f"Come join my game: {player.match.embed}."
     return write(
         ServerPackets.MATCH_INVITE,

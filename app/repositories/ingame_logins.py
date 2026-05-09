@@ -83,10 +83,19 @@ Related Files:
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import TypedDict, cast
+from datetime import date
+from datetime import datetime
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Date, DateTime, Integer, String, func, insert, select
+from sqlalchemy import Column
+from sqlalchemy import Date
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
 from app.repositories import Base
@@ -148,15 +157,16 @@ async def create(
     select_stmt = select(*READ_PARAMS).where(IngameLoginsTable.id == rec_id)
     ingame_login = await app.state.services.database.fetch_one(select_stmt)
 
-    assert ingame_login is not None
-    return cast(IngameLogin, ingame_login)
+    if ingame_login is None:
+        raise RuntimeError("Failed to fetch ingame_login after insert")
+    return cast("IngameLogin", ingame_login)
 
 
 async def fetch_one(id: int) -> IngameLogin | None:
     """Fetch a login entry from the database."""
     select_stmt = select(*READ_PARAMS).where(IngameLoginsTable.id == id)
     ingame_login = await app.state.services.database.fetch_one(select_stmt)
-    return cast(IngameLogin | None, ingame_login)
+    return cast("IngameLogin | None", ingame_login)
 
 
 async def fetch_count(
@@ -171,8 +181,9 @@ async def fetch_count(
         select_stmt = select_stmt.where(IngameLoginsTable.ip == ip)
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise RuntimeError("Failed to fetch ingame_logins count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -199,4 +210,4 @@ async def fetch_many(
         select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     ingame_logins = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[IngameLogin], ingame_logins)
+    return cast("list[IngameLogin]", ingame_logins)

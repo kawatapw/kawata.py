@@ -85,7 +85,8 @@ from __future__ import annotations
 import functools
 import hashlib
 from datetime import datetime
-from enum import IntEnum, unique
+from enum import IntEnum
+from enum import unique
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -98,7 +99,13 @@ from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.repositories import scores as scores_repo
 from app.usecases.performance import ScoreParams
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
+
+
+class ScoreError(Exception):
+    """Raised when score operations fail."""
+
 
 if TYPE_CHECKING:
     from app.objects.player import Player
@@ -140,8 +147,7 @@ class Grade(IntEnum):
     def __format__(self, format_spec: str) -> str:
         if format_spec == "stats_column":
             return f"{self.name.lower()}_count"
-        else:
-            raise ValueError(f"Invalid format specifier {format_spec}")
+        raise ValueError(f"Invalid format specifier {format_spec}")
 
 
 @unique
@@ -236,8 +242,9 @@ class Score:
 
     def __repr__(self) -> str:
         # TODO: i really need to clean up my reprs
+        if self.bmap is None:
+            return super().__repr__()
         try:
-            assert self.bmap is not None
             return (
                 f"<{self.acc:.2f}% {self.max_combo}x {self.nmiss}M "
                 f"#{self.rank} on {self.bmap.full_name} for {self.pp:,.2f}pp>"
@@ -341,8 +348,10 @@ class Score:
         storyboard_checksum: str,
     ) -> str:
         """Validate the online checksum of the score."""
-        assert self.player is not None
-        assert self.bmap is not None
+        if self.player is None:
+            raise RuntimeError("Player is None during checksum validation")
+        if self.bmap is None:
+            raise RuntimeError("Beatmap is None during checksum validation")
 
         return hashlib.md5(  # nosec B324
             f"chickenmcnuggets{self.n100 + self.n300}o15{self.n50}{self.ngeki}smustard{self.nkatu}{self.nmiss}uu{self.bmap.md5}{self.max_combo}{self.perfect}{self.player.name}{self.score}{self.grade.name}{int(self.mods)}Q{self.passed}{self.mode.as_vanilla}{osu_version}{self.client_time:%y%m%d%H%M%S}{osu_client_hash}{storyboard_checksum}".encode(),
@@ -352,7 +361,8 @@ class Score:
     """Methods to calculate internal data for a score."""
 
     async def calculate_placement(self) -> int:
-        assert self.bmap is not None
+        if self.bmap is None:
+            raise RuntimeError("Beatmap is None during placement calculation")
 
         if self.mode >= GameMode.RELAX_OSU:
             scoring_metric = "pp"
@@ -366,7 +376,7 @@ class Score:
             "INNER JOIN users u ON u.id = s.userid "
             "WHERE s.map_md5 = :map_md5 AND s.mode = :mode "
             "AND s.status = 2 AND u.priv & 1 "
-            f"AND s.{scoring_metric} > :score",  # noqa: E501  # nosec B608
+            f"AND s.{scoring_metric} > :score",  # nosec B608
             {
                 "map_md5": self.bmap.md5,
                 "mode": self.mode,
@@ -374,7 +384,8 @@ class Score:
             },
             column=0,  # COUNT(*)
         )
-        assert num_better_scores is not None
+        if num_better_scores is None:
+            raise RuntimeError("Failed to fetch number of better scores")
         return num_better_scores + 1
 
     def calculate_performance(self, beatmap_id: int) -> tuple[float, float]:
@@ -402,8 +413,10 @@ class Score:
 
     async def calculate_status(self) -> None:
         """Calculate the submission status of a submitted score."""
-        assert self.player is not None
-        assert self.bmap is not None
+        if self.player is None:
+            raise RuntimeError("Player is None during status calculation")
+        if self.bmap is None:
+            raise RuntimeError("Beatmap is None during status calculation")
 
         recs = await scores_repo.fetch_many(
             user_id=self.player.id,
@@ -418,7 +431,8 @@ class Score:
             # we have a score on the map.
             # save it as our previous best score.
             self.prev_best = await Score.from_sql(rec["id"])
-            assert self.prev_best is not None
+            if self.prev_best is None:
+                raise RuntimeError("Failed to load previous best score from SQL")
 
             # if our new score is better, update
             # both of our score's submission statuses.
@@ -448,7 +462,7 @@ class Score:
                 / (total * 300.0)
             )
 
-        elif mode_vn == 1:  # osu!taiko
+        if mode_vn == 1:  # osu!taiko
             total = self.n300 + self.n100 + self.nmiss
 
             if total == 0:
@@ -456,7 +470,7 @@ class Score:
 
             return 100.0 * ((self.n100 * 0.5) + self.n300) / total
 
-        elif mode_vn == 2:  # osu!catch
+        if mode_vn == 2:  # osu!catch
             total = self.n300 + self.n100 + self.n50 + self.nkatu + self.nmiss
 
             if total == 0:
@@ -464,7 +478,7 @@ class Score:
 
             return 100.0 * (self.n300 + self.n100 + self.n50) / total
 
-        elif mode_vn == 3:  # osu!mania
+        if mode_vn == 3:  # osu!mania
             total = (
                 self.n300 + self.n100 + self.n50 + self.ngeki + self.nkatu + self.nmiss
             )
@@ -495,14 +509,14 @@ class Score:
                 )
                 / (total * 300.0)
             )
-        else:
-            raise Exception(f"Invalid vanilla mode {mode_vn}")
+        raise ScoreError(f"Invalid vanilla mode {mode_vn}")
 
     """ Methods for updating a score. """
 
     async def increment_replay_views(self) -> None:
         # TODO: move replay views to be per-score rather than per-user
-        assert self.player is not None
+        if self.player is None:
+            raise RuntimeError("Player is None when incrementing replay views")
 
         # TODO: apparently cached stats don't store replay views?
         #       need to refactor that to be able to use stats_repo here

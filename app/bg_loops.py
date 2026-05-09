@@ -63,7 +63,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from typing import Any
 
 import app.packets
@@ -71,7 +72,9 @@ import app.settings
 import app.state
 from app.constants.gamemodes import GameMode
 from app.constants.privileges import Privileges
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi
+from app.logging import log
+from app.logging import logLevel
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.schedule_types import get_provider_for_schedule_type
@@ -136,7 +139,8 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
                     id=expired_donor["id"],
                 )
 
-                assert player is not None
+                if player is None:
+                    raise RuntimeError("Player not found")
 
                 # TODO: perhaps make a `revoke_donor` method?
                 await player.remove_privs(Privileges.DONATOR)
@@ -576,9 +580,9 @@ async def update_non_active_season_stats(interval: int = 300) -> None:
 
             current_time = datetime.now(UTC)
             non_active_seasons = await seasons_repo.fetch_non_active_seasons(
-                active_season_type_id=int(active_season_type_id)
-                if active_season_type_id
-                else None,
+                active_season_type_id=(
+                    int(active_season_type_id) if active_season_type_id else None
+                ),
                 current_time=current_time,
             )
 

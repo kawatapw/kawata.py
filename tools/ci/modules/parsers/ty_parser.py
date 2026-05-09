@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from defusedxml.ElementTree import fromstring as safe_fromstring
 
-from .registry import Parser, register_parser
+from .registry import Parser
+from .registry import register_parser
 
 if TYPE_CHECKING:
     import xml.etree.ElementTree as ET

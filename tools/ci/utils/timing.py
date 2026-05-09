@@ -7,7 +7,8 @@ render them in a consistent, human-readable form in logs and reports.
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from typing import Any
 
 
@@ -66,12 +67,16 @@ class Timer:
         """
         return {
             "name": self.name,
-            "start": datetime.fromtimestamp(self.start_time, tz=UTC).isoformat()
-            if self.start_time is not None
-            else None,
-            "end": datetime.fromtimestamp(self.end_time, tz=UTC).isoformat()
-            if self.end_time is not None
-            else None,
+            "start": (
+                datetime.fromtimestamp(self.start_time, tz=UTC).isoformat()
+                if self.start_time is not None
+                else None
+            ),
+            "end": (
+                datetime.fromtimestamp(self.end_time, tz=UTC).isoformat()
+                if self.end_time is not None
+                else None
+            ),
             "duration": self.duration,
         }
 
@@ -93,14 +98,13 @@ def format_duration(seconds: float) -> str:
     """
     if seconds < 60:
         return f"{seconds:.1f}s"
-    elif seconds < 3600:
+    if seconds < 3600:
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{minutes}m{secs}s"
-    else:
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        return f"{hours}h{minutes}m"
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    return f"{hours}h{minutes}m"
 
 
 def get_timestamp() -> str:

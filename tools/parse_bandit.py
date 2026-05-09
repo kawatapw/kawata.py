@@ -6,6 +6,8 @@ This script reads bandit's JSON output and extracts only the relevant informatio
 to avoid exceeding GitHub's 1MB step summary limit.
 """
 
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path

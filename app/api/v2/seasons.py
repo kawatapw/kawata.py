@@ -61,15 +61,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import status
 from fastapi.param_functions import Query
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
 import app.state
 from app.api.v2.common import responses
-from app.api.v2.common.responses import Failure, Success
-from app.api.v2.models.seasons import Season, SeasonStats
+from app.api.v2.common.responses import Failure
+from app.api.v2.common.responses import Success
+from app.api.v2.models.seasons import Season
+from app.api.v2.models.seasons import SeasonStats
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
@@ -178,7 +182,7 @@ async def get_season_preference(
 async def update_season_preference(
     player_id: int,
     preferred_lb_view: str,
-    token: HTTPCredentials | None = Depends(http_bearer_scheme),  # noqa: B008
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
 ) -> Success[dict[str, Any]] | Failure:
     """Update a player's season view preference."""
     if token is None or app.state.sessions.api_keys.get(token.credentials) is None:
@@ -232,9 +236,11 @@ async def get_schedules() -> Success[list[dict[str, Any]]] | Failure:
                 "description": schedule["description"],
                 "schedule_type": schedule["schedule_type"],
                 "is_default": schedule["is_default"],
-                "created_at": schedule["created_at"].isoformat()
-                if schedule["created_at"] is not None
-                else None,
+                "created_at": (
+                    schedule["created_at"].isoformat()
+                    if schedule["created_at"] is not None
+                    else None
+                ),
             },
         )
 
@@ -259,9 +265,11 @@ async def get_schedule(schedule_id: int) -> Success[dict[str, Any]] | Failure:
             "schedule_type": schedule["schedule_type"],
             "config": schedule["config"],
             "is_default": schedule["is_default"],
-            "created_at": schedule["created_at"].isoformat()
-            if schedule["created_at"] is not None
-            else None,
+            "created_at": (
+                schedule["created_at"].isoformat()
+                if schedule["created_at"] is not None
+                else None
+            ),
         },
     )
 
@@ -301,7 +309,7 @@ async def get_active_season_for_schedule(
 async def set_preferred_schedule(
     player_id: int,
     schedule_id: int,
-    token: HTTPCredentials | None = Depends(http_bearer_scheme),  # noqa: B008
+    token: HTTPCredentials | None = Depends(http_bearer_scheme),
 ) -> Success[dict[str, Any]] | Failure:
     """Set a player's preferred schedule type.
 

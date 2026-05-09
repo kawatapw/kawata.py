@@ -61,16 +61,23 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from typing import TYPE_CHECKING, Literal
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Literal
 
-from . import cache, services, sessions
+from . import cache
+from . import services
+from . import sessions
 
 if TYPE_CHECKING:
     from asyncio import AbstractEventLoop
 
-    from app.packets import BasePacket, ClientPackets
+    from app.adapters.database import Database
+    from app.packets import BasePacket
+    from app.packets import ClientPackets
 
-loop: AbstractEventLoop
+loop: AbstractEventLoop | None = None
 score_submission_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 packets: dict[Literal["all", "restricted"], dict[ClientPackets, type[BasePacket]]] = {
     "all": {},
@@ -78,12 +85,34 @@ packets: dict[Literal["all", "restricted"], dict[ClientPackets, type[BasePacket]
 }
 shutting_down = False
 
+
+@dataclass
+class State:
+    """Application state container for dependency injection."""
+
+    sessions: Any  # sessions module with players, channels, etc.
+    services: Any  # services module with database, http_client, etc.
+    cache: Any  # cache module
+    database: Database | None = None
+    loop: Any = None  # event loop for scheduling
+    usecases: Any = None  # usecases module for business logic
+
+
+# Create a global state instance for dependency injection
+state = State(
+    sessions=sessions,
+    services=services,
+    cache=cache,
+)
+
 __all__ = [
+    "State",
     "cache",
+    "loop",
+    "packets",
+    "score_submission_locks",
     "services",
     "sessions",
-    "loop",
-    "score_submission_locks",
-    "packets",
     "shutting_down",
+    "state",
 ]

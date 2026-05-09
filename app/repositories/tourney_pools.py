@@ -80,19 +80,18 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Index,
-    Integer,
-    String,
-    delete,
-    func,
-    insert,
-    select,
-)
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import delete
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
 from app.repositories import Base
@@ -135,8 +134,9 @@ async def create(name: str, created_by: int) -> TourneyPool:
 
     select_stmt = select(*READ_PARAMS).where(TourneyPoolsTable.id == rec_id)
     tourney_pool = await app.state.services.database.fetch_one(select_stmt)
-    assert tourney_pool is not None
-    return cast(TourneyPool, tourney_pool)
+    if tourney_pool is None:
+        raise RuntimeError("Failed to fetch created tourney pool")
+    return cast("TourneyPool", tourney_pool)
 
 
 async def fetch_many(
@@ -155,21 +155,21 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     tourney_pools = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[TourneyPool], tourney_pools)
+    return cast("list[TourneyPool]", tourney_pools)
 
 
 async def fetch_by_name(name: str) -> TourneyPool | None:
     """Fetch a tourney pool by name from the database."""
     select_stmt = select(*READ_PARAMS).where(TourneyPoolsTable.name == name)
     tourney_pool = await app.state.services.database.fetch_one(select_stmt)
-    return cast(TourneyPool | None, tourney_pool)
+    return cast("TourneyPool | None", tourney_pool)
 
 
 async def fetch_by_id(id: int) -> TourneyPool | None:
     """Fetch a tourney pool by id from the database."""
     select_stmt = select(*READ_PARAMS).where(TourneyPoolsTable.id == id)
     tourney_pool = await app.state.services.database.fetch_one(select_stmt)
-    return cast(TourneyPool | None, tourney_pool)
+    return cast("TourneyPool | None", tourney_pool)
 
 
 async def delete_by_id(id: int) -> TourneyPool | None:
@@ -181,4 +181,4 @@ async def delete_by_id(id: int) -> TourneyPool | None:
 
     delete_stmt = delete(TourneyPoolsTable).where(TourneyPoolsTable.id == id)
     await app.state.services.database.execute(delete_stmt)
-    return cast(TourneyPool, tourney_pool)
+    return cast("TourneyPool", tourney_pool)

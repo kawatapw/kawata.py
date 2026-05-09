@@ -67,20 +67,19 @@ Related Files:
 """
 
 # isort: dont-add-imports
+from __future__ import annotations
 
-from . import (
-    api,
-    bg_loops,
-    commands,
-    constants,
-    discord,
-    logging,
-    objects,
-    packets,
-    settings,
-    state,
-    utils,
-)
+from . import api
+from . import bg_loops
+from . import commands
+from . import constants
+from . import discord
+from . import logging
+from . import objects
+from . import packets
+from . import settings
+from . import state
+from . import utils
 
 __all__ = [
     "api",

@@ -1,11 +1,14 @@
 """Pytest result parser."""
 
+from __future__ import annotations
+
 import xml.etree.ElementTree as ET
 from typing import Any
 
 from defusedxml.ElementTree import fromstring as safe_fromstring
 
-from .registry import Parser, register_parser
+from .registry import Parser
+from .registry import register_parser
 
 
 class PytestParser(Parser):

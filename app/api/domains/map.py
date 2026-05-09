@@ -48,7 +48,8 @@ Related Files:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
+from fastapi import status
 from fastapi.requests import Request
 from fastapi.responses import RedirectResponse
 
@@ -60,7 +61,7 @@ router = APIRouter(tags=["Beatmaps"])
 # forward any unmatched request to osu!
 # eventually if we do bmap submission, we'll need this.
 @router.get("/{file_path:path}")
-async def everything(request: Request) -> RedirectResponse:
+async def everything(request: Request, file_path: str) -> RedirectResponse:
     """Proxy any beatmap asset requests to the official osu! CDN.
 
     This endpoint acts as a catch-all proxy that redirects requests for

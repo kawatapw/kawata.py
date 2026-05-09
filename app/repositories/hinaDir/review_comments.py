@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, DateTime, Index, Integer, Text, func, insert, select
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import Text
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
 
 import app.state.services
 from app.repositories import Base
@@ -16,7 +24,9 @@ class BeatmapReviewCommentTable(Base):
     work_item_id = Column("work_item_id", Integer, nullable=False)
     user_id = Column("user_id", Integer, nullable=False)
     body = Column("body", Text, nullable=False)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
+    created_at = Column(
+        "created_at", DateTime, nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         Index("idx_brc_work_item", "work_item_id"),
@@ -60,7 +70,7 @@ async def create(
     comment = await app.state.services.database.fetch_one(select_stmt)
     if comment is None:
         raise RuntimeError("Failed to fetch inserted review comment record")
-    return cast(BeatmapReviewComment, comment)
+    return cast("BeatmapReviewComment", comment)
 
 
 async def fetch_by_work_item(
@@ -73,4 +83,4 @@ async def fetch_by_work_item(
         .order_by(BeatmapReviewCommentTable.created_at.asc())
     )
     rows = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[BeatmapReviewComment], rows)
+    return cast("list[BeatmapReviewComment]", rows)

@@ -63,27 +63,30 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Any, TypedDict, cast
+from typing import Any
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-    func,
-    insert,
-    select,
-    update,
-)
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import ForeignKey
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Text
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.dialects.mysql import JSON
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
-from app.logging import Ansi, error_catcher, log
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
+from app.logging import Ansi
+from app.logging import error_catcher
+from app.logging import log
 from app.repositories import Base
 
 
@@ -246,17 +249,6 @@ async def create(
 
         select_stmt = select(*SEASON_READ_PARAMS).where(SeasonsTable.id == rec_id)
         season = await app.state.services.database.fetch_one(select_stmt)
-
-        if season is None:
-            log(
-                f"Failed to retrieve created season with ID: {rec_id}",
-                Ansi.LRED,
-                level=logging.ERROR,
-            )
-            raise ValueError(f"Season with ID {rec_id} not found after creation")
-
-        log(f"Season created successfully: {name} (ID: {rec_id})", Ansi.LGREEN)
-        return cast(Season, season)
     except Exception as e:
         log(
             f"Error creating season '{name}': {e}",
@@ -265,6 +257,17 @@ async def create(
             exc_info=True,
         )
         raise
+
+    if season is None:
+        log(
+            f"Failed to retrieve created season with ID: {rec_id}",
+            Ansi.LRED,
+            level=logging.ERROR,
+        )
+        raise ValueError(f"Season with ID {rec_id} not found after creation")
+
+    log(f"Season created successfully: {name} (ID: {rec_id})", Ansi.LGREEN)
+    return cast("Season", season)
 
 
 @error_catcher
@@ -287,7 +290,7 @@ async def fetch_one(
         select_stmt = select_stmt.where(SeasonsTable.is_active == is_active)
 
     season = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Season | None, season)
+    return cast("Season | None", season)
 
 
 @error_catcher
@@ -295,7 +298,7 @@ async def fetch_active() -> Season | None:
     """Fetch the currently active season."""
     select_stmt = select(*SEASON_READ_PARAMS).where(SeasonsTable.is_active)
     season = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Season | None, season)
+    return cast("Season | None", season)
 
 
 @error_catcher
@@ -307,7 +310,7 @@ async def fetch_active_season_by_schedule(schedule_id: int) -> Season | None:
         .where(SeasonsTable.is_active)
     )
     season = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Season | None, season)
+    return cast("Season | None", season)
 
 
 async def fetch_season_by_start_date(
@@ -321,7 +324,7 @@ async def fetch_season_by_start_date(
         .where(SeasonsTable.start_date == start_date)
     )
     season = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Season | None, season)
+    return cast("Season | None", season)
 
 
 @error_catcher
@@ -339,7 +342,7 @@ async def fetch_schedule_by_id(schedule_id: int) -> SeasonSchedule | None:
     if isinstance(schedule.get("config"), str):
         schedule["config"] = json.loads(schedule["config"])
 
-    return cast(SeasonSchedule, schedule)
+    return cast("SeasonSchedule", schedule)
 
 
 @error_catcher
@@ -355,7 +358,7 @@ async def fetch_many_schedules() -> list[SeasonSchedule]:
         if isinstance(schedule.get("config"), str):
             schedule["config"] = json.loads(schedule["config"])
 
-    return cast(list[SeasonSchedule], schedules)
+    return cast("list[SeasonSchedule]", schedules)
 
 
 @error_catcher
@@ -372,7 +375,7 @@ async def fetch_default_schedule() -> SeasonSchedule | None:
     if isinstance(schedule.get("config"), str):
         schedule["config"] = json.loads(schedule["config"])
 
-    return cast(SeasonSchedule, schedule)
+    return cast("SeasonSchedule", schedule)
 
 
 @error_catcher
@@ -391,7 +394,7 @@ async def fetch_active_season_by_type() -> Season | None:
         .where(SeasonsTable.is_active)
     )
     season = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Season | None, season)
+    return cast("Season | None", season)
 
 
 @error_catcher
@@ -413,7 +416,7 @@ async def fetch_non_active_seasons(
         )
 
     seasons = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Season], seasons)
+    return cast("list[Season]", seasons)
 
 
 @error_catcher
@@ -421,8 +424,9 @@ async def fetch_count() -> int:
     """Fetch the total number of seasons in the database."""
     select_stmt = select(func.count().label("count")).select_from(SeasonsTable)
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise RuntimeError("Failed to fetch season count")
+    return cast("int", rec["count"])
 
 
 @error_catcher
@@ -437,7 +441,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     seasons = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Season], seasons)
+    return cast("list[Season]", seasons)
 
 
 @error_catcher
@@ -476,7 +480,7 @@ async def partial_update(
 
     select_stmt = select(*SEASON_READ_PARAMS).where(SeasonsTable.id == id)
     season = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Season | None, season)
+    return cast("Season | None", season)
 
 
 @error_catcher
@@ -507,7 +511,7 @@ async def fetch_active_schedules() -> list[SeasonSchedule]:
         if isinstance(schedule.get("config"), str):
             schedule["config"] = json.loads(schedule["config"])
 
-    return cast(list[SeasonSchedule], schedules)
+    return cast("list[SeasonSchedule]", schedules)
 
 
 @error_catcher
@@ -535,13 +539,14 @@ async def create_schedule(
 
     select_stmt = select(*SCHEDULE_READ_PARAMS).where(SeasonSchedulesTable.id == rec_id)
     schedule = await app.state.services.database.fetch_one(select_stmt)
-    assert schedule is not None
+    if schedule is None:
+        raise RuntimeError("Failed to fetch created schedule")
     log(
         f"Schedule created successfully: {name} (ID: {rec_id})",
         Ansi.LGREEN,
         level=logging.DEBUG,
     )
-    return cast(SeasonSchedule, schedule)
+    return cast("SeasonSchedule", schedule)
 
 
 @error_catcher
@@ -553,7 +558,7 @@ async def fetch_seasons_containing_time(play_time: datetime) -> list[Season]:
         .where(SeasonsTable.end_date > play_time)
     )
     seasons = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Season], seasons)
+    return cast("list[Season]", seasons)
 
 
 @error_catcher
@@ -850,4 +855,4 @@ async def fetch_many_by_schedule(schedule_id: int) -> list[Season]:
         .order_by(SeasonsTable.start_date.asc())
     )
     seasons = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Season], seasons)
+    return cast("list[Season]", seasons)

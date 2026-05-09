@@ -83,23 +83,23 @@ Related Files:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Index,
-    Integer,
-    String,
-    delete,
-    func,
-    insert,
-    select,
-    update,
-)
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import delete
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 
@@ -153,8 +153,9 @@ async def create(
     select_stmt = select(*READ_PARAMS).where(ClansTable.id == rec_id)
     clan = await app.state.services.database.fetch_one(select_stmt)
 
-    assert clan is not None
-    return cast(Clan, clan)
+    if clan is None:
+        raise ValueError(f"Clan with id {rec_id} not found after creation")
+    return cast("Clan", clan)
 
 
 async def fetch_one(
@@ -179,7 +180,7 @@ async def fetch_one(
         select_stmt = select_stmt.where(ClansTable.owner == owner)
 
     clan = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Clan | None, clan)
+    return cast("Clan | None", clan)
 
 
 async def fetch_count() -> int:
@@ -187,8 +188,9 @@ async def fetch_count() -> int:
     select_stmt = select(func.count().label("count")).select_from(ClansTable)
     rec = await app.state.services.database.fetch_one(select_stmt)
 
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise ValueError("Failed to fetch clan count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -201,7 +203,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     clans = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[Clan], clans)
+    return cast("list[Clan]", clans)
 
 
 async def partial_update(
@@ -223,7 +225,7 @@ async def partial_update(
 
     select_stmt = select(*READ_PARAMS).where(ClansTable.id == id)
     clan = await app.state.services.database.fetch_one(select_stmt)
-    return cast(Clan | None, clan)
+    return cast("Clan | None", clan)
 
 
 async def delete_one(id: int) -> Clan | None:
@@ -235,4 +237,4 @@ async def delete_one(id: int) -> Clan | None:
 
     delete_stmt = delete(ClansTable).where(ClansTable.id == id)
     await app.state.services.database.execute(delete_stmt)
-    return cast(Clan, clan)
+    return cast("Clan", clan)

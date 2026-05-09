@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, TypedDict, cast
+from typing import Any
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Index,
-    Integer,
-    String,
-    func,
-    insert,
-    select,
-    update,
-)
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.dialects.mysql import JSON
-from sqlalchemy.dialects.mysql import TINYINT as TinyInt
+from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
 from app.repositories import Base
@@ -27,15 +27,25 @@ class BeatmapWorkItemTable(Base):
     id = Column("id", Integer, nullable=False, primary_key=True, autoincrement=True)
     set_id = Column("set_id", Integer, nullable=False)
     request_id = Column("request_id", Integer, nullable=True)
-    review_state = Column("review_state", String(16), nullable=False, server_default="pending")
+    review_state = Column(
+        "review_state", String(16), nullable=False, server_default="pending"
+    )
     assigned_to = Column("assigned_to", Integer, nullable=True)
     assigned_at = Column("assigned_at", DateTime, nullable=True)
-    created_at = Column("created_at", DateTime, nullable=False, server_default=func.now())
-    updated_at = Column("updated_at", DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    created_at = Column(
+        "created_at", DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        "updated_at",
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
     resolved_at = Column("resolved_at", DateTime, nullable=True)
     resolution = Column("resolution", String(32), nullable=True)
     checklist = Column("checklist", JSON, nullable=True)
-    priority = Column("priority", TinyInt, nullable=False, server_default="0")
+    priority = Column("priority", TINYINT, nullable=False, server_default="0")
 
     __table_args__ = (
         Index("idx_bwi_set_id", "set_id"),
@@ -98,14 +108,14 @@ async def create(
     item = await app.state.services.database.fetch_one(select_stmt)
     if item is None:
         raise RuntimeError("Failed to fetch inserted work item record")
-    return cast(BeatmapWorkItem, item)
+    return cast("BeatmapWorkItem", item)
 
 
 async def fetch_one(item_id: int) -> BeatmapWorkItem | None:
     """Fetch a single work item by ID."""
     select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == item_id)
     item = await app.state.services.database.fetch_one(select_stmt)
-    return cast(BeatmapWorkItem, item) if item else None
+    return cast("BeatmapWorkItem", item) if item else None
 
 
 async def fetch_queue(
@@ -125,8 +135,7 @@ async def fetch_queue(
             BeatmapWorkItemTable.assigned_to == assigned_to,
         )
     select_stmt = (
-        select_stmt
-        .order_by(
+        select_stmt.order_by(
             BeatmapWorkItemTable.priority.desc(),
             BeatmapWorkItemTable.created_at.asc(),
         )
@@ -134,7 +143,7 @@ async def fetch_queue(
         .offset((page - 1) * page_size)
     )
     rows = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[BeatmapWorkItem], rows)
+    return cast("list[BeatmapWorkItem]", rows)
 
 
 async def partial_update(item_id: int, **kwargs: Any) -> BeatmapWorkItem | None:
@@ -148,4 +157,4 @@ async def partial_update(item_id: int, **kwargs: Any) -> BeatmapWorkItem | None:
 
     select_stmt = select(*READ_PARAMS).where(BeatmapWorkItemTable.id == item_id)
     item = await app.state.services.database.fetch_one(select_stmt)
-    return cast(BeatmapWorkItem, item) if item else None
+    return cast("BeatmapWorkItem", item) if item else None

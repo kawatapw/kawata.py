@@ -1,14 +1,19 @@
 """GitHub job summary generator."""
 
+from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 from core.context import Context
 from core.storage import get_backend
-from jinja2 import Environment, FileSystemLoader
-from modules.parsers.registry import detect_parser, parse_file
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
+from modules.parsers.registry import detect_parser
+from modules.parsers.registry import parse_file
 
 
 def _find_state_in_artifacts(
@@ -29,7 +34,7 @@ def _find_state_in_artifacts(
         print(f"DEBUG: Found state file: {state_file}")
         try:
             with open(state_file) as f:
-                state = cast(dict[str, Any], json.load(f))
+                state = cast("dict[str, Any]", json.load(f))
                 print(
                     f"DEBUG: State file run_id={state.get('run_id')}, workflow={state_file.stem}",
                 )
@@ -51,7 +56,7 @@ def _find_state_in_artifacts(
         print(f"DEBUG: Found state file (any): {state_file}")
         try:
             with open(state_file) as f:
-                state = cast(dict[str, Any], json.load(f))
+                state = cast("dict[str, Any]", json.load(f))
                 if state.get("run_id") == run_id:
                     print("DEBUG: Found matching state by run_id (any)")
                     return state
@@ -603,11 +608,10 @@ def format_duration(seconds: float) -> str:
     """Format duration in human-readable format."""
     if seconds < 60:
         return f"{seconds:.1f}s"
-    elif seconds < 3600:
+    if seconds < 3600:
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{minutes}m{secs}s"
-    else:
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        return f"{hours}h{minutes}m"
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    return f"{hours}h{minutes}m"

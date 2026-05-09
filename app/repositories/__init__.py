@@ -72,7 +72,8 @@ Related Files:
 from __future__ import annotations
 
 import sqlalchemy
-from sqlalchemy.orm import DeclarativeMeta, registry
+from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm import registry
 
 mapper_registry = registry()
 

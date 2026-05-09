@@ -100,9 +100,13 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from enum import IntEnum, StrEnum, unique
+from enum import IntEnum
+from enum import StrEnum
+from enum import unique
 from functools import cached_property
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING
+from typing import TypedDict
+from typing import cast
 
 import app.packets
 import app.settings
@@ -111,19 +115,29 @@ from app._typing import IPAddress
 from app.constants.aeris_features import AerisFeatures
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.constants.privileges import ClientPrivileges, Privileges
+from app.constants.privileges import ClientPrivileges
+from app.constants.privileges import Privileges
 from app.discord import Webhook
-from app.logging import Ansi, log, logLevel
+from app.logging import Ansi
+from app.logging import log
+from app.logging import logLevel
 from app.objects.channel import Channel
-from app.objects.match import Match, MatchTeams, MatchTeamTypes, Slot, SlotStatus
-from app.objects.score import Grade, Score
+from app.objects.match import Match
+from app.objects.match import MatchTeams
+from app.objects.match import MatchTeamTypes
+from app.objects.match import Slot
+from app.objects.match import SlotStatus
+from app.objects.score import Grade
+from app.objects.score import Score
 from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
 from app.repositories import seasons as seasons_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.state.services import Geolocation
-from app.utils import escape_enum, make_safe_name, pymysql_encode
+from app.utils import escape_enum
+from app.utils import make_safe_name
+from app.utils import pymysql_encode
 
 if TYPE_CHECKING:
     from app.constants.privileges import ClanPrivileges
@@ -453,7 +467,9 @@ class Player:
                             # Set stats first so update_season_rank can read them
                             self.set_season_stats(season["id"], mode, mode_data)
                             await self.update_season_rank(season["id"], mode)
-                            mode_data.rank = await self.get_season_rank(season["id"], mode)
+                            mode_data.rank = await self.get_season_rank(
+                                season["id"], mode
+                            )
         except Exception as e:
             log(
                 f"Failed to load season stats for {self}: {e}",
@@ -714,7 +730,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]
+            _ = asyncio.create_task(webhook.post())  # noqa: RUF006
 
         # refresh their client state
         if self.is_online:
@@ -754,7 +770,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            asyncio.create_task(webhook.post())  # type: ignore[unused-awaitable]
+            _ = asyncio.create_task(webhook.post())  # noqa: RUF006
 
         if self.is_online:
             # log the user out if they're offline, this
@@ -810,9 +826,29 @@ class Player:
 
         log(f"Unsilenced {self}.", Ansi.LCYAN)
 
+    def _special_case_disconnected_rejoin(self, match: Match, passwd: str) -> bool:
+        """This method will allow user to rejoin a match they were disconnected from. If everything's working properly, this method should never be called."""
+
+        reverse_slot_search = match.get_slot(self)
+        lobby = app.state.sessions.channels.get_by_name("#lobby")
+        if reverse_slot_search is None:
+            # recoverable, reset user state before perform normal join.
+            self.match = None
+            self.leave_channel(match.chat)
+            self.join_channel(lobby) if lobby else None
+            return self.join_match(match, passwd)
+
+        # user is in the match, but was disconnected.
+        self.join_channel(match.chat)
+        self.leave_channel(lobby) if lobby else None
+        self.enqueue(app.packets.match_join_success(match))
+        return True
+
     def join_match(self, match: Match, passwd: str) -> bool:
         """Attempt to add `self` to `match`."""
         if self.match:
+            if self.match.id == match.id:
+                return self._special_case_disconnected_rejoin(match, passwd)
             log(f"{self} tried to join multiple matches?")
             self.enqueue(app.packets.match_join_fail())
             return False
@@ -872,8 +908,12 @@ class Player:
             return
 
         slot = self.match.get_slot(self)
-        assert slot is not None
-
+        if slot is None:
+            log(
+                f"{self} tried leaving a match, but slot couldn't be found?",
+                Ansi.LYELLOW,
+            )
+            return
         if slot.status == SlotStatus.locked:
             # player was kicked, keep the slot locked.
             new_status = SlotStatus.locked
@@ -927,8 +967,10 @@ class Player:
         if (
             self in channel
             or not channel.can_read(self.priv)  # player already in channel
-            or channel.real_name == "#lobby"  # no read privs
-            and not self.in_lobby  # not in mp lobby
+            or (
+                channel.real_name == "#lobby"  # no read privs
+                and not self.in_lobby
+            )  # not in mp lobby
         ):
             return False
 
@@ -1039,7 +1081,8 @@ class Player:
         player.spectating = None
 
         channel = app.state.sessions.channels.get_by_name(f"#spec_{self.id}")
-        assert channel is not None
+        if channel is None:
+            raise RuntimeError(f"Spectator channel #spec_{self.id} not found")
 
         player.leave_channel(channel)
 
@@ -1156,7 +1199,7 @@ class Player:
             f"bancho:leaderboard:{mode.value}",
             str(self.id),
         )
-        return cast(int, rank) + 1 if rank is not None else 0
+        return cast("int", rank) + 1 if rank is not None else 0
 
     async def get_season_rank(self, season_id: int, mode: GameMode) -> int:
         """Get the player's rank in a specific season and mode."""
@@ -1167,7 +1210,7 @@ class Player:
             f"bancho:leaderboard:{mode.value}:season:{season_id}",
             str(self.id),
         )
-        return cast(int, rank) + 1 if rank is not None else 0
+        return cast("int", rank) + 1 if rank is not None else 0
 
     async def get_country_rank(self, mode: GameMode) -> int:
         if self.restricted:
@@ -1179,7 +1222,7 @@ class Player:
             str(self.id),
         )
 
-        return cast(int, rank) + 1 if rank is not None else 0
+        return cast("int", rank) + 1 if rank is not None else 0
 
     async def update_rank(self, mode: GameMode) -> int:
         country = self.geoloc["country"]["acronym"]
@@ -1270,7 +1313,8 @@ class Player:
             id=self.id,
             latest_activity=int(time.time()),
         )
-        app.state.loop.create_task(task)  # type: ignore[unused-awaitable]
+        if app.state.loop is not None:
+            app.state.loop.create_task(task)  # type: ignore[unused-awaitable]
 
     def enqueue(self, data: bytes) -> None:
         """Add data to be sent to the client."""
@@ -1305,6 +1349,8 @@ class Player:
     def send_bot(self, msg: str) -> None:
         """Enqueue `msg` to `self` from bot."""
         bot = app.state.sessions.bot
+        if bot is None:
+            return
 
         self.enqueue(
             app.packets.send_message(

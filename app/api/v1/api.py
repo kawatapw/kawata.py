@@ -84,6 +84,7 @@ Related Files:
 """
 
 # from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import hashlib
@@ -91,12 +92,17 @@ import json
 import random
 import struct
 from pathlib import Path as SystemPath
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
 import orjson
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import status
 from fastapi.param_functions import Query
-from fastapi.responses import ORJSONResponse, Response
+from fastapi.responses import ORJSONResponse
+from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials as HTTPCredentials
 from fastapi.security import HTTPBearer
 
@@ -107,8 +113,12 @@ import app.usecases.performance
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.logging import error_catcher, log, logLevel
-from app.objects.beatmap import Beatmap, RankedStatus, ensure_osu_file_is_available
+from app.logging import error_catcher
+from app.logging import log
+from app.logging import logLevel
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import RankedStatus
+from app.objects.beatmap import ensure_osu_file_is_available
 from app.repositories import clans as clans_repo
 from app.repositories import maps as maps_repo
 from app.repositories import scores as scores_repo
@@ -155,17 +165,17 @@ DATETIME_OFFSET = 0x89F7FF5F7B58000
 @router.get("/calculate_pp")
 @error_catcher
 async def api_calculate_pp(
-    token: HTTPCredentials | None = api_key_dependency,  # noqa: B008
-    beatmap_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),  # noqa: B008
-    nkatu: int | None = Query(None, le=2_147_483_647),  # noqa: B008
-    ngeki: int | None = Query(None, le=2_147_483_647),  # noqa: B008
-    n100: int | None = Query(None, le=2_147_483_647),  # noqa: B008
-    n50: int | None = Query(None, le=2_147_483_647),  # noqa: B008
-    misses: int = Query(0, le=2_147_483_647),  # noqa: B008
-    mods: int = Query(0, ge=0, le=2_147_483_647),  # noqa: B008
-    mode: int = Query(0, ge=0, le=11),  # noqa: B008
-    combo: int | None = Query(None, le=2_147_483_647),  # noqa: B008
-    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),  # noqa: B008
+    token: HTTPCredentials | None = api_key_dependency,
+    beatmap_id: int | None = Query(None, alias="id", ge=0, le=2_147_483_647),
+    nkatu: int | None = Query(None, le=2_147_483_647),
+    ngeki: int | None = Query(None, le=2_147_483_647),
+    n100: int | None = Query(None, le=2_147_483_647),
+    n50: int | None = Query(None, le=2_147_483_647),
+    misses: int = Query(0, le=2_147_483_647),
+    mods: int = Query(0, ge=0, le=2_147_483_647),
+    mode: int = Query(0, ge=0, le=11),
+    combo: int | None = Query(None, le=2_147_483_647),
+    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
 ) -> ORJSONResponse:
     """Calculates the PP of a specified map with specified score parameters."""
 
@@ -250,10 +260,10 @@ async def api_calculate_pp(
 @router.get("/calculate_pp_batch")
 @error_catcher
 async def api_calculate_pp_batch(
-    token: HTTPCredentials = Depends(http_bearer_scheme),  # noqa: B008
-    beatmap_ids: list[int] = Query([], alias="id"),  # noqa: B008
-    mods: int = Query(0, min=0, max=2_147_483_647),  # noqa: B008
-    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),  # noqa: B008
+    token: HTTPCredentials = Depends(http_bearer_scheme),
+    beatmap_ids: list[int] = Query([], alias="id"),
+    mods: int = Query(0, min=0, max=2_147_483_647),
+    acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
 ) -> Response:
     """Calculate PP for multiple beatmap diffs in a single request.
 
@@ -286,9 +296,7 @@ async def api_calculate_pp_batch(
         )
 
     # Fetch map metadata directly from DB (avoids osu! API race conditions)
-    placeholders = ", ".join(
-        [f":id_{i}" for i in range(len(beatmap_ids))]
-    )
+    placeholders = ", ".join([f":id_{i}" for i in range(len(beatmap_ids))])
     params = {f"id_{i}": bid for i, bid in enumerate(beatmap_ids)}
     rows = await app.state.services.database.fetch_all(
         f"SELECT id, md5, mode FROM maps WHERE id IN ({placeholders})",  # nosec B608
@@ -302,9 +310,7 @@ async def api_calculate_pp_batch(
             db_maps[row["id"]] = {"md5": row["md5"], "mode": row["mode"]}
 
     # Ensure .osu files are available in parallel
-    maps_to_check = [
-        (bid, db_maps[bid]) for bid in beatmap_ids if bid in db_maps
-    ]
+    maps_to_check = [(bid, db_maps[bid]) for bid in beatmap_ids if bid in db_maps]
     if maps_to_check:
         osu_results = await asyncio.gather(
             *[
@@ -332,10 +338,7 @@ async def api_calculate_pp_batch(
         bmap_info = db_maps[bid]
         vanilla_mode = GameMode(bmap_info["mode"]).as_vanilla
 
-        scores = [
-            ScoreParams(vanilla_mode, mods, acc=acc)
-            for acc in acclist
-        ]
+        scores = [ScoreParams(vanilla_mode, mods, acc=acc) for acc in acclist]
 
         try:
             perf_results = app.usecases.performance.calculate_performances(
@@ -348,14 +351,16 @@ async def api_calculate_pp_batch(
 
         pp_values = []
         for perf, score in zip(perf_results, scores, strict=False):
-            pp_values.append({
-                "accuracy": score.acc,
-                "pp": perf["performance"]["pp"],
-                "pp_aim": perf["performance"].get("pp_aim", 0),
-                "pp_speed": perf["performance"].get("pp_speed", 0),
-                "pp_flashlight": perf["performance"].get("pp_flashlight", 0),
-                "pp_acc": perf["performance"].get("pp_acc", 0),
-            })
+            pp_values.append(
+                {
+                    "accuracy": score.acc,
+                    "pp": perf["performance"]["pp"],
+                    "pp_aim": perf["performance"].get("pp_aim", 0),
+                    "pp_speed": perf["performance"].get("pp_speed", 0),
+                    "pp_flashlight": perf["performance"].get("pp_flashlight", 0),
+                    "pp_acc": perf["performance"].get("pp_acc", 0),
+                }
+            )
 
         difficulty_result = perf_results[0]["difficulty"] if perf_results else None
         results[str(bid)] = {
@@ -465,7 +470,7 @@ async def api_get_player_info(
         # Fetch badges
         badges_response = await api_get_badges(user_id=resolved_user_id)
         badges_data = orjson.loads(badges_response.body)
-        if "badges" in badges_data and badges_data["badges"]:
+        if badges_data.get("badges"):
             info["badges"] = badges_data["badges"]
 
     # fetch user's stats if requested
@@ -699,20 +704,18 @@ async def api_get_player_status(
                     "player_status": results[identifier]["player_status"],
                 },
             )
-        else:
-            # Return error in backward-compatible format
-            error_result = results.get(identifier, {})
-            error_message = error_result.get("message", "Unknown error")
-            if "not found" in error_message.lower():
-                return ORJSONResponse(
-                    {"status": "Player not found."},
-                    status_code=status.HTTP_404_NOT_FOUND,
-                )
-            else:
-                return ORJSONResponse(
-                    {"status": error_message},
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                )
+        # Return error in backward-compatible format
+        error_result = results.get(identifier, {})
+        error_message = error_result.get("message", "Unknown error")
+        if "not found" in error_message.lower():
+            return ORJSONResponse(
+                {"status": "Player not found."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        return ORJSONResponse(
+            {"status": error_message},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Return batch format for multiple players
     return ORJSONResponse(
@@ -1193,8 +1196,7 @@ async def api_get_score_info(
                 "beatmap_info": beatmap_info.as_dict if beatmap_info else None,
             },
         )
-    else:
-        return ORJSONResponse({"status": "success", "score": score})
+    return ORJSONResponse({"status": "success", "score": score})
 
 
 @router.get("/get_replay")
@@ -1411,7 +1413,7 @@ async def api_get_global_leaderboard(
         "LEFT JOIN users u USING (id) "
         "LEFT JOIN clans c ON u.clan_id = c.id "
         f"WHERE {' AND '.join(query_conditions)} "  # nosec B608
-        f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",  # noqa: E501  # nosec B608
+        f"ORDER BY s.{sort} DESC LIMIT :offset, :limit",  # nosec B608
         query_parameters | {"offset": offset, "limit": limit},
     )
     if rows is None:
@@ -1420,7 +1422,7 @@ async def api_get_global_leaderboard(
         player = dict(row)
         badges_response = await api_get_badges(user_id=player["player_id"])
         badges_data = orjson.loads(badges_response.body)
-        if "badges" in badges_data and badges_data["badges"]:
+        if badges_data.get("badges"):
             player["badges"] = badges_data["badges"]
         rows[i] = player
 
@@ -1444,7 +1446,12 @@ async def api_get_top_players() -> Response:
 
         mode = GameMode(mode_arg)
 
-        query_conditions = ["s.mode = :mode", "u.priv & 1", "s.pp > 0", "s.season_id = 0"]
+        query_conditions = [
+            "s.mode = :mode",
+            "u.priv & 1",
+            "s.pp > 0",
+            "s.season_id = 0",
+        ]
         query_parameters: dict[str, object] = {"mode": mode}
 
         rows = await app.state.services.database.fetch_all(
@@ -1458,7 +1465,7 @@ async def api_get_top_players() -> Response:
             "LEFT JOIN users u USING (id) "
             "LEFT JOIN clans c ON u.clan_id = c.id "
             f"WHERE {' AND '.join(query_conditions)} "  # nosec B608
-            f"ORDER BY s.pp DESC LIMIT 3",  # noqa: E501  # nosec B608
+            f"ORDER BY s.pp DESC LIMIT 3",  # nosec B608
             query_parameters,
         )
         if rows is None:
@@ -1467,7 +1474,7 @@ async def api_get_top_players() -> Response:
             player = dict(row)
             badges_response = await api_get_badges(user_id=player["player_id"])
             badges_data = orjson.loads(badges_response.body)
-            if "badges" in badges_data and badges_data["badges"]:
+            if badges_data.get("badges"):
                 player["badges"] = badges_data["badges"]
             rows[i] = player
 
@@ -1494,7 +1501,8 @@ async def api_get_clan(
     clan_members = await users_repo.fetch_many(clan_id=clan["id"])
 
     owner = await app.state.sessions.players.from_cache_or_sql(id=clan["owner"])
-    assert owner is not None
+    if owner is None:
+        raise RuntimeError("Clan owner not found")
 
     return ORJSONResponse(
         {
@@ -1648,7 +1656,7 @@ async def api_get_friends(
         friends = [row["user2"] for row in friends]
         return ORJSONResponse({"status": "success", "friends": friends})
 
-    elif scope == "mutuals":
+    if scope == "mutuals":
         # Query for all mutual friends of the resolved user_id
         mutuals = await app.state.services.database.fetch_all(
             """
@@ -1665,7 +1673,7 @@ async def api_get_friends(
         mutuals = [row["user2"] for row in mutuals]
         return ORJSONResponse({"status": "success", "mutuals": mutuals})
 
-    elif scope == "all":
+    if scope == "all":
         # Query for both friends and mutual friends of the resolved user_id
         friends = await app.state.services.database.fetch_all(
             """
@@ -1693,6 +1701,10 @@ async def api_get_friends(
         return ORJSONResponse(
             {"status": "success", "friends": friends, "mutuals": mutuals},
         )
+
+    return ORJSONResponse(
+        {"status": "Invalid scope"}, status_code=status.HTTP_400_BAD_REQUEST
+    )
 
 
 @router.get("/get_badges")
@@ -1890,10 +1902,7 @@ async def api_get_online_players_sample(
 ) -> Response:
     """Return a sample of currently online players for home page display."""
     # Get unrestricted online players (exclude bot, ID 1)
-    online = [
-        p for p in app.state.sessions.players.unrestricted
-        if p.id > 1
-    ]
+    online = [p for p in app.state.sessions.players.unrestricted if p.id > 1]
 
     # Sample random players (or return all if fewer than limit)
     if len(online) > limit:
@@ -1903,22 +1912,30 @@ async def api_get_online_players_sample(
 
     players = []
     for p in sample:
-        players.append({
-            "id": p.id,
-            "name": p.name,
-            "country": p.geoloc["country"]["acronym"],
-            "clan_id": p.clan["id"] if p.clan else None,
-            "clan_tag": p.clan["tag"] if p.clan else None,
-            "pp": round(p.gm_stats.pp, 2) if hasattr(p.gm_stats, 'pp') else 0,
-            "rank": p.gm_stats.rank if hasattr(p.gm_stats, 'rank') else 0,
-            "status": {
-                "online": True,
-                "action": p.status.action.value if hasattr(p.status, 'action') else 0,
-                "info_text": p.status.info_text if hasattr(p.status, 'info_text') else "",
-            },
-        })
+        players.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "country": p.geoloc["country"]["acronym"],
+                "clan_id": p.clan["id"] if p.clan else None,
+                "clan_tag": p.clan["tag"] if p.clan else None,
+                "pp": round(p.gm_stats.pp, 2) if hasattr(p.gm_stats, "pp") else 0,
+                "rank": p.gm_stats.rank if hasattr(p.gm_stats, "rank") else 0,
+                "status": {
+                    "online": True,
+                    "action": (
+                        p.status.action.value if hasattr(p.status, "action") else 0
+                    ),
+                    "info_text": (
+                        p.status.info_text if hasattr(p.status, "info_text") else ""
+                    ),
+                },
+            }
+        )
 
-    return ORJSONResponse({
-        "status": "success",
-        "players": players,
-    })
+    return ORJSONResponse(
+        {
+            "status": "success",
+            "players": players,
+        }
+    )

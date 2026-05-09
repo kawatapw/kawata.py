@@ -55,6 +55,7 @@ Related Files:
 from __future__ import annotations
 
 import logging
+import sys
 
 import uvicorn
 
@@ -89,4 +90,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

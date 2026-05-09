@@ -1,22 +1,19 @@
 # Parsers module
 # Auto-import all parsers to trigger registration
+from __future__ import annotations
 
-from . import (
-    bandit_parser,  # noqa: F401
-    generic_parser,  # noqa: F401
-    mypy_parser,  # noqa: F401
-    pytest_parser,  # noqa: F401
-    ruff_parser,  # noqa: F401
-    safety_parser,  # noqa: F401
-    trivy_parser,  # noqa: F401
-)
+from . import bandit_parser
+from . import generic_parser
+from . import mypy_parser
+from . import pytest_parser
+from . import ruff_parser
+from . import safety_parser
+from . import trivy_parser
 
 # Re-export registry functions for convenience
-from .registry import (  # noqa: F401
-    Parser,
-    detect_parser,
-    get_parser,
-    list_parsers,
-    parse_file,
-    register_parser,
-)
+from .registry import Parser
+from .registry import detect_parser
+from .registry import get_parser
+from .registry import list_parsers
+from .registry import parse_file
+from .registry import register_parser

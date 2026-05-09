@@ -28,26 +28,26 @@ shell:
 
 test:
 	@bash -c 'set -e; trap "docker compose -f docker-compose.test.yml down --volumes --remove-orphans" EXIT; \
-	docker compose -f docker-compose.test.yml up -d bancho-test mysql-test redis-test; \
-	docker compose -f docker-compose.test.yml exec -T bancho-test /srv/root/scripts/run-tests.sh'
+	docker compose -f docker-compose.test.yml --env-file .env.test up -d bancho-test mysql-test redis-test; \
+	docker compose -f docker-compose.test.yml --env-file .env.test exec -T bancho-test /srv/root/scripts/run-tests.sh'
 
 # Run ruff linter (read-only; use `make format` for autofix)
 lint:
 	uv run ruff check .
 
-# Format code with black and ruff
+# Format code with ruff (replaces black + isort + autoflake)
 format:
-	uv run black .
+	uv run ruff format .
 	uv run ruff check . --fix
 
-# Check formatting without modifying
+# Check formatting and lint without modifying
 format-check:
-	uv run black . --check
+	uv run ruff format --check .
 	uv run ruff check .
 
 # Run ty type checker (primary)
 type-check:
-	uv run ty check . --exclude .venv --exclude tools --exclude tests
+	uv run ty check . --exclude .venv
 
 # Run mypy type checker (fallback)
 type-check2:
@@ -60,6 +60,9 @@ type-check3:
 # Run bandit security scanner
 security-check:
 	uv run bandit -r . -ll --exclude ".venv,venv,tests,testing,migrations,tools,__pycache__"
+
+# Run all checks (format-check + lint + type-check + security-check)
+check-all: format-check type-check security-check
 
 install:
 	uv sync --all-extras --dev

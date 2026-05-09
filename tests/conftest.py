@@ -55,7 +55,8 @@ async def http_client(app: ASGIApp) -> AsyncIterator[httpx.AsyncClient]:
     async with httpx.AsyncClient(app=app, base_url="http://test") as client:
         yield client
 
-@pytest.fixture(autouse=True, scope='session')
+
+@pytest.fixture(autouse=True, scope="session")
 def configure_test_logging():
     """Configure structlog and logging for tests."""
     # 1. Configure structlog to use standard library logging
@@ -83,7 +84,7 @@ def configure_test_logging():
     handler.setLevel(logging.DEBUG)
 
     # Get the 'console' logger used by your log function
-    console_logger = logging.getLogger('console')
+    console_logger = logging.getLogger("console")
     console_logger.setLevel(logging.DEBUG)
     console_logger.addHandler(handler)
 
@@ -101,5 +102,12 @@ def configure_test_logging():
         root_logger.removeHandler(handler)
     handler.close()
 
+
 pytest_plugins = []
 
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "requires_db: mark test as requiring database connection"
+    )

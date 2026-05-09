@@ -77,13 +77,19 @@ Related Files:
     - app/constants/aeris_features.py: Aeris feature flag definitions
 """
 
+from __future__ import annotations
+
 import app.settings
 from app.constants.aeris_features import AerisFeatures
-from app.logging import Ansi, log
+from app.logging import Ansi
+from app.logging import log
 from app.objects.group import Group
 from app.objects.player import Player
-from app.packets import BanchoPacketReader, BasePacket, ClientPackets
-from app.state.sessions import groups, players
+from app.packets import BanchoPacketReader
+from app.packets import BasePacket
+from app.packets import ClientPackets
+from app.state.sessions import groups
+from app.state.sessions import players
 
 from .common import register
 

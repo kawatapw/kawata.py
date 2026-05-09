@@ -87,18 +87,21 @@ import sys
 import time
 import traceback
 import types
-from collections.abc import Callable, Mapping, MutableMapping
-from datetime import date, datetime
+from collections.abc import Callable
+from collections.abc import Mapping
+from collections.abc import MutableMapping
+from datetime import date
+from datetime import datetime
 from datetime import time as datetime_time
 from enum import IntEnum
-from ipaddress import IPv4Address, IPv4Network, ip_address
+from ipaddress import IPv4Address
+from ipaddress import IPv4Network
+from ipaddress import ip_address
 from logging import Handler
-from typing import (
-    Any,
-    ParamSpec,
-    TypeVar,
-    cast,
-)
+from typing import Any
+from typing import ParamSpec
+from typing import TypeVar
+from typing import cast
 from zoneinfo import ZoneInfo
 
 import jsons  # type: ignore[import-untyped]
@@ -207,15 +210,15 @@ def serialize_value(value: Any, seen: set[int] | None = None) -> Any:
         # Handle basic types first
         if isinstance(value, datetime | date | datetime_time):
             return value.isoformat()
-        elif isinstance(value, decimal.Decimal):
+        if isinstance(value, decimal.Decimal):
             return float(value)
-        elif isinstance(value, bytes):
+        if isinstance(value, bytes):
             return value.decode("utf-8")
-        elif isinstance(value, int | float | str | bool | None):
+        if isinstance(value, int | float | str | bool | None):
             return value
-        elif isinstance(value, list | set | tuple):
+        if isinstance(value, list | set | tuple):
             return [serialize_value(item, seen) for item in value]
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             return {str(key): serialize_value(val, seen) for key, val in value.items()}
 
         # Handle Request objects specially
@@ -266,13 +269,12 @@ def serialize_value(value: Any, seen: set[int] | None = None) -> Any:
             obj_info["repr"] = str_repr
 
             return obj_info
-        else:
-            # For objects without __dict__, use string representation
-            str_repr = str(value)
-            # Remove memory address from repr if present
-            if " at 0x" in str_repr:
-                return f"<{type(value).__name__}>"
-            return str_repr
+        # For objects without __dict__, use string representation
+        str_repr = str(value)
+        # Remove memory address from repr if present
+        if " at 0x" in str_repr:
+            return f"<{type(value).__name__}>"
+        return str_repr
 
     except Exception as exc:
         # If anything fails, return a safe string representation
@@ -302,12 +304,16 @@ class BytesJsonFormatter(jsonlogger.JsonFormatter):
         # Convert only keys and values that are not of type str, int, float, bool, or None
         # Exclude exc_info as it needs to remain a tuple for proper exception formatting
         record.__dict__ = {
-            str(k)
-            if not isinstance(k, str | int | float | bool | type(None))  # type: ignore[redundant-expr]
-            else k: str(v)
-            if not isinstance(v, str | int | float | bool | type(None))
-            and k != "exc_info"
-            else v
+            (
+                str(k)
+                if not isinstance(k, str | int | float | bool | type(None))  # type: ignore[redundant-expr]
+                else k
+            ): (
+                str(v)
+                if not isinstance(v, str | int | float | bool | type(None))
+                and k != "exc_info"
+                else v
+            )
             for k, v in record.__dict__.items()
         }
 
@@ -432,10 +438,7 @@ class DebugFilter(logging.Filter):
             return False
 
         # Check if the debug focus is 'all' or matches the logger name
-        if settings.DEBUG_FOCUS != "all" and settings.DEBUG_FOCUS != debug_focus:
-            return False
-
-        return True
+        return settings.DEBUG_FOCUS in ("all", debug_focus)
 
 
 debug_filter = DebugFilter()
@@ -548,19 +551,17 @@ def log(
     # Get the logger find a suitable default if one not provided.
     if logger:
         log_obj = structlog.get_logger(logger)
-    else:
-        if start_color is Ansi.LYELLOW:
-            log_obj = structlog.get_logger("console.warn")
-        elif start_color is Ansi.LRED:
-            log_obj = structlog.get_logger("console.error")
+    elif start_color is Ansi.LYELLOW:
+        log_obj = structlog.get_logger("console.warn")
+    elif start_color is Ansi.LRED:
+        log_obj = structlog.get_logger("console.error")
+    elif level:
+        if level <= 19:
+            log_obj = structlog.get_logger("console.debug")
         else:
-            if level:
-                if level <= 19:
-                    log_obj = structlog.get_logger("console.debug")
-                else:
-                    log_obj = structlog.get_logger("console.info")
-            else:
-                log_obj = structlog.get_logger("console.info")
+            log_obj = structlog.get_logger("console.info")
+    else:
+        log_obj = structlog.get_logger("console.info")
 
     if level == logging.INFO and not levelow:
         if start_color is Ansi.LYELLOW:
@@ -713,13 +714,15 @@ class StructlogFormatter(logging.Formatter):
             module_name, class_name = processor.rsplit(".", 1)
             module = importlib.import_module(module_name)
             return getattr(module, class_name)()
-        elif isinstance(processor, dict):
+        if isinstance(processor, dict):
             module_name, class_name = processor["class"].rsplit(".", 1)
             module = importlib.import_module(module_name)
             class_ = getattr(module, class_name)
             args = processor.get("args", [])
             kwargs = processor.get("kwargs", {})
             return class_(*args, **kwargs)
+
+        return None
 
     def format(self, record: logging.LogRecord) -> str:
         event_dict: dict[str, Any] = {
@@ -767,12 +770,11 @@ class LogEncoder(json.JSONEncoder):
         try:
             if isinstance(o, datetime):
                 return o.isoformat()
-            elif isinstance(o, bytes):
+            if isinstance(o, bytes):
                 return o.decode("utf-8")
-            elif hasattr(o, "__dict__"):
+            if hasattr(o, "__dict__"):
                 return {k: self.default(v) for k, v in o.__dict__.items()}
-            else:
-                return str(o)
+            return str(o)
         finally:
             # Remove the object from the set of currently processing objects
             self.currently_processing.remove(id(o))
@@ -806,7 +808,7 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
-                return cast(R, await func(*args, **kwargs))
+                return cast("R", await func(*args, **kwargs))
             except Exception as e:
                 # Capture the exception info before doing anything else
                 exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -835,41 +837,40 @@ def error_catcher(func: Callable[P, R]) -> Callable[P, R]:
                 raise
 
         # Preserve __globals__ for forward reference resolution
-        cast(Any, async_wrapper).__globals__.update(getattr(func, "__globals__", {}))
-        return cast(Callable[P, R], async_wrapper)
-    else:
+        cast("Any", async_wrapper).__globals__.update(getattr(func, "__globals__", {}))
+        return cast("Callable[P, R]", async_wrapper)
 
-        @functools.wraps(func)
-        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                # Capture the exception info before doing anything else
-                exc_type, exc_value, exc_traceback = sys.exc_info()
+    @functools.wraps(func)
+    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            # Capture the exception info before doing anything else
+            exc_type, exc_value, exc_traceback = sys.exc_info()
 
-                log(
-                    f"Error in {getattr(func, '__name__', 'unknown')}: {e}",
-                    start_color=Ansi.LRED,
-                    level=logging.ERROR,
-                    extra={
-                        "error": f"{e}",
-                        "original_traceback": "".join(
-                            traceback.format_exception(
-                                exc_type,
-                                exc_value,
-                                exc_traceback,
-                            ),
+            log(
+                f"Error in {getattr(func, '__name__', 'unknown')}: {e}",
+                start_color=Ansi.LRED,
+                level=logging.ERROR,
+                extra={
+                    "error": f"{e}",
+                    "original_traceback": "".join(
+                        traceback.format_exception(
+                            exc_type,
+                            exc_value,
+                            exc_traceback,
                         ),
-                        "exception_location": traceback.extract_tb(exc_traceback)[
-                            -1
-                        ],  # Last frame is where exception occurred
-                        "function_name": getattr(func, "__name__", "unknown"),
-                        "function_module": getattr(func, "__module__", "unknown"),
-                    },
-                )
-                # Re-raise the exception to maintain expected behavior
-                raise
+                    ),
+                    "exception_location": traceback.extract_tb(exc_traceback)[
+                        -1
+                    ],  # Last frame is where exception occurred
+                    "function_name": getattr(func, "__name__", "unknown"),
+                    "function_module": getattr(func, "__module__", "unknown"),
+                },
+            )
+            # Re-raise the exception to maintain expected behavior
+            raise
 
-        # Preserve __globals__ for forward reference resolution
-        cast(Any, sync_wrapper).__globals__.update(getattr(func, "__globals__", {}))
-        return cast(Callable[P, R], sync_wrapper)
+    # Preserve __globals__ for forward reference resolution
+    cast("Any", sync_wrapper).__globals__.update(getattr(func, "__globals__", {}))
+    return cast("Callable[P, R]", sync_wrapper)

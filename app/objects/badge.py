@@ -67,12 +67,7 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from app.objects.badge_style import Badge_Style
-
-if TYPE_CHECKING:
-    pass
 
 __all__ = ("Badge",)
 

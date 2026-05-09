@@ -64,11 +64,15 @@ from __future__ import annotations
 import json
 import time
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.logging import Ansi, format_request, log, magnitude_fmt_time
+from app.logging import Ansi
+from app.logging import format_request
+from app.logging import log
+from app.logging import magnitude_fmt_time
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):

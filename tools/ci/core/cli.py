@@ -6,6 +6,8 @@ can rely on a single, well-defined `argparse` schema. The CLI follows a
 capabilities such as workflow tracking, summary generation, and reports.
 """
 
+from __future__ import annotations
+
 import argparse
 
 

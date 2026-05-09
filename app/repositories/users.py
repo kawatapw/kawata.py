@@ -110,13 +110,22 @@ Related Files:
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
+from typing import cast
 
-from sqlalchemy import Column, Index, Integer, String, func, insert, select, update
+from sqlalchemy import Column
+from sqlalchemy import Index
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.dialects.mysql import TINYINT
 
 import app.state.services
-from app._typing import UNSET, _UnsetSentinel
+from app._typing import UNSET
+from app._typing import _UnsetSentinel
 from app.repositories import Base
 from app.utils import make_safe_name
 
@@ -223,8 +232,9 @@ async def create(
 
     select_stmt = select(*READ_PARAMS).where(UsersTable.id == rec_id)
     user = await app.state.services.database.fetch_one(select_stmt)
-    assert user is not None
-    return cast(User, user)
+    if user is None:
+        raise RuntimeError("Failed to fetch created user")
+    return cast("User", user)
 
 
 async def fetch_one(
@@ -250,7 +260,7 @@ async def fetch_one(
         select_stmt = select_stmt.where(UsersTable.email == email)
 
     user = await app.state.services.database.fetch_one(select_stmt)
-    return cast(User | None, user)
+    return cast("User | None", user)
 
 
 async def fetch_count(
@@ -277,8 +287,9 @@ async def fetch_count(
         select_stmt = select_stmt.where(UsersTable.play_style == play_style)
 
     rec = await app.state.services.database.fetch_one(select_stmt)
-    assert rec is not None
-    return cast(int, rec["count"])
+    if rec is None:
+        raise RuntimeError("Failed to fetch users count")
+    return cast("int", rec["count"])
 
 
 async def fetch_many(
@@ -310,7 +321,7 @@ async def fetch_many(
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
 
     users = await app.state.services.database.fetch_all(select_stmt)
-    return cast(list[User], users)
+    return cast("list[User]", users)
 
 
 async def partial_update(
@@ -377,7 +388,7 @@ async def partial_update(
 
     select_stmt = select(*READ_PARAMS).where(UsersTable.id == id)
     user = await app.state.services.database.fetch_one(select_stmt)
-    return cast(User | None, user)
+    return cast("User | None", user)
 
 
 # TODO: delete?

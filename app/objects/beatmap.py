@@ -87,10 +87,13 @@ import functools
 import hashlib
 from collections import defaultdict
 from collections.abc import Mapping
-from datetime import datetime, timedelta
-from enum import IntEnum, unique
+from datetime import datetime
+from datetime import timedelta
+from enum import IntEnum
+from enum import unique
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any
+from typing import TypedDict
 
 import httpx
 from tenacity import retry
@@ -100,9 +103,11 @@ import app.settings
 import app.state
 import app.utils
 from app.constants.gamemodes import GameMode
-from app.logging import Ansi, log
+from app.logging import Ansi
+from app.logging import log
 from app.repositories import maps as maps_repo
-from app.utils import escape_enum, pymysql_encode
+from app.utils import escape_enum
+from app.utils import pymysql_encode
 
 # from dataclasses import dataclass
 
@@ -781,7 +786,7 @@ class BeatmapSet:
                         or old_map.status != new_ranked_status
                     ):
                         # update map from old_maps
-                        bmap = old_maps[old_id]
+                        bmap = old_map
                         bmap._parse_from_osuapi_resp(new_map)
                         updated_maps.append(bmap)
                     else:

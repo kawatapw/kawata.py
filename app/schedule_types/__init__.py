@@ -130,10 +130,10 @@ def register_schedule_provider(
 
 
 __all__ = [
-    "ScheduleTypeProvider",
     "SCHEDULE_PROVIDERS",
-    "get_schedule_provider",
-    "get_provider_for_schedule_type",
+    "ScheduleTypeProvider",
     "get_all_schedule_types",
+    "get_provider_for_schedule_type",
+    "get_schedule_provider",
     "register_schedule_provider",
 ]

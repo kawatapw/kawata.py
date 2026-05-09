@@ -11,6 +11,8 @@ The final configuration dictionary is passed around to other modules and
 backends and is expected to be JSON-serializable.
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 from pathlib import Path

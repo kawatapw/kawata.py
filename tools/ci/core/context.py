@@ -11,6 +11,8 @@ passed around to modules that need to understand:
 - Whether the current process is attached to an interactive terminal
 """
 
+from __future__ import annotations
+
 import os
 import sys
 from dataclasses import dataclass

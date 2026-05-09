@@ -64,28 +64,30 @@ async def get_most_played(
     maps_list: list[dict[str, Any]] = []
     for row in rows or []:
         set_id = int(row["set_id"])
-        maps_list.append({
-            "map_id": int(row["map_id"]),
-            "set_id": set_id,
-            "md5": row["md5"],
-            "artist": row["artist"],
-            "title": row["title"],
-            "version": row["version"],
-            "creator": row["creator"],
-            "plays": int(row["plays"]),
-            "passes": int(row["passes"]),
-            "mode": int(row["mode"]),
-            "status": int(row["status"]),
-            "diff": float(row["diff"]),
-            "bpm": float(row["bpm"]),
-            "cs": float(row["cs"]),
-            "ar": float(row["ar"]),
-            "od": float(row["od"]),
-            "hp": float(row["hp"]),
-            "max_combo": int(row["max_combo"]),
-            "total_length": int(row["total_length"]),
-            **cover_urls(set_id),
-        })
+        maps_list.append(
+            {
+                "map_id": int(row["map_id"]),
+                "set_id": set_id,
+                "md5": row["md5"],
+                "artist": row["artist"],
+                "title": row["title"],
+                "version": row["version"],
+                "creator": row["creator"],
+                "plays": int(row["plays"]),
+                "passes": int(row["passes"]),
+                "mode": int(row["mode"]),
+                "status": int(row["status"]),
+                "diff": float(row["diff"]),
+                "bpm": float(row["bpm"]),
+                "cs": float(row["cs"]),
+                "ar": float(row["ar"]),
+                "od": float(row["od"]),
+                "hp": float(row["hp"]),
+                "max_combo": int(row["max_combo"]),
+                "total_length": int(row["total_length"]),
+                **cover_urls(set_id),
+            }
+        )
 
     payload = {
         "status": "success",

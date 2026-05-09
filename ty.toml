@@ -2,6 +2,7 @@
 # See: https://docs.astral.sh/ty/
 
 [environment]
+python-version = "3.11"
 # Add tools/ci to the module search path for the CI tools
 extra-paths = ["tools/ci"]
 
