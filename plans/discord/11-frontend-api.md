@@ -13,7 +13,7 @@ Replace the old webhook usage with the new Discord service:
 ```python
 # OLD CODE (to be replaced):
 # from app.discord import Webhook
-# 
+#
 # webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
 # if webhook_url:
 #     webhook = Webhook(webhook_url, content=log_msg)
@@ -35,7 +35,7 @@ if guild_id:
 async def _get_discord_guild_id(self) -> int | None:
     """Get the Discord guild ID for audit logs."""
     from app.discord.repositories import discord_repositories
-    
+
     # Get the first guild with an audit channel configured
     # In a multi-guild setup, this could be more sophisticated
     channels = await discord_repositories.channel.get_all_by_type("audit")
@@ -105,7 +105,7 @@ Add additional endpoints for frontend use:
 async def get_invite_link(guild_id: int) -> dict[str, str]:
     """
     Get the Discord invite link for a guild.
-    
+
     Requires BOT_API_KEY authentication.
     """
     guild = await discord_repositories.guild.get(guild_id)
@@ -121,7 +121,7 @@ async def get_invite_link(guild_id: int) -> dict[str, str]:
 async def create_announcement(request: dict[str, Any]) -> dict[str, str]:
     """
     Create a scheduled announcement.
-    
+
     Requires BOT_API_KEY authentication.
     """
     from app.discord.services.announcement_service import announcement_service
@@ -145,7 +145,7 @@ async def get_failed_messages(
 ) -> list[dict[str, Any]]:
     """
     Get failed messages for admin review.
-    
+
     Requires BOT_API_KEY authentication.
     """
     return await discord_repositories.failed_message.get_by_status(status)[:limit]
@@ -155,7 +155,7 @@ async def get_failed_messages(
 async def retry_failed_message(message_id: int) -> dict[str, str]:
     """
     Retry a failed message.
-    
+
     Requires BOT_API_KEY authentication.
     """
     await discord_repositories.failed_message.retry_dead_letter(message_id)
@@ -197,7 +197,7 @@ class AnnouncementService:
     ) -> int | None:
         """
         Send an announcement to the configured announcements channel.
-        
+
         Args:
             guild_id: Discord guild ID.
             announcement_type: Type of announcement.
@@ -206,7 +206,7 @@ class AnnouncementService:
             role_mentions: List of role IDs to mention.
             image_url: Optional image URL.
             author_name: Optional author name.
-            
+
         Returns:
             Message ID if sent successfully, None otherwise.
         """
@@ -259,7 +259,7 @@ class AnnouncementService:
     ) -> int:
         """
         Schedule an announcement for future delivery.
-        
+
         Args:
             guild_id: Discord guild ID.
             announcement_type: Type of announcement.
@@ -267,7 +267,7 @@ class AnnouncementService:
             body: Announcement body.
             scheduled_at: ISO format timestamp for scheduled delivery.
             role_mentions: List of role IDs to mention.
-            
+
         Returns:
             Announcement ID.
         """

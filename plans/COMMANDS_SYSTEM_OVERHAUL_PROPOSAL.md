@@ -128,22 +128,22 @@ class Context:
     trigger: str
     args: Sequence[str]
     recipient: Channel | Player
-    
+
     # Dependency injection
     database: Database
     cache: Cache
     settings: Settings
     state: State
-    
+
     # Command metadata
     command: 'Command'
     raw_message: str
-    
+
     # Helper methods
     async def get_player(self, name: str) -> Player | None:
         """Get player by name with caching."""
         return await self.state.sessions.players.from_cache_or_sql(name=name)
-    
+
     def reply(self, message: str, hidden: bool = False) -> CommandResponse:
         """Create a response."""
         return CommandResponse(resp=message, hidden=hidden)
@@ -161,28 +161,28 @@ class Command:
     privileges: Privileges
     category: CommandCategory
     namespace: str | None = None        # For grouped commands (mp, pool, clan)
-    
+
     # Documentation
     description: str | None = None
     detailed_help: str | None = None
     examples: list[str] = field(default_factory=list)
     usage: str | None = None
-    
+
     # Configuration
     hidden: bool = False
     enabled: bool = True
     deprecated: bool = False
     deprecation_message: str | None = None
-    
+
     # Validation
     validators: list[Callable] = field(default_factory=list)
     arg_parser: Callable | None = None
-    
+
     # Metadata
     author: str | None = None
     version: str = "1.0.0"
     created_at: datetime = field(default_factory=datetime.now)
-    
+
     # Pipeline
     pre_hooks: list[Callable] = field(default_factory=list)
     post_hooks: list[Callable] = field(default_factory=list)
@@ -240,11 +240,11 @@ Shows the top 10 scores for a player in a specific game mode.
 
 Usage:
   !top <mode> [player]
-  
+
 Examples:
   !top std                    # Your top 10 standard scores
   !top rx!taiko playername    # Another player's relax taiko scores
-  
+
 Modes:
   std, taiko, catch, mania
   rx!std, rx!taiko, rx!catch, rx!mania (relax)
@@ -291,27 +291,27 @@ async def _with(ctx: Context, *args: str) -> str:
 ```python
 class CommandRegistry:
     """Central command registry with discovery methods."""
-    
+
     def get_by_trigger(self, trigger: str) -> Command | None:
         """Get command by trigger."""
         ...
-    
+
     def get_by_category(self, category: CommandCategory) -> list[Command]:
         """Get all commands in a category."""
         ...
-    
+
     def get_by_privilege(self, privilege: Privileges) -> list[Command]:
         """Get all commands available to a privilege level."""
         ...
-    
+
     def get_available(self, player: Player) -> list[Command]:
         """Get all commands available to a player."""
         ...
-    
+
     def search(self, query: str, player: Player | None = None) -> list[Command]:
         """Search commands by name/description."""
         ...
-    
+
     def generate_docs(self) -> str:
         """Generate markdown documentation for all commands."""
         ...
@@ -337,10 +337,10 @@ async def test_roll_command():
         command=roll_command,
         raw_message="!roll 6",
     )
-    
+
     # Execute command
     result = await roll(ctx, sides=6)
-    
+
     # Assert result
     assert "TestPlayer rolls" in result
     assert "points!" in result
@@ -351,7 +351,7 @@ async def test_silence_command_integration():
     # Setup
     player = await create_test_player()
     target = await create_test_player()
-    
+
     # Execute
     result = await silence_command(
         Context(...),
@@ -359,7 +359,7 @@ async def test_silence_command_integration():
         duration="10m",
         reason="Test silence",
     )
-    
+
     # Assert
     assert f"{target} was silenced" in result
     assert target.silenced

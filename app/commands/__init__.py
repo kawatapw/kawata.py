@@ -481,6 +481,7 @@ def _register_all_commands() -> None:
     _registry.register(server)
     if settings.DEVELOPER_MODE:
         from app.commands.categories import py
+
         _registry.register(py)
 
     # Multiplayer commands

@@ -13,6 +13,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy project files required for dependency resolution
 COPY pyproject.toml uv.lock README.md ./
+COPY tools/ci ./tools/ci
 
 # Install dependencies
 RUN uv sync --frozen --no-dev

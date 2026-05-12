@@ -98,7 +98,7 @@ class MessageService:
     ) -> int | None:
         """
         Send a message to a Discord channel.
-        
+
         Args:
             channel_id: Discord channel ID.
             content: Message content text.
@@ -108,7 +108,7 @@ class MessageService:
             guild_id: Guild ID for tracking.
             message_type: Type of notification for tracking.
             metadata: Additional metadata to store.
-            
+
         Returns:
             Message ID if successful, None otherwise.
         """
@@ -196,7 +196,7 @@ class MessageService:
     ) -> bool:
         """
         Edit an existing Discord message.
-        
+
         Args:
             channel_id: Discord channel ID.
             message_id: Message ID to edit.
@@ -204,7 +204,7 @@ class MessageService:
             embed: New embed.
             embeds: New embeds.
             components: New components.
-            
+
         Returns:
             True if successful, False otherwise.
         """
@@ -239,11 +239,11 @@ class MessageService:
     async def delete_message(self, channel_id: int, message_id: int) -> bool:
         """
         Delete a Discord message.
-        
+
         Args:
             channel_id: Discord channel ID.
             message_id: Message ID to delete.
-            
+
         Returns:
             True if successful, False otherwise.
         """
@@ -271,7 +271,7 @@ class MessageService:
     ) -> None:
         """
         Send an ephemeral message (only visible to the interacting user).
-        
+
         Args:
             interaction: The interaction to respond to.
             content: Message content.
@@ -317,14 +317,14 @@ class MessageService:
     ) -> int | None:
         """
         Send an audit log message to the configured audit channel.
-        
+
         Args:
             guild_id: Guild ID.
             title: Embed title.
             description: Embed description.
             fields: Optional embed fields.
             color: Optional embed color.
-            
+
         Returns:
             Message ID if successful, None otherwise.
         """
@@ -370,11 +370,11 @@ class MessageService:
     ) -> bool:
         """
         Send a notification via fallback webhook.
-        
+
         Args:
             webhook_url: Webhook URL.
             content: Message content.
-            
+
         Returns:
             True if successful, False otherwise.
         """
@@ -409,7 +409,7 @@ class MessageService:
     ) -> hikari.Embed:
         """
         Create a Discord embed.
-        
+
         Args:
             title: Embed title.
             description: Embed description.
@@ -423,7 +423,7 @@ class MessageService:
             author_icon: Author icon URL.
             author_url: Author URL.
             timestamp: Timestamp.
-            
+
         Returns:
             Constructed embed.
         """

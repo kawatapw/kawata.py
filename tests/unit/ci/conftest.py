@@ -1,9 +1,21 @@
-"""Test configuration for CI tool."""
+"""Shared test fixtures."""
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-# Add tools/ci to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "tools" / "ci"))
+import pytest
+
+
+@pytest.fixture
+def tmp_storage(tmp_path: Path):
+    from ci_tool.storage.file_backend import FileStorageBackend
+
+    return FileStorageBackend(directory=str(tmp_path / "ci-data"))
+
+
+@pytest.fixture
+def base_context():
+    from ci_tool.context import Context
+
+    return Context.detect()

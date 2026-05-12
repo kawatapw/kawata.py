@@ -107,7 +107,7 @@ async def github_webhook(
 ) -> dict[str, str]:
     """
     Receive GitHub webhook events.
-    
+
     Handles push, pull_request, and workflow_run events.
     Verifies webhook signature for security.
     """
@@ -157,7 +157,7 @@ async def github_webhook(
 async def send_message(request: SendMessageRequest) -> dict[str, Any]:
     """
     Send a message to a Discord channel.
-    
+
     Requires BOT_API_KEY authentication.
     Used by frontend admin panel.
     """
@@ -179,7 +179,7 @@ async def send_message(request: SendMessageRequest) -> dict[str, Any]:
 async def send_notification(request: SendNotificationRequest) -> dict[str, str]:
     """
     Send a typed notification to Discord.
-    
+
     Requires BOT_API_KEY authentication.
     Dispatches to appropriate handler based on notification_type.
     """
@@ -212,7 +212,7 @@ async def send_notification(request: SendNotificationRequest) -> dict[str, str]:
 async def health_check() -> HealthResponse:
     """
     Get Discord bot health status.
-    
+
     Requires BOT_API_KEY authentication.
     """
     return health_service.to_dict()

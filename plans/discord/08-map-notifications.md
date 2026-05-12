@@ -55,14 +55,14 @@ class MapNotificationService:
     ) -> int | None:
         """
         Send a map status change notification.
-        
+
         Args:
             guild_id: Discord guild ID.
             beatmap_set: Beatmap set data from database.
             old_status: Previous ranked status.
             new_status: New ranked status.
             changed_diffs: List of difficulties that changed status.
-            
+
         Returns:
             Message ID if sent successfully, None otherwise.
         """

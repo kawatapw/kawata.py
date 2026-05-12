@@ -1,0 +1,21 @@
+# CI Report — Run {{ state.run_id }}
+
+**Commit:** `{{ state.commit_sha[:7] }}` | **Branch:** {{ state.branch }} | **Duration:** {{ "%.1f"|format(state.total_duration_seconds) }}s
+
+## Results
+
+| Job | Status | Duration | Summary |
+|-----|--------|----------|---------|
+{% for name, job in state.jobs.items() %}
+| {{ name }} | {{ job.status.value }} | {{ "%.1f"|format(job.duration_seconds) }}s | {{ job.summary_line }} |
+{% endfor %}
+
+## Summary
+
+- **Total Jobs:** {{ total }}
+- **Passed:** {{ passed }}
+- **Failed:** {{ failed }}
+- **Success Rate:** {{ "%.1f"|format(success_rate) }}%
+
+---
+*Generated at {{ generated_at }}*

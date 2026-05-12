@@ -40,11 +40,11 @@ class AccountLinkingService:
     ) -> str:
         """
         Generate a unique link code.
-        
+
         Args:
             osu_user_id: osu! user ID (if linking from Discord).
             discord_user_id: Discord user ID (if linking from osu!).
-            
+
         Returns:
             Unique link code.
         """
@@ -73,11 +73,11 @@ class AccountLinkingService:
     ) -> tuple[bool, str]:
         """
         Complete account linking from osu! side.
-        
+
         Args:
             code: Link code generated from Discord.
             osu_user_id: osu! user ID.
-            
+
         Returns:
             Tuple of (success, message).
         """
@@ -118,11 +118,11 @@ class AccountLinkingService:
     ) -> tuple[bool, str]:
         """
         Complete account linking from Discord side.
-        
+
         Args:
             code: Link code generated from osu!.
             discord_user_id: Discord user ID.
-            
+
         Returns:
             Tuple of (success, message).
         """
@@ -163,11 +163,11 @@ class AccountLinkingService:
     ) -> tuple[bool, str]:
         """
         Unlink a Discord account from an osu! account.
-        
+
         Args:
             osu_user_id: osu! user ID.
             discord_user_id: Discord user ID to unlink.
-            
+
         Returns:
             Tuple of (success, message).
         """
@@ -191,10 +191,10 @@ class AccountLinkingService:
     ) -> list[dict[str, Any]]:
         """
         Get all linked Discord accounts for an osu! user.
-        
+
         Args:
             osu_user_id: osu! user ID.
-            
+
         Returns:
             List of linked account info.
         """
@@ -206,10 +206,10 @@ class AccountLinkingService:
     ) -> int | None:
         """
         Get the primary Discord user ID for an osu! user.
-        
+
         Args:
             osu_user_id: osu! user ID.
-            
+
         Returns:
             Discord user ID or None.
         """

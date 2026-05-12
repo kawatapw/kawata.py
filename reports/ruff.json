@@ -1,0 +1,137 @@
+[
+  {
+    "cell": null,
+    "code": "RUF200",
+    "end_location": {
+      "column": 2,
+      "row": 52
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/pyproject.toml",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 12
+    },
+    "message": "Failed to parse pyproject.toml: Not a URL (missing scheme): {root:uri}/tools/ci\nci-tool @ {root:uri}/tools/ci\n          ^^^^^^^^^^^^^^^^^^^",
+    "noqa_row": null,
+    "url": "https://docs.astral.sh/ruff/rules/invalid-pyproject-toml"
+  },
+  {
+    "cell": null,
+    "code": "F841",
+    "end_location": {
+      "column": 8,
+      "row": 98
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/cli.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "",
+          "end_location": {
+            "column": 11,
+            "row": 98
+          },
+          "location": {
+            "column": 5,
+            "row": 98
+          }
+        }
+      ],
+      "message": "Remove assignment to unused variable `ctx`"
+    },
+    "location": {
+      "column": 5,
+      "row": 98
+    },
+    "message": "Local variable `ctx` is assigned to but never used",
+    "noqa_row": 98,
+    "url": "https://docs.astral.sh/ruff/rules/unused-variable"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 26,
+      "row": 320
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/cli.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 320
+    },
+    "message": "Undefined name `RunResult`",
+    "noqa_row": 320,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 41,
+      "row": 6
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/github/__init__.py",
+    "fix": null,
+    "location": {
+      "column": 36,
+      "row": 6
+    },
+    "message": "`dataclasses.field` imported but unused",
+    "noqa_row": 6,
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 24,
+      "row": 9
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/parsers/__init__.py",
+    "fix": null,
+    "location": {
+      "column": 20,
+      "row": 9
+    },
+    "message": "`typing.Type` imported but unused",
+    "noqa_row": 9,
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 25,
+      "row": 9
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/runner/__init__.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 9
+    },
+    "message": "`pathlib.Path` imported but unused",
+    "noqa_row": 9,
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 28,
+      "row": 10
+    },
+    "filename": "/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/runner/__init__.py",
+    "fix": null,
+    "location": {
+      "column": 20,
+      "row": 10
+    },
+    "message": "`typing.Sequence` imported but unused",
+    "noqa_row": 10,
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  }
+]

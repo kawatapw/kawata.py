@@ -1,0 +1,86 @@
+# {{ data.overall_icon }} CI Summary
+
+**Status:** {{ data.overall_text }} | **Duration:** {{ "%.1f"|format(data.total_duration_seconds) }}s | **Passed:** {{ data.total_passed }} | **Failed:** {{ data.total_failed }}
+{%- if data.total_skipped %} | **Skipped:** {{ data.total_skipped }}{%- endif %}
+{%- if data.commit_short %}
+| **Commit:** `{{ data.commit_short }}`{%- if data.branch %} | **Branch:** {{ data.branch }}{%- endif %}
+{%- endif %}
+
+## Job Results
+
+| Job | Status | Duration | Summary |
+|---|---|---|---|
+{%- for job in data.jobs %}
+| `{{ job.name }}` | {{ job.status_icon }} {{ job.status_text }} | {{ "%.1f"|format(job.duration_seconds) }}s | {{ job.summary_line }} |
+{%- endfor %}
+
+
+{%- if data.failed_jobs %}
+
+## Failures
+
+{%- for job in data.failed_jobs %}
+{%- if job.parsed_result and job.parsed_result.has_issues %}
+
+<details open><summary><strong>{{ job.status_icon }} {{ job.name }}</strong> — {{ job.parsed_result.summary_line() }}</summary>
+
+{%- for issue in job.parsed_result.issues[:data.max_failures_shown] %}
+{%- if not loop.first %}
+
+---
+{%- endif %}
+{%- if issue.rule_id %}
+**`{{ issue.file_path }}:{{ issue.line_number }}:{{ issue.column }}`** — `{{ issue.rule_id }}` {{ issue.message }}
+{%- else %}
+**`{{ issue.file_path }}:{{ issue.line_number }}`** — {{ issue.message }}
+{%- endif %}
+{%- if issue.code_snippet and data.include_code_snippets %}
+
+{{ issue.code_snippet.render(max_lines=data.max_code_snippet_lines) }}
+{%- else %}
+{%- if issue.end_line_number and issue.end_line_number != issue.line_number %}
+*(lines {{ issue.line_number }}-{{ issue.end_line_number }} shown)*
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+
+{%- if job.parsed_result.issues|length > data.max_failures_shown %}
+*... and {{ job.parsed_result.issues|length - data.max_failures_shown }} more*
+{%- endif %}
+
+</details>
+{%- else %}
+
+<details open><summary><strong>{{ job.status_icon }} {{ job.name }}</strong> — {{ job.summary_line }}</summary>
+
+{%- if job.error_message %}
+```
+{{ job.error_message }}
+```
+{%- endif %}
+{%- if job.stderr %}
+
+**stderr:**
+```
+{{ job.stderr[:2000] }}
+```
+{%- endif %}
+{%- if job.stdout %}
+
+**stdout:**
+```
+{{ job.stdout[:2000] }}
+```
+{%- endif %}
+
+</details>
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if data.run_url %}
+
+---
+
+[📊 View full run details]({{ data.run_url }})
+{%- endif %}

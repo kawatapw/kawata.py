@@ -6,6 +6,9 @@ Contains all command category implementations.
 
 from __future__ import annotations
 
+# py command is only available when DEVELOPER_MODE is enabled
+from app import settings
+
 from .administrator import alert
 from .administrator import alertuser
 from .administrator import restrict
@@ -30,8 +33,6 @@ from .developer import server
 from .developer import stealth
 from .developer import wipemap
 
-# py command is only available when DEVELOPER_MODE is enabled
-from app import settings
 if settings.DEVELOPER_MODE:
     from .developer import py
 from .mappool import pool_add

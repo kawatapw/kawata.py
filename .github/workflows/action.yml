@@ -1,0 +1,70 @@
+name: 'CI Tool'
+description: 'Run CI with the ci-tool orchestrator'
+author: 'Kawata'
+
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  jobs:
+    description: 'Comma-separated list of jobs to run (default: all)'
+    required: false
+    default: ''
+  mode:
+    description: 'Execution mode: parallel or serial'
+    required: false
+    default: 'parallel'
+  post-comment:
+    description: 'Post a PR comment with results'
+    required: false
+    default: 'true'
+  comment-on-pr:
+    description: 'Only post comment on PR builds'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'GitHub token for PR comments'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+
+    - name: Install ci-tool
+      shell: bash
+      run: |
+        uv pip install --system ${{ github.action_path }}
+
+    - name: Run CI
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.jobs }}" ]; then
+          ci run --jobs "${{ inputs.jobs }}" --${{ inputs.mode }} --summary
+        else
+          ci run --${{ inputs.mode }} --summary
+        fi
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    - name: Post PR Comment
+      if: inputs.post-comment == 'true' && (inputs.comment-on-pr != 'true' || github.event_name == 'pull_request')
+      shell: bash
+      run: |
+        ci comment
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}

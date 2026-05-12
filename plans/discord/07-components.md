@@ -37,34 +37,34 @@ class ComponentService:
     ) -> str:
         """
         Generate a unique custom ID for a component.
-        
+
         Args:
             component_type: Type of component (map, github, etc.)
             action: Action identifier
             **params: Additional parameters to encode.
-            
+
         Returns:
             Unique custom ID string.
         """
         # Format: dc:{type}:{action}:{random}:{param1}:{param2}:...
         parts = [self._custom_id_prefix, component_type, action]
-        
+
         # Add random suffix for uniqueness
         parts.append(secrets.token_urlsafe(8))
-        
+
         # Add params
         for key, value in params.items():
             parts.append(f"{key}={value}")
-        
+
         return ":".join(parts)
 
     def parse_custom_id(self, custom_id: str) -> dict[str, str]:
         """
         Parse a custom ID into its components.
-        
+
         Args:
             custom_id: The custom ID to parse.
-            
+
         Returns:
             Dictionary with type, action, and params.
         """
@@ -96,14 +96,14 @@ class ComponentService:
     ) -> hikari.api.TextSelectMenuBuilder:
         """
         Create a text select menu (dropdown).
-        
+
         Args:
             custom_id: Unique custom ID.
             placeholder: Placeholder text.
             options: List of select options.
             min_values: Minimum selections.
             max_values: Maximum selections.
-            
+
         Returns:
             Select menu builder.
         """
@@ -134,7 +134,7 @@ class ComponentService:
     ) -> hikari.api.ButtonBuilder:
         """
         Create a button component.
-        
+
         Args:
             custom_id: Custom ID (not needed for link buttons).
             label: Button label.
@@ -142,7 +142,7 @@ class ComponentService:
             emoji: Button emoji.
             url: URL for link buttons.
             disabled: Whether button is disabled.
-            
+
         Returns:
             Button builder.
         """
@@ -175,7 +175,7 @@ class ComponentService:
     ) -> None:
         """
         Register a component in the database for persistence.
-        
+
         Args:
             custom_id: Component custom ID.
             component_type: Type of component.
@@ -198,10 +198,10 @@ class ComponentService:
     async def get_component(self, custom_id: str) -> dict[str, Any] | None:
         """
         Get component data by custom ID.
-        
+
         Args:
             custom_id: Component custom ID.
-            
+
         Returns:
             Component data or None if not found/expired.
         """
@@ -217,14 +217,14 @@ class ComponentService:
     ) -> hikari.api.TextSelectMenuBuilder:
         """
         Create a difficulty selection dropdown for a map.
-        
+
         Args:
             map_id: Beatmap set ID.
             difficulties: List of difficulty info dicts.
             message_id: Message ID to register.
             channel_id: Channel ID.
             guild_id: Guild ID.
-            
+
         Returns:
             Select menu builder.
         """
@@ -278,14 +278,14 @@ class ComponentService:
     ) -> hikari.api.TextSelectMenuBuilder:
         """
         Create a job selection dropdown for GitHub workflow.
-        
+
         Args:
             run_id: Workflow run ID.
             jobs: List of job info dicts.
             message_id: Message ID to register.
             channel_id: Channel ID.
             guild_id: Guild ID.
-            
+
         Returns:
             Select menu builder.
         """
@@ -365,7 +365,7 @@ def _register_events(self) -> None:
 async def _on_interaction(self, event: hikari.InteractionCreateEvent) -> None:
     """Handle Discord interactions (button clicks, dropdown selections)."""
     interaction = event.interaction
-    
+
     if isinstance(interaction, hikari.ComponentInteraction):
         await self._handle_component_interaction(interaction)
 
@@ -376,12 +376,12 @@ async def _handle_component_interaction(
 ) -> None:
     """Handle component interactions."""
     from app.discord.services.component_service import component_service
-    
+
     # Parse custom ID
     parsed = component_service.parse_custom_id(interaction.custom_id)
     component_type = parsed["type"]
     action = parsed["action"]
-    
+
     # Get component data from database
     component_data = await component_service.get_component(interaction.custom_id)
     if not component_data:
@@ -391,7 +391,7 @@ async def _handle_component_interaction(
             flags=hikari.MessageFlag.EPHEMERAL,
         )
         return
-    
+
     # Dispatch to appropriate handler
     if component_type == "map" and action == "diff_select":
         await self._handle_map_diff_select(interaction, component_data)
@@ -406,18 +406,18 @@ async def _handle_map_diff_select(
 ) -> None:
     """Handle map difficulty selection."""
     from app.discord.services.message_service import message_service
-    
+
     # Get selected difficulty
     selected_id = interaction.values[0]
     difficulties = component_data["data"].get("difficulties", [])
-    
+
     # Find the selected difficulty
     selected_diff = None
     for diff in difficulties:
         if str(diff.get("id")) == selected_id:
             selected_diff = diff
             break
-    
+
     if not selected_diff:
         await interaction.create_initial_response(
             hikari.ResponseType.MESSAGE_CREATE,
@@ -425,11 +425,11 @@ async def _handle_map_diff_select(
             flags=hikari.MessageFlag.EPHEMERAL,
         )
         return
-    
+
     # Build ephemeral response with difficulty details
     mode_emoji = self._get_mode_emoji(selected_diff.get("mode", 0))
     stars = selected_diff.get("stars", 0)
-    
+
     embed = message_service.create_embed(
         title=f"{mode_emoji} {selected_diff.get('name', 'Unknown')}",
         color=self._get_difficulty_color(stars),
@@ -443,7 +443,7 @@ async def _handle_map_diff_select(
             {"name": "📏 Length", "value": self._format_length(selected_diff.get("length", 0)), "inline": True},
         ],
     )
-    
+
     await interaction.create_initial_response(
         hikari.ResponseType.MESSAGE_CREATE,
         embed=embed,
@@ -458,18 +458,18 @@ async def _handle_github_job_select(
 ) -> None:
     """Handle GitHub job selection."""
     from app.discord.services.message_service import message_service
-    
+
     # Get selected job
     selected_id = interaction.values[0]
     jobs = component_data["data"].get("jobs", [])
-    
+
     # Find the selected job
     selected_job = None
     for job in jobs:
         if str(job.get("id")) == selected_id:
             selected_job = job
             break
-    
+
     if not selected_job:
         await interaction.create_initial_response(
             hikari.ResponseType.MESSAGE_CREATE,
@@ -477,10 +477,10 @@ async def _handle_github_job_select(
             flags=hikari.MessageFlag.EPHEMERAL,
         )
         return
-    
+
     # Build ephemeral response with job summary
     status_emoji = self._get_status_emoji(selected_job.get("status", ""))
-    
+
     embed = message_service.create_embed(
         title=f"{status_emoji} {selected_job.get('name', 'Unknown Job')}",
         description=selected_job.get("summary", "No summary available."),
@@ -491,7 +491,7 @@ async def _handle_github_job_select(
             {"name": "Duration", "value": selected_job.get("duration", "Unknown"), "inline": True},
         ],
     )
-    
+
     # Add link to job if available
     if selected_job.get("url"):
         embed.add_field(
@@ -499,7 +499,7 @@ async def _handle_github_job_select(
             value=f"[View on GitHub]({selected_job['url']})",
             inline=False,
         )
-    
+
     await interaction.create_initial_response(
         hikari.ResponseType.MESSAGE_CREATE,
         embed=embed,

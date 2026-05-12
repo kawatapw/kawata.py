@@ -65,7 +65,7 @@ settings modules, or any other source.
 
 Typical usage example:
     from app.logging.config import LoggingConfig
-    
+
     config = LoggingConfig.from_settings(app.settings)
     # or
     config = LoggingConfig(service_name="my_service", debug_level=2)
@@ -80,10 +80,10 @@ from typing import Any
 @dataclass
 class LoggingConfig:
     """Configuration for the logging system.
-    
+
     All configuration options for the logging system are defined here.
     This dataclass can be populated from any source (env vars, settings, etc.).
-    
+
     Attributes:
         service_name: Name of the service for log identification.
             Used in structured logs to identify which service generated the log.
@@ -101,17 +101,17 @@ class LoggingConfig:
             'structured' = structlog format
         log_file: Optional file path for log output.
             If None, logs only go to console.
-    
+
     Examples:
         >>> config = LoggingConfig()
         >>> config.service_name
         'osu_server'
-        
+
         >>> config = LoggingConfig(service_name="frontend", debug_level=2)
         >>> config.debug_level
         2
     """
-    
+
     service_name: str = "osu_server"
     container_name: str = "bancho"
     debug_level: int = 0
@@ -119,19 +119,19 @@ class LoggingConfig:
     log_with_colors: bool = True
     log_format: str = "console"
     log_file: str | None = None
-    
+
     @classmethod
     def from_settings(cls, settings: Any) -> LoggingConfig:
         """Create LoggingConfig from a settings module.
-        
+
         Args:
             settings: Module or object with logging-related attributes.
                 Expected attributes: SERVICE_NAME, CONTAINER_NAME, DEBUG_LEVEL,
                 DEBUG_FOCUS, LOG_WITH_COLORS
-        
+
         Returns:
             LoggingConfig populated from settings.
-        
+
         Examples:
             >>> from app import settings
             >>> config = LoggingConfig.from_settings(settings)
@@ -143,10 +143,10 @@ class LoggingConfig:
             debug_focus=getattr(settings, "DEBUG_FOCUS", "all"),
             log_with_colors=getattr(settings, "LOG_WITH_COLORS", True),
         )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary.
-        
+
         Returns:
             Dictionary representation of the configuration.
         """
@@ -178,7 +178,7 @@ Custom Levels:
 
 Typical usage example:
     from app.logging.levels import LogLevel, register_custom_levels
-    
+
     register_custom_levels()
     logger.log(LogLevel.VERBOSE, "Detailed debug info")
 """
@@ -194,22 +194,22 @@ import structlog
 
 class LogLevel(IntEnum):
     """Custom log levels extending standard Python log levels.
-    
+
     These levels provide more granular control over debug output,
     allowing developers to focus on specific components or verbosity levels.
-    
+
     Standard Levels (from logging module):
         DEBUG (10): Detailed diagnostic information
         INFO (20): General operational information
         WARNING (30): Potential issues or important notices
         ERROR (40): Error conditions that need attention
         CRITICAL (50): Critical errors that may cause shutdown
-    
+
     Custom Debug Levels:
         VERBOSE (11): Extended diagnostic information, most verbose
         DBGLV2 (14): Debug level 2 - detailed component logs
         DBGLV1 (16): Debug level 1 - focused component logs (least verbose)
-    
+
     Examples:
         >>> LogLevel.VERBOSE
         <LogLevel.VERBOSE: 11>
@@ -218,7 +218,7 @@ class LogLevel(IntEnum):
         >>> LogLevel(11)
         <LogLevel.VERBOSE: 11>
     """
-    
+
     DEBUG = 10
     VERBOSE = 11
     DBGLV2 = 14
@@ -227,17 +227,17 @@ class LogLevel(IntEnum):
     WARNING = 30
     ERROR = 40
     CRITICAL = 50
-    
+
     @classmethod
     def get_name(cls, level: int) -> str:
         """Get the name for a log level value.
-        
+
         Args:
             level: Integer log level value.
-        
+
         Returns:
             String name of the log level, or "UNKNOWN" if not found.
-        
+
         Examples:
             >>> LogLevel.get_name(11)
             'VERBOSE'
@@ -260,14 +260,14 @@ LEVEL_NAME_MAP: dict[str, int] = {
 
 def register_custom_levels() -> None:
     """Register custom log levels with Python logging and structlog.
-    
+
     This function must be called once during application startup to register
     the custom log levels with both Python's logging module and structlog.
-    
+
     After calling this function, you can use the custom levels:
         logger.log(LogLevel.VERBOSE, "message")
         logger.log(11, "message")  # equivalent
-    
+
     Examples:
         >>> register_custom_levels()
         >>> import logging
@@ -278,7 +278,7 @@ def register_custom_levels() -> None:
     logging.addLevelName(LogLevel.VERBOSE, "VERBOSE")
     logging.addLevelName(LogLevel.DBGLV2, "DBGLV2")
     logging.addLevelName(LogLevel.DBGLV1, "DBGLV1")
-    
+
     # Register with structlog
     name_to_level = getattr(structlog.stdlib, "NAME_TO_LEVEL", {})
     for name, level in LEVEL_NAME_MAP.items():
@@ -287,14 +287,14 @@ def register_custom_levels() -> None:
 
 def get_level_for_debug_level(debug_level: int) -> int:
     """Convert debug level setting to log level.
-    
+
     Args:
         debug_level: Debug level setting (0-3).
             0 = INFO, 1 = DBGLV1, 2 = DBGLV2, 3 = VERBOSE
-    
+
     Returns:
         Corresponding log level integer.
-    
+
     Examples:
         >>> get_level_for_debug_level(0)
         20
@@ -327,7 +327,7 @@ Where <code> is one of the color values defined in the Ansi enum.
 
 Typical usage example:
     from app.logging.ansi import Ansi, colorize
-    
+
     print(f"{Ansi.LGREEN}Success!{Ansi.RESET}")
     # or
     colored = colorize("Error!", Ansi.LRED)
@@ -340,13 +340,13 @@ from enum import IntEnum
 
 class Ansi(IntEnum):
     """ANSI escape codes for colored console output.
-    
+
     These color codes can be used to add color to console output.
     They should NOT be included in structured logs or log files.
-    
+
     Usage:
         print(f"{Ansi.LGREEN}Success!{Ansi.RESET}")
-    
+
     Attributes:
         BLACK: Black text (30)
         RED: Red text (31)
@@ -365,14 +365,14 @@ class Ansi(IntEnum):
         LCYAN: Light cyan text (96)
         LWHITE: Light white text (97)
         RESET: Reset all formatting (0)
-    
+
     Examples:
         >>> Ansi.LGREEN
         <Ansi.LGREEN: 92>
         >>> repr(Ansi.LGREEN)
         '\\x1b[92m'
     """
-    
+
     # Default colours
     BLACK = 30
     RED = 31
@@ -382,7 +382,7 @@ class Ansi(IntEnum):
     MAGENTA = 35
     CYAN = 36
     WHITE = 37
-    
+
     # Light colours
     GRAY = 90
     LRED = 91
@@ -392,12 +392,12 @@ class Ansi(IntEnum):
     LMAGENTA = 95
     LCYAN = 96
     LWHITE = 97
-    
+
     RESET = 0
-    
+
     def __repr__(self) -> str:
         """Return the ANSI escape sequence for this color.
-        
+
         Returns:
             ANSI escape sequence string.
         """
@@ -410,14 +410,14 @@ ANSI_ESCAPE_PATTERN = r"(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]"
 
 def colorize(text: str, color: Ansi) -> str:
     """Wrap text with ANSI color codes.
-    
+
     Args:
         text: The text to colorize.
         color: The ANSI color to apply.
-    
+
     Returns:
         Text wrapped with color codes and reset.
-    
+
     Examples:
         >>> colorize("Success!", Ansi.LGREEN)
         '\\x1b[92mSuccess!\\x1b[0m'
@@ -427,16 +427,16 @@ def colorize(text: str, color: Ansi) -> str:
 
 def escape_ansi(line: str) -> str:
     """Remove ANSI escape sequences from a string.
-    
+
     This is useful for cleaning log messages before sending to
     structured logging systems that don't support ANSI codes.
-    
+
     Args:
         line: String that may contain ANSI escape sequences.
-    
+
     Returns:
         String with all ANSI escape sequences removed.
-    
+
     Examples:
         >>> escape_ansi("\\x1b[92mSuccess!\\x1b[0m")
         'Success!'
@@ -447,13 +447,13 @@ def escape_ansi(line: str) -> str:
 
 def get_level_color(level: int) -> Ansi:
     """Get the appropriate color for a log level.
-    
+
     Args:
         level: Log level integer.
-    
+
     Returns:
         ANSI color code for the level.
-    
+
     Examples:
         >>> get_level_color(20)  # INFO
         <Ansi.LCYAN: 96>
@@ -461,7 +461,7 @@ def get_level_color(level: int) -> Ansi:
         <Ansi.LRED: 91>
     """
     import logging
-    
+
     if level <= logging.DEBUG:
         return Ansi.GRAY
     elif level <= 19:  # VERBOSE, DBGLV2, DBGLV1
@@ -489,7 +489,7 @@ The context is stored in contextvars, making it safe for use with asyncio.
 
 Typical usage example:
     from app.logging.context import LogContext, get_request_id
-    
+
     with LogContext(request_id="abc123", player_id=456):
         process_request()
         # All logs within this block will include request_id and player_id
@@ -512,30 +512,30 @@ _extra_context: ContextVar[dict[str, Any]] = ContextVar("extra_context", default
 @dataclass
 class RequestContext:
     """Holds context information for the current request/operation.
-    
+
     This context is automatically included in all log messages made
     during the request's lifetime.
-    
+
     Attributes:
         request_id: Unique identifier for this request.
         correlation_id: External correlation ID (from load balancer, etc.).
         player_id: Optional player ID for player-specific operations.
         extra: Additional context fields to include in logs.
-    
+
     Examples:
         >>> ctx = RequestContext(request_id="abc123", player_id=456)
         >>> ctx.to_dict()
         {'request_id': 'abc123', 'player_id': 456}
     """
-    
+
     request_id: str | None = None
     correlation_id: str | None = None
     player_id: int | None = None
     extra: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary for log inclusion.
-        
+
         Returns:
             Dictionary with non-None context fields.
         """
@@ -548,10 +548,10 @@ class RequestContext:
             result["player_id"] = self.player_id
         result.update(self.extra)
         return result
-    
+
     def set(self) -> None:
         """Set this context as the current context.
-        
+
         Examples:
             >>> ctx = RequestContext(request_id="abc123")
             >>> ctx.set()
@@ -566,10 +566,10 @@ class RequestContext:
             _player_id.set(self.player_id)
         if self.extra:
             _extra_context.set(self.extra)
-    
+
     def clear(self) -> None:
         """Clear the current context.
-        
+
         Examples:
             >>> clear_context()
             >>> get_request_id() is None
@@ -583,23 +583,23 @@ class RequestContext:
 
 class LogContext:
     """Context manager for setting request context.
-    
+
     Usage:
         with LogContext(request_id="abc123", player_id=456):
             # All logs here include the context
             log.info("Processing request")
-    
+
     Can also be used as a decorator:
         @LogContext(player_id=456)
         def process_player():
             ...
-    
+
     Examples:
         >>> with LogContext(request_id="test") as ctx:
         ...     assert get_request_id() == "test"
         >>> assert get_request_id() is None
     """
-    
+
     def __init__(
         self,
         request_id: str | None = None,
@@ -608,7 +608,7 @@ class LogContext:
         **extra: Any,
     ) -> None:
         """Initialize the log context.
-        
+
         Args:
             request_id: Unique request ID. Generated if not provided.
             correlation_id: External correlation ID.
@@ -620,10 +620,10 @@ class LogContext:
         self.player_id = player_id
         self.extra = extra
         self._token: Any = None
-    
+
     def __enter__(self) -> LogContext:
         """Enter the context.
-        
+
         Returns:
             Self for use as 'as' variable.
         """
@@ -635,32 +635,32 @@ class LogContext:
             extra=self.extra,
         ).set()
         return self
-    
+
     def __exit__(self, *args: Any) -> None:
         """Exit the context, restoring previous context."""
         self._previous_context.set()
-    
+
     def __call__(self, func: Any) -> Any:
         """Use as a decorator.
-        
+
         Args:
             func: Function to decorate.
-        
+
         Returns:
             Decorated function.
         """
         import functools
-        
+
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with self:
                 return func(*args, **kwargs)
-        
+
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             with self:
                 return await func(*args, **kwargs)
-        
+
         import asyncio
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
@@ -669,10 +669,10 @@ class LogContext:
 
 def generate_request_id() -> str:
     """Generate a unique request ID.
-    
+
     Returns:
         UUID v4 string.
-    
+
     Examples:
         >>> rid = generate_request_id()
         >>> len(rid) == 36  # UUID v4 length
@@ -683,7 +683,7 @@ def generate_request_id() -> str:
 
 def get_request_id() -> str | None:
     """Get the current request ID.
-    
+
     Returns:
         Current request ID or None if not set.
     """
@@ -692,7 +692,7 @@ def get_request_id() -> str | None:
 
 def get_correlation_id() -> str | None:
     """Get the current correlation ID.
-    
+
     Returns:
         Current correlation ID or None if not set.
     """
@@ -701,7 +701,7 @@ def get_correlation_id() -> str | None:
 
 def get_player_id() -> int | None:
     """Get the current player ID.
-    
+
     Returns:
         Current player ID or None if not set.
     """
@@ -710,7 +710,7 @@ def get_player_id() -> int | None:
 
 def get_current_context() -> RequestContext:
     """Get the current request context.
-    
+
     Returns:
         Current RequestContext.
     """
@@ -724,7 +724,7 @@ def get_current_context() -> RequestContext:
 
 def clear_context() -> None:
     """Clear all context variables.
-    
+
     Examples:
         >>> clear_context()
         >>> get_request_id() is None
@@ -735,7 +735,7 @@ def clear_context() -> None:
 
 def get_context_dict() -> dict[str, Any]:
     """Get current context as dictionary for log inclusion.
-    
+
     Returns:
         Dictionary with current context fields.
     """
@@ -762,7 +762,7 @@ and never appear in structured/JSON output.
 
 Typical usage example:
     from app.logging.formatters import ConsoleFormatter, JsonFormatter
-    
+
     console_fmt = ConsoleFormatter(use_colors=True)
     json_fmt = JsonFormatter()
 """
@@ -781,32 +781,32 @@ from app.logging.context import get_context_dict
 
 class ConsoleFormatter(logging.Formatter):
     """Formatter for console output with optional ANSI colors.
-    
+
     This formatter produces human-readable output for console display.
     When colors are enabled, it adds ANSI escape codes based on log level.
-    
+
     The format is:
         [TIMESTAMP] LEVEL Message
-    
+
     With colors, the LEVEL portion is colored.
-    
+
     Attributes:
         use_colors: Whether to add ANSI color codes.
         date_format: strftime format for timestamps.
-    
+
     Examples:
         >>> fmt = ConsoleFormatter(use_colors=False)
         >>> fmt.format(logging.LogRecord("test", 20, "", 0, "msg", (), None))
         '[2024-01-01 12:00:00] INFO msg'
     """
-    
+
     def __init__(
         self,
         use_colors: bool = True,
         date_format: str = "%Y-%m-%d %H:%M:%S",
     ) -> None:
         """Initialize the console formatter.
-        
+
         Args:
             use_colors: Whether to add ANSI color codes.
             date_format: strftime format for timestamps.
@@ -814,44 +814,44 @@ class ConsoleFormatter(logging.Formatter):
         super().__init__()
         self.use_colors = use_colors
         self.date_format = date_format
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record for console output.
-        
+
         Args:
             record: The log record to format.
-        
+
         Returns:
             Formatted log string.
         """
         timestamp = datetime.fromtimestamp(record.created).strftime(self.date_format)
         level_name = record.levelname
         message = record.getMessage()
-        
+
         # Add context if available
         context = get_context_dict()
         context_str = ""
         if context:
             context_parts = [f"{k}={v}" for k, v in context.items()]
             context_str = f" [{', '.join(context_parts)}]"
-        
+
         if self.use_colors:
             color = get_level_color(record.levelno)
             level_str = f"{color!r}{level_name:<8}{Ansi.RESET!r}"
         else:
             level_str = f"{level_name:<8}"
-        
+
         return f"[{timestamp}] {level_str} {message}{context_str}"
 
 
 class JsonFormatter(logging.Formatter):
     """Formatter for JSON output to ELK/structured logging.
-    
+
     This formatter produces clean JSON output suitable for ingestion
     by Elasticsearch, Logstash, or other structured logging systems.
-    
+
     It NEVER includes ANSI color codes.
-    
+
     The output format is:
         {
             "timestamp": "2024-01-01T12:00:00",
@@ -861,7 +861,7 @@ class JsonFormatter(logging.Formatter):
             "request_id": "abc123",
             ...
         }
-    
+
     Examples:
         >>> fmt = JsonFormatter()
         >>> output = fmt.format(record)
@@ -869,22 +869,22 @@ class JsonFormatter(logging.Formatter):
         >>> parsed["level"]
         'INFO'
     """
-    
+
     def __init__(self, service_name: str = "osu_server") -> None:
         """Initialize the JSON formatter.
-        
+
         Args:
             service_name: Service name to include in all logs.
         """
         super().__init__()
         self.service_name = service_name
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record as JSON.
-        
+
         Args:
             record: The log record to format.
-        
+
         Returns:
             JSON string representation of the log entry.
         """
@@ -896,18 +896,18 @@ class JsonFormatter(logging.Formatter):
             "message": escape_ansi(record.getMessage()),
             "service.name": self.service_name,
         }
-        
+
         # Add exception info if present
         if record.exc_info and record.exc_info[1]:
             log_entry["error"] = {
                 "type": type(record.exc_info[1]).__name__,
                 "message": str(record.exc_info[1]),
             }
-        
+
         # Add context
         context = get_context_dict()
         log_entry.update(context)
-        
+
         # Add extra fields from record
         standard_attrs = {
             "name", "msg", "args", "created", "relativeCreated", "exc_info",
@@ -918,28 +918,28 @@ class JsonFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key not in standard_attrs and not key.startswith("_"):
                 log_entry[key] = value
-        
+
         return json.dumps(log_entry, default=str)
 
 
 class StructlogFormatter(logging.Formatter):
     """Formatter that integrates with structlog processors.
-    
+
     This formatter converts log records into structlog's event dictionary
     format and runs them through the configured processor chain.
-    
+
     Examples:
         >>> fmt = StructlogFormatter(processors=[...])
         >>> output = fmt.format(record)
     """
-    
+
     def __init__(
         self,
         processors: list[Any] | None = None,
         exclude: list[str] | None = None,
     ) -> None:
         """Initialize the structlog formatter.
-        
+
         Args:
             processors: List of structlog processors to apply.
             exclude: List of record attributes to exclude.
@@ -947,13 +947,13 @@ class StructlogFormatter(logging.Formatter):
         super().__init__("")
         self.processors = processors or []
         self.exclude = exclude or []
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record using structlog processors.
-        
+
         Args:
             record: The log record to format.
-        
+
         Returns:
             Processed log string.
         """
@@ -963,7 +963,7 @@ class StructlogFormatter(logging.Formatter):
             "level": record.levelname,
             "timestamp": record.created,
         }
-        
+
         # Add extra fields
         standard_attrs = {
             "name", "msg", "args", "created", "relativeCreated", "exc_info",
@@ -974,11 +974,11 @@ class StructlogFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key not in standard_attrs and key not in self.exclude and not key.startswith("_"):
                 event_dict[key] = value
-        
+
         # Run through processors
         for processor in self.processors:
             event_dict = processor(None, None, event_dict)
-        
+
         return json.dumps(event_dict, default=str)
 ```
 
@@ -999,7 +999,7 @@ This module provides filters for:
 
 Typical usage example:
     from app.logging.filters import DebugFilter
-    
+
     handler.addFilter(DebugFilter(debug_level=2, debug_focus="scores"))
 """
 
@@ -1013,29 +1013,29 @@ from app.logging.levels import LogLevel
 
 class DebugFilter(logging.Filter):
     """Filter that controls debug output based on level and focus.
-    
+
     This filter implements the custom debug filtering system that allows
     developers to focus on specific components at specific verbosity levels.
-    
+
     The filter checks for a 'debug' extra field in the log record:
         log("message", extra={"debug": {"level": 2, "focus": "scores"}})
-    
+
     Attributes:
         debug_level: Maximum debug level to show (0-3).
         debug_focus: Component focus for debug logs.
-    
+
     Examples:
         >>> filt = DebugFilter(debug_level=2, debug_focus="all")
         >>> # Records with debug level <= 2 will pass
     """
-    
+
     def __init__(
         self,
         debug_level: int = 0,
         debug_focus: str = "all",
     ) -> None:
         """Initialize the debug filter.
-        
+
         Args:
             debug_level: Maximum debug level to show.
                 0 = INFO only, 1 = DBGLV1, 2 = DBGLV2, 3 = VERBOSE
@@ -1044,13 +1044,13 @@ class DebugFilter(logging.Filter):
         super().__init__()
         self.debug_level = debug_level
         self.debug_focus = debug_focus
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
         """Determine if the record should be logged.
-        
+
         Args:
             record: The log record to check.
-        
+
         Returns:
             True if the record should be logged, False otherwise.
         """
@@ -1059,38 +1059,38 @@ class DebugFilter(logging.Filter):
         if debug_info is None:
             # No debug info, allow the record
             return True
-        
+
         record_level = debug_info.get("level", 0)
         record_focus = debug_info.get("focus", "all")
-        
+
         # Check if level is sufficient
         if record_level > self.debug_level:
             return False
-        
+
         # Check if focus matches
         if self.debug_focus != "all" and self.debug_focus != record_focus:
             return False
-        
+
         return True
 
 
 class LevelFilter(logging.Filter):
     """Filter that only allows specific log levels.
-    
+
     This is useful for creating handlers that only output certain levels.
-    
+
     Examples:
         >>> filt = LevelFilter(min_level=logging.WARNING)
         >>> # Only WARNING and above will pass
     """
-    
+
     def __init__(
         self,
         min_level: int = logging.NOTSET,
         max_level: int = logging.CRITICAL,
     ) -> None:
         """Initialize the level filter.
-        
+
         Args:
             min_level: Minimum log level to allow.
             max_level: Maximum log level to allow.
@@ -1098,13 +1098,13 @@ class LevelFilter(logging.Filter):
         super().__init__()
         self.min_level = min_level
         self.max_level = max_level
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
         """Check if the record's level is within range.
-        
+
         Args:
             record: The log record to check.
-        
+
         Returns:
             True if the record's level is within the allowed range.
         """
@@ -1128,17 +1128,17 @@ This module provides the primary logging functions:
 
 Typical usage example:
     from app.logging import log, LogBuilder, get_logger
-    
+
     # Simple usage
     log("Server started", level=logging.INFO, color=Ansi.LGREEN)
-    
+
     # Builder pattern
     LogBuilder("Score submitted")
         .with_level(logging.INFO)
         .with_player(player_id=123)
         .with_extra({"score_id": 456, "pp": 150.5})
         .log()
-    
+
     # Structlog wrapper
     logger = get_logger("scores")
     logger.info("Score processed", score_id=123)
@@ -1160,21 +1160,21 @@ _config = LoggingConfig()
 
 def configure(config: LoggingConfig) -> None:
     """Configure the logging system.
-    
+
     Args:
         config: Logging configuration.
-    
+
     Examples:
         >>> from app.logging.config import LoggingConfig
         >>> configure(LoggingConfig(service_name="my_app", debug_level=2))
     """
     global _config
     _config = config
-    
+
     # Set up root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
-    
+
     # Configure handlers based on config
     # (Implementation depends on your specific needs)
 
@@ -1189,10 +1189,10 @@ def log(
     logger: str | None = None,
 ) -> None:
     """Log a message with optional color and context.
-    
+
     This is the primary logging function. It provides a simple API
     for logging messages with automatic context inclusion.
-    
+
     Args:
         msg: The message to log.
         level: Log level (use logging module constants).
@@ -1201,7 +1201,7 @@ def log(
         extra: Additional fields to include in structured logs.
         exc_info: Whether to include exception information.
         logger: Logger name to use. Defaults to caller's module.
-    
+
     Examples:
         >>> log("Server started", color=Ansi.LGREEN)
         >>> log("Error occurred", level=logging.ERROR, exc_info=True)
@@ -1219,25 +1219,25 @@ def log(
         else:
             logger_name = "root"
         log_obj = logging.getLogger(logger_name)
-    
+
     # Build extra dict with context
     extra_dict = dict(extra) if extra else {}
     extra_dict.update(get_context_dict())
-    
+
     # Add color info for formatters
     if color is None:
         color = get_level_color(level)
-    
+
     # Log the message
     log_obj.log(level, msg, extra=extra_dict, exc_info=exc_info)
 
 
 class LogBuilder:
     """Builder for complex log entries with multiple context fields.
-    
+
     This builder provides a fluent API for constructing log entries
     with multiple context fields.
-    
+
     Usage:
         LogBuilder("Score submitted")
             .with_level(logging.INFO)
@@ -1245,15 +1245,15 @@ class LogBuilder:
             .with_extra({"score_id": score.id, "pp": score.pp})
             .with_request_id(request_id)
             .log()
-    
+
     Examples:
         >>> builder = LogBuilder("Test message")
         >>> builder.with_level(logging.WARNING).log()
     """
-    
+
     def __init__(self, msg: str) -> None:
         """Initialize the log builder.
-        
+
         Args:
             msg: The log message.
         """
@@ -1263,94 +1263,94 @@ class LogBuilder:
         self._extra: dict[str, Any] = {}
         self._exc_info = False
         self._logger: str | None = None
-    
+
     def with_level(self, level: int) -> LogBuilder:
         """Set the log level.
-        
+
         Args:
             level: Log level.
-        
+
         Returns:
             Self for chaining.
         """
         self._level = level
         return self
-    
+
     def with_color(self, color: Ansi) -> LogBuilder:
         """Set the console color.
-        
+
         Args:
             color: ANSI color.
-        
+
         Returns:
             Self for chaining.
         """
         self._color = color
         return self
-    
+
     def with_extra(self, **kwargs: Any) -> LogBuilder:
         """Add extra fields.
-        
+
         Args:
             **kwargs: Extra fields to include.
-        
+
         Returns:
             Self for chaining.
         """
         self._extra.update(kwargs)
         return self
-    
+
     def with_player(self, player_id: int) -> LogBuilder:
         """Add player context.
-        
+
         Args:
             player_id: Player ID.
-        
+
         Returns:
             Self for chaining.
         """
         self._extra["player_id"] = player_id
         return self
-    
+
     def with_request_id(self, request_id: str) -> LogBuilder:
         """Add request ID.
-        
+
         Args:
             request_id: Request ID.
-        
+
         Returns:
             Self for chaining.
         """
         self._extra["request_id"] = request_id
         return self
-    
+
     def with_exception(self, exc_info: bool = True) -> LogBuilder:
         """Include exception info.
-        
+
         Args:
             exc_info: Whether to include exception info.
-        
+
         Returns:
             Self for chaining.
         """
         self._exc_info = exc_info
         return self
-    
+
     def with_logger(self, logger: str) -> LogBuilder:
         """Set logger name.
-        
+
         Args:
             logger: Logger name.
-        
+
         Returns:
             Self for chaining.
         """
         self._logger = logger
         return self
-    
+
     def log(self) -> None:
         """Execute the log operation.
-        
+
         Examples:
             >>> LogBuilder("Test").with_level(logging.INFO).log()
         """
@@ -1379,7 +1379,7 @@ custom logging configuration.
 
 Typical usage example:
     from app.logging import get_logger
-    
+
     logger = get_logger("scores")
     logger.info("Score submitted", score_id=123, pp=150.5)
     logger.error("Validation failed", error="invalid score")
@@ -1398,16 +1398,16 @@ from app.logging.levels import register_custom_levels
 
 def setup_structlog(config: LoggingConfig) -> None:
     """Configure structlog with our custom settings.
-    
+
     Args:
         config: Logging configuration.
-    
+
     Examples:
         >>> from app.logging.config import LoggingConfig
         >>> setup_structlog(LoggingConfig(service_name="my_app"))
     """
     register_custom_levels()
-    
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
@@ -1434,15 +1434,15 @@ def _add_context_processor(
     event_dict: dict[str, Any],
 ) -> dict[str, Any]:
     """Add request context to all structlog entries.
-    
+
     This processor automatically includes request context (request_id,
     player_id, etc.) in all log entries.
-    
+
     Args:
         logger: The logger instance.
         method_name: The logging method name.
         event_dict: The event dictionary being built.
-    
+
     Returns:
         Updated event dictionary with context.
     """
@@ -1453,13 +1453,13 @@ def _add_context_processor(
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a structlog logger with our custom configuration.
-    
+
     Args:
         name: Logger name (typically module name).
-    
+
     Returns:
         Configured structlog logger.
-    
+
     Examples:
         >>> logger = get_logger("scores")
         >>> logger.info("Score processed", score_id=123)
@@ -1484,7 +1484,7 @@ a plugin registration system.
 Typical usage example:
     from app.logging.plugins.request_formatters import register_formatter
     from my_framework import MyRequestFormatter
-    
+
     register_formatter(MyRequestFormatter())
 """
 
@@ -1496,37 +1496,37 @@ from typing import Any
 
 class RequestFormatter(ABC):
     """Base class for HTTP request formatters.
-    
+
     Subclass this to add support for different frameworks.
-    
+
     Examples:
         class FastAPIRequestFormatter(RequestFormatter):
             def can_handle(self, request):
                 return hasattr(request, 'method') and hasattr(request, 'headers')
-            
+
             def format(self, request):
                 return {"method": request.method, "path": request.url.path}
     """
-    
+
     @abstractmethod
     def can_handle(self, request: Any) -> bool:
         """Check if this formatter can handle the given request.
-        
+
         Args:
             request: The request object to check.
-        
+
         Returns:
             True if this formatter can handle the request.
         """
         ...
-    
+
     @abstractmethod
     def format(self, request: Any) -> dict[str, Any]:
         """Format the request into a dictionary for logging.
-        
+
         Args:
             request: The request object to format.
-        
+
         Returns:
             Dictionary with request information.
         """
@@ -1539,10 +1539,10 @@ _formatters: list[RequestFormatter] = []
 
 def register_formatter(formatter: RequestFormatter) -> None:
     """Register a request formatter.
-    
+
     Args:
         formatter: The formatter to register.
-    
+
     Examples:
         >>> register_formatter(FastAPIRequestFormatter())
     """
@@ -1551,13 +1551,13 @@ def register_formatter(formatter: RequestFormatter) -> None:
 
 def format_request(request: Any) -> dict[str, Any]:
     """Format a request using the appropriate registered formatter.
-    
+
     Args:
         request: The request object to format.
-    
+
     Returns:
         Dictionary with request information, or empty dict if no formatter found.
-    
+
     Examples:
         >>> info = format_request(request)
         >>> print(info["method"], info["path"])
@@ -1570,16 +1570,16 @@ def format_request(request: Any) -> dict[str, Any]:
 
 class FastAPIRequestFormatter(RequestFormatter):
     """Formatter for FastAPI Request objects.
-    
+
     Extracts relevant information from FastAPI requests for logging.
     Excludes sensitive headers like Authorization and Cookie.
-    
+
     Examples:
         >>> formatter = FastAPIRequestFormatter()
         >>> if formatter.can_handle(request):
         ...     info = formatter.format(request)
     """
-    
+
     # Headers to exclude from logs
     EXCLUDED_HEADERS = {
         "accept-encoding",
@@ -1590,13 +1590,13 @@ class FastAPIRequestFormatter(RequestFormatter):
         "authorization",
         "cookie",
     }
-    
+
     def can_handle(self, request: Any) -> bool:
         """Check if this is a FastAPI request.
-        
+
         Args:
             request: Object to check.
-        
+
         Returns:
             True if the object appears to be a FastAPI request.
         """
@@ -1605,13 +1605,13 @@ class FastAPIRequestFormatter(RequestFormatter):
             and hasattr(request, "headers")
             and hasattr(request, "url")
         )
-    
+
     def format(self, request: Any) -> dict[str, Any]:
         """Format a FastAPI request.
-        
+
         Args:
             request: FastAPI request object.
-        
+
         Returns:
             Dictionary with request information.
         """
@@ -1620,7 +1620,7 @@ class FastAPIRequestFormatter(RequestFormatter):
             k: v for k, v in headers.items()
             if k.lower() not in self.EXCLUDED_HEADERS
         }
-        
+
         return {
             "method": request.method,
             "path": str(request.url.path),
@@ -1642,11 +1642,11 @@ package but can be used independently.
 
 Typical usage example:
     from app.logging.plugins.error_handler import error_catcher
-    
+
     @error_catcher
     async def process_score(score_data):
         ...
-    
+
     @error_catcher(logger="scores", reraise=False)
     async def validate_score(score_data):
         ...
@@ -1675,41 +1675,41 @@ def error_catcher(
     reraise: bool = True,
 ) -> Callable[..., R] | Callable[[Callable[..., R]], Callable[..., R]]:
     """Decorator that catches and logs exceptions with full context.
-    
+
     This decorator wraps functions to catch any exceptions, log them
     with detailed context information, and optionally re-raise them.
-    
+
     Can be used with or without arguments:
         @error_catcher
         async def my_func(): ...
-        
+
         @error_catcher(logger="scores", reraise=False)
         async def my_func(): ...
-    
+
     Args:
         func: The function to decorate (when used without parentheses).
         logger: Logger name to use (defaults to function's module).
         level: Log level for caught exceptions.
         reraise: Whether to re-raise the exception after logging.
-    
+
     Returns:
         Decorated function that catches and logs exceptions.
-    
+
     Examples:
         >>> @error_catcher
         ... async def risky_operation():
         ...     raise ValueError("Something went wrong")
-        
+
         >>> @error_catcher(reraise=False)
         ... def safe_operation():
         ...     raise RuntimeError("Non-critical error")
     """
-    
+
     def decorator(fn: Callable[..., R]) -> Callable[..., R]:
         nonlocal logger
         if logger is None:
             logger = getattr(fn, "__module__", "unknown")
-        
+
         if asyncio.iscoroutinefunction(fn):
             @functools.wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> R:
@@ -1720,7 +1720,7 @@ def error_catcher(
                     if reraise:
                         raise
                     return cast(R, None)
-            
+
             # Preserve __globals__ for forward reference resolution
             async_wrapper.__globals__.update(getattr(fn, "__globals__", {}))
             return async_wrapper
@@ -1734,10 +1734,10 @@ def error_catcher(
                     if reraise:
                         raise
                     return cast(R, None)
-            
+
             sync_wrapper.__globals__.update(getattr(fn, "__globals__", {}))
             return sync_wrapper
-    
+
     if func is not None:
         # Called without parentheses: @error_catcher
         return decorator(func)
@@ -1754,7 +1754,7 @@ def _log_exception(
     kwargs: dict[str, Any],
 ) -> None:
     """Log an exception with full context.
-    
+
     Args:
         exc: The exception that was raised.
         func: The function that raised the exception.
@@ -1764,7 +1764,7 @@ def _log_exception(
         kwargs: Keyword arguments passed to the function.
     """
     exc_type, exc_value, exc_traceback = sys.exc_info()
-    
+
     # Build context
     context = {
         "function_name": getattr(func, "__name__", "unknown"),
@@ -1773,13 +1773,13 @@ def _log_exception(
         "error_message": str(exc),
         "traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
     }
-    
+
     # Add args/kwargs info (be careful with sensitive data)
     if args:
         context["args_count"] = len(args)
     if kwargs:
         context["kwargs_keys"] = list(kwargs.keys())
-    
+
     log(
         f"Error in {context['function_name']}: {exc}",
         level=level,
@@ -1804,7 +1804,7 @@ It includes log capture, assertions, and pytest fixtures.
 
 Typical usage example:
     from app.logging.testing import LogCapture, assert_log_contains
-    
+
     def test_my_function():
         with LogCapture() as capture:
             my_function()
@@ -1821,16 +1821,16 @@ from typing import Any
 
 class LogCapture:
     """Context manager for capturing log output in tests.
-    
+
     This class captures all log output made during its context,
     allowing you to assert on log messages, levels, and counts.
-    
+
     Usage:
         with LogCapture() as capture:
             log("Test message", level=logging.INFO)
             assert capture.has_message("Test message")
             assert capture.count_messages(level=logging.INFO) == 1
-    
+
     Examples:
         >>> with LogCapture() as capture:
         ...     logging.info("Hello")
@@ -1838,14 +1838,14 @@ class LogCapture:
         >>> capture.count_messages()
         2
     """
-    
+
     def __init__(
         self,
         level: int = logging.DEBUG,
         logger: str | None = None,
     ) -> None:
         """Initialize log capture.
-        
+
         Args:
             level: Minimum log level to capture.
             logger: Logger name to capture from. None for root logger.
@@ -1855,10 +1855,10 @@ class LogCapture:
         self.records: list[logging.LogRecord] = []
         self._handler: logging.Handler | None = None
         self._logger: logging.Logger | None = None
-    
+
     def __enter__(self) -> LogCapture:
         """Start capturing logs.
-        
+
         Returns:
             Self for use in 'as' clause.
         """
@@ -1867,22 +1867,22 @@ class LogCapture:
         self._handler.setLevel(self.level)
         self._logger.addHandler(self._handler)
         return self
-    
+
     def __exit__(self, *args: Any) -> None:
         """Stop capturing logs."""
         if self._logger and self._handler:
             self._logger.removeHandler(self._handler)
-    
+
     def has_message(self, message: str, exact: bool = False) -> bool:
         """Check if a message was logged.
-        
+
         Args:
             message: Message to search for.
             exact: If True, match exact message. If False, check if contained.
-        
+
         Returns:
             True if the message was found.
-        
+
         Examples:
             >>> with LogCapture() as capture:
             ...     logging.info("Hello World")
@@ -1899,21 +1899,21 @@ class LogCapture:
                 if message in record.getMessage():
                     return True
         return False
-    
+
     def count_messages(
         self,
         message: str | None = None,
         level: int | None = None,
     ) -> int:
         """Count logged messages matching criteria.
-        
+
         Args:
             message: Message to search for (optional).
             level: Log level to filter by (optional).
-        
+
         Returns:
             Number of matching messages.
-        
+
         Examples:
             >>> with LogCapture() as capture:
             ...     logging.info("A")
@@ -1932,16 +1932,16 @@ class LogCapture:
                 continue
             count += 1
         return count
-    
+
     def count_level(self, level: int) -> int:
         """Count messages at a specific level.
-        
+
         Args:
             level: Log level to count.
-        
+
         Returns:
             Number of messages at that level.
-        
+
         Examples:
             >>> with LogCapture() as capture:
             ...     logging.warning("Warning!")
@@ -1949,13 +1949,13 @@ class LogCapture:
             1
         """
         return self.count_messages(level=level)
-    
+
     def get_messages(self) -> list[str]:
         """Get all logged messages.
-        
+
         Returns:
             List of message strings.
-        
+
         Examples:
             >>> with LogCapture() as capture:
             ...     logging.info("Hello")
@@ -1963,18 +1963,18 @@ class LogCapture:
             ['Hello']
         """
         return [r.getMessage() for r in self.records]
-    
+
     def get_records(self) -> list[logging.LogRecord]:
         """Get all log records.
-        
+
         Returns:
             List of LogRecord objects.
         """
         return self.records.copy()
-    
+
     def clear(self) -> None:
         """Clear captured records.
-        
+
         Examples:
             >>> with LogCapture() as capture:
             ...     logging.info("Hello")
@@ -1987,19 +1987,19 @@ class LogCapture:
 
 class _CaptureHandler(logging.Handler):
     """Handler that captures log records to a list."""
-    
+
     def __init__(self, records: list[logging.LogRecord]) -> None:
         """Initialize the capture handler.
-        
+
         Args:
             records: List to store captured records.
         """
         super().__init__()
         self.records = records
-    
+
     def emit(self, record: logging.LogRecord) -> None:
         """Capture a log record.
-        
+
         Args:
             record: The log record to capture.
         """
@@ -2013,19 +2013,19 @@ def assert_log_contains(
     **extra_fields: Any,
 ) -> bool:
     """Assert that log records contain a matching entry.
-    
+
     Args:
         records: List of log records to search.
         message: Message to search for.
         level: Log level to match.
         **extra_fields: Extra fields to match.
-    
+
     Returns:
         True if a matching record is found.
-    
+
     Raises:
         AssertionError: If no matching record is found.
-    
+
     Examples:
         >>> records = [logging.LogRecord("test", 20, "", 0, "msg", (), None)]
         >>> assert_log_contains(records, message="msg", level=20)
@@ -2036,17 +2036,17 @@ def assert_log_contains(
             continue
         if level is not None and record.levelno != level:
             continue
-        
+
         # Check extra fields
         fields_match = True
         for key, value in extra_fields.items():
             if not hasattr(record, key) or getattr(record, key) != value:
                 fields_match = False
                 break
-        
+
         if fields_match:
             return True
-    
+
     raise AssertionError(
         f"No log record found matching: message={message}, level={level}, extra={extra_fields}"
     )
@@ -2055,14 +2055,14 @@ def assert_log_contains(
 # Pytest fixtures (if pytest is available)
 try:
     import pytest
-    
+
     @pytest.fixture
     def log_capture():
         """Pytest fixture for log capture.
-        
+
         Yields:
             LogCapture instance.
-        
+
         Examples:
             def test_something(log_capture):
                 with log_capture:
@@ -2097,28 +2097,28 @@ This package provides a comprehensive logging system with:
 Quick Start:
     from app.logging import log, Ansi, configure
     from app.logging.config import LoggingConfig
-    
+
     # Configure logging
     configure(LoggingConfig(service_name="my_app", debug_level=2))
-    
+
     # Simple logging
     log("Server started", color=Ansi.LGREEN)
     log("Error occurred", level=logging.ERROR, exc_info=True)
-    
+
     # With context
     with LogContext(request_id="abc123", player_id=456):
         log("Processing score")  # Includes request_id and player_id
 
 Advanced Usage:
     from app.logging import LogBuilder, get_logger
-    
+
     # Builder pattern
     LogBuilder("Score submitted")
         .with_level(logging.INFO)
         .with_player(player_id=123)
         .with_extra({"score_id": 456})
         .log()
-    
+
     # Structlog
     logger = get_logger("scores")
     logger.info("Score processed", score_id=123)
@@ -2174,16 +2174,16 @@ from app.logging.testing import LogCapture, assert_log_contains
 __all__ = [
     # Configuration
     "LoggingConfig",
-    
+
     # Log levels
     "LogLevel",
     "register_custom_levels",
-    
+
     # ANSI colors
     "Ansi",
     "colorize",
     "escape_ansi",
-    
+
     # Context
     "LogContext",
     "RequestContext",
@@ -2193,32 +2193,32 @@ __all__ = [
     "get_current_context",
     "get_player_id",
     "get_request_id",
-    
+
     # Main API
     "LogBuilder",
     "configure",
     "log",
-    
+
     # Structlog
     "get_logger",
     "setup_structlog",
-    
+
     # Filters
     "DebugFilter",
     "LevelFilter",
-    
+
     # Formatters
     "ConsoleFormatter",
     "JsonFormatter",
     "StructlogFormatter",
-    
+
     # Plugins
     "error_catcher",
     "FastAPIRequestFormatter",
     "RequestFormatter",
     "format_request",
     "register_formatter",
-    
+
     # Testing
     "LogCapture",
     "assert_log_contains",

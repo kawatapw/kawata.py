@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = "==3.11.*"
 
+[manifest]
+members = [
+    "ci-tool",
+    "kawata-py",
+]
+
 [[package]]
 name = "aiomysql"
 version = "0.3.2"
@@ -205,6 +211,38 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b4/10/dba36f76b71c38e9d391abe0fd8a5b818790e053c431adecfc98c35cd2a9/charset_normalizer-3.4.5-cp311-cp311-win_arm64.whl", hash = "sha256:ed98364e1c262cf5f9363c3eca8c2df37024f52a8fa1180a3610014f26eac51c", size = 132796, upload-time = "2026-03-06T06:01:14.106Z" },
     { url = "https://files.pythonhosted.org/packages/c5/60/3a621758945513adfd4db86827a5bafcc615f913dbd0b4c2ed64a65731be/charset_normalizer-3.4.5-py3-none-any.whl", hash = "sha256:9db5e3fcdcee89a78c04dffb3fe33c79f77bd741a624946db2591c81b2fc85b0", size = 55455, upload-time = "2026-03-06T06:03:17.827Z" },
 ]
+
+[[package]]
+name = "ci-tool"
+version = "1.0.0"
+source = { editable = "tools/ci" }
+dependencies = [
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "typer" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "respx" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = "==0.26.0" },
+    { name = "jinja2", specifier = ">=3.0" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "respx", marker = "extra == 'dev'", specifier = "==0.20.2" },
+    { name = "rich", specifier = ">=13.0" },
+    { name = "typer", specifier = ">=0.12" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "click"
@@ -529,6 +567,7 @@ dependencies = [
     { name = "asgi-lifespan" },
     { name = "async-timeout" },
     { name = "bcrypt" },
+    { name = "ci-tool" },
     { name = "coverage" },
     { name = "cryptography" },
     { name = "databases", extra = ["mysql"] },
@@ -594,6 +633,7 @@ requires-dist = [
     { name = "async-timeout", specifier = "==4.0.3" },
     { name = "bandit", marker = "extra == 'dev'", specifier = "==1.9.4" },
     { name = "bcrypt", specifier = "==4.1.2" },
+    { name = "ci-tool", editable = "tools/ci" },
     { name = "coverage", specifier = "==7.4.1" },
     { name = "cryptography", specifier = "==46.0.5" },
     { name = "databases", extras = ["mysql"], specifier = "==0.8.0" },

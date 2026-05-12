@@ -25,3 +25,4 @@ logs.log
 *.fuse*
 *.log
 CLAUDE.md
+.ci-data/

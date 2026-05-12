@@ -33,7 +33,7 @@ class EncryptionManager:
     def __init__(self, key: str | None = None) -> None:
         """
         Initialize encryption manager.
-        
+
         Args:
             key: 32-byte hex string for AES-256 key.
                  If None, loads from settings.
@@ -60,10 +60,10 @@ class EncryptionManager:
     def encrypt(self, plaintext: str) -> str:
         """
         Encrypt plaintext string.
-        
+
         Args:
             plaintext: String to encrypt.
-            
+
         Returns:
             Base64-encoded string containing nonce + ciphertext + tag.
         """
@@ -92,10 +92,10 @@ class EncryptionManager:
     def decrypt(self, encrypted: str) -> str:
         """
         Decrypt encrypted string.
-        
+
         Args:
             encrypted: Base64-encoded string from encrypt().
-            
+
         Returns:
             Decrypted plaintext string.
         """
@@ -121,11 +121,11 @@ class EncryptionManager:
     def encrypt_dict_fields(self, data: dict, fields: list[str]) -> dict:
         """
         Encrypt specific fields in a dictionary.
-        
+
         Args:
             data: Dictionary with data to encrypt.
             fields: List of field names to encrypt.
-            
+
         Returns:
             New dictionary with specified fields encrypted.
         """
@@ -138,11 +138,11 @@ class EncryptionManager:
     def decrypt_dict_fields(self, data: dict, fields: list[str]) -> dict:
         """
         Decrypt specific fields in a dictionary.
-        
+
         Args:
             data: Dictionary with encrypted fields.
             fields: List of field names to decrypt.
-            
+
         Returns:
             New dictionary with specified fields decrypted.
         """

@@ -249,12 +249,12 @@ class TemplateRenderer:
     ) -> RenderedMessage:
         """
         Render a template with the given context.
-        
+
         Args:
             template_name: Name of the template to render.
             context: Variables to substitute.
             guild_id: Guild ID for guild-specific template override.
-            
+
         Returns:
             Rendered message with content, embed, and components.
         """

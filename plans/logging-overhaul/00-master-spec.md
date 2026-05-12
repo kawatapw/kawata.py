@@ -51,7 +51,7 @@ app/logging/
 @dataclass
 class LoggingConfig:
     """Configuration for the logging system.
-    
+
     Attributes:
         service_name: Name of the service for log identification.
         container_name: Name of the container/instance.
@@ -77,14 +77,14 @@ Keep the existing custom levels but implement them properly:
 ```python
 class LogLevel(IntEnum):
     """Custom log levels for granular debug control.
-    
+
     Standard Levels:
         DEBUG (10): Detailed diagnostic information
         INFO (20): General operational information
         WARNING (30): Potential issues
         ERROR (40): Error conditions
         CRITICAL (50): Critical errors
-    
+
     Custom Debug Levels:
         VERBOSE (11): Extended diagnostic information
         DBGLV2 (14): Debug level 2 - detailed component logs
@@ -105,17 +105,17 @@ class LogLevel(IntEnum):
 ```python
 class RequestContext:
     """Holds context for the current request/operation.
-    
+
     Attributes:
         request_id: Unique identifier for this request.
         correlation_id: ID that may be passed from external systems.
         player_id: Optional player ID for player-specific logs.
         start_time: When the request started.
     """
-    
+
     def __init__(self, ...):
         ...
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary for log inclusion."""
         ...
@@ -123,7 +123,7 @@ class RequestContext:
 
 class LogContext:
     """Context manager for setting request context.
-    
+
     Usage:
         with LogContext(request_id="abc123", player_id=12345):
             log.info("Processing score")  # Automatically includes context
@@ -142,7 +142,7 @@ Separate formatters for different outputs:
 ```python
 class ConsoleFormatter(logging.Formatter):
     """Formatter for console output with optional ANSI colors.
-    
+
     Adds color based on log level when colors are enabled.
     Never includes color codes in the actual log message to keep
     structured logs clean.
@@ -152,7 +152,7 @@ class ConsoleFormatter(logging.Formatter):
 
 class JsonFormatter(logging.Formatter):
     """Formatter for JSON output to ELK/structured logging.
-    
+
     Ensures all output is valid JSON with no ANSI escape codes.
     Includes timestamp, level, message, and any extra fields.
     """
@@ -172,14 +172,14 @@ def log(
     exc_info: bool = False,
 ) -> None:
     """Log a message with optional color and extra context.
-    
+
     Args:
         msg: The message to log.
         level: Log level (use logging module constants or LogLevel).
         color: Optional ANSI color for console output.
         extra: Additional fields to include in structured logs.
         exc_info: Whether to include exception information.
-    
+
     Examples:
         >>> log("Server started", color=Ansi.LGREEN)
         >>> log("Error occurred", level=logging.ERROR, exc_info=True)
@@ -191,7 +191,7 @@ def log(
 # Builder pattern for complex logging
 class LogBuilder:
     """Builder for complex log entries with multiple context fields.
-    
+
     Usage:
         LogBuilder("Score submitted")
             .with_level(logging.INFO)
@@ -206,7 +206,7 @@ class LogBuilder:
 # Structlog wrapper
 def get_logger(name: str) -> StructlogWrapper:
     """Get a structlog logger with our custom configuration.
-    
+
     Provides a clean API that wraps structlog with our conventions.
     """
     ...
@@ -214,7 +214,7 @@ def get_logger(name: str) -> StructlogWrapper:
 
 class StructlogWrapper:
     """Wrapper around structlog that provides a cleaner API.
-    
+
     Usage:
         logger = get_logger("scores")
         logger.info("Score submitted", player_id=123, score_id=456)
@@ -234,20 +234,20 @@ def error_catcher(
     reraise: bool = True,
 ) -> Callable:
     """Decorator that catches and logs exceptions with full context.
-    
+
     Can be used with or without arguments:
         @error_catcher
         async def my_func(): ...
-        
+
         @error_catcher(logger="scores", reraise=False)
         async def my_func(): ...
-    
+
     Args:
         func: The function to decorate (when used without parentheses).
         logger: Logger name to use (defaults to function's module).
         level: Log level for caught exceptions.
         reraise: Whether to re-raise the exception after logging.
-    
+
     Returns:
         Decorated function that catches and logs exceptions.
     """
@@ -259,15 +259,15 @@ def error_catcher(
 ```python
 class RequestFormatter(ABC):
     """Base class for HTTP request formatters.
-    
+
     Subclass this to add support for different frameworks.
     """
-    
+
     @abstractmethod
     def can_handle(self, request: Any) -> bool:
         """Check if this formatter can handle the given request."""
         ...
-    
+
     @abstractmethod
     def format(self, request: Any) -> dict[str, Any]:
         """Format the request into a dictionary for logging."""
@@ -295,7 +295,7 @@ def format_request(request: Any) -> dict[str, Any]:
 ```python
 class LogCapture:
     """Context manager for capturing log output in tests.
-    
+
     Usage:
         with LogCapture() as capture:
             log("Test message", level=logging.INFO)
@@ -382,20 +382,20 @@ All public APIs must have Google-style docstrings with:
 ```python
 def example_function(param1: str, param2: int = 10) -> bool:
     """Short description of the function.
-    
+
     Longer description if needed, explaining the function's purpose
     and any important details.
-    
+
     Args:
         param1: Description of param1.
         param2: Description of param2. Defaults to 10.
-    
+
     Returns:
         Description of return value.
-    
+
     Raises:
         ValueError: When param1 is empty.
-    
+
     Examples:
         >>> example_function("test")
         True

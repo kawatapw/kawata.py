@@ -47,7 +47,8 @@ dependencies = [
     "python-rapidjson==1.17",
     "anyio==4.9.0",
     "PyYAML==6.0.1",
-    "defusedxml>=0.7.1"
+    "defusedxml>=0.7.1",
+    "ci-tool @ {root:uri}/tools/ci"
 ]
 
 [project.optional-dependencies]
@@ -79,8 +80,75 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["."]  # Include all files in the root directory
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.uv]
 no-build-package = ["akatsuki-pp-py"]
+
+[tool.uv.workspace]
+members = ["tools/ci"]
+
+[tool.uv.sources]
+ci-tool = { workspace = true }
+
+[tool.ci]
+storage_backend = "file"
+
+[tool.ci.storage.file]
+directory = ".ci-data"
+
+[tool.ci.summary]
+include_jobs = true
+include_timing = true
+include_artifacts = true
+max_failures_shown = 50
+max_code_snippet_lines = 12
+
+[tool.ci.comment]
+enabled = true
+update_existing = true
+include_job_table = true
+include_failures = true
+include_code_snippets = true
+
+[tool.ci.jobs.ruff]
+command = "uv run ruff check . --output-file reports/ruff.json --output-format json"
+report = "reports/ruff.json"
+parser = "ruff"
+
+[tool.ci.jobs.ty]
+command = "uv run ty check --output-format junit --no-progress . > reports/ty.xml"
+report = "reports/ty.xml"
+parser = "ty"
+
+[tool.ci.jobs.bandit]
+command = "uv run bandit -r app/ -f json -o reports/bandit.json 2>&1"
+report = "reports/bandit.json"
+parser = "bandit"
+
+[tool.ci.jobs.mypy]
+command = "uv run mypy . --pretty --show-error-end --show-error-context > reports/mypy.log"
+report = "reports/mypy.log"
+parser = "mypy"
+
+[tool.ci.jobs.unit-tests]
+command = "uv run pytest tests/unit/ --junit-xml=reports/junit-unit.xml -x -q 2>&1"
+report = "reports/junit-unit.xml"
+parser = "pytest"
+
+# Build and integration tests are designed for local execution with ci run
+# For GitHub Actions, these run as separate jobs with artifact passing
+[tool.ci.jobs.build]
+command = "docker build -t kawata-test:${GITHUB_SHA:-local} . && docker save kawata-test:${GITHUB_SHA:-local} -o reports/docker-image.tar"
+report = "reports/docker-image.tar"
+parser = ""
+
+[tool.ci.jobs.integration-tests]
+command = "docker load -i reports/docker-image.tar && docker compose -f docker-compose.test.yml up --detach --wait --wait-timeout 30 bancho-test mysql-test redis-test && docker compose -f docker-compose.test.yml exec -T bancho-test uv run pytest tests/integration/ --junit-xml=reports/junit-integration.xml -x -q 2>&1"
+report = "reports/junit-integration.xml"
+parser = "pytest"
+depends_on = ["build"]
 
 [tool.mypy]
 strict = true

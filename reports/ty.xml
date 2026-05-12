@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="ty" tests="12" failures="12" errors="0">
+    <testsuite name="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tests/unit/ci/test_storage.py" tests="4" disabled="0" errors="0" failures="4" package="org.ty">
+        <testcase name="org.ty.unsupported-operator" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tests/unit/ci/test_storage" line="17" column="52">
+            <failure message="Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`">line 17, col 52, Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`</failure>
+        </testcase>
+        <testcase name="org.ty.unsupported-operator" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tests/unit/ci/test_storage" line="46" column="52">
+            <failure message="Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`">line 46, col 52, Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`</failure>
+        </testcase>
+        <testcase name="org.ty.unsupported-operator" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tests/unit/ci/test_storage" line="50" column="52">
+            <failure message="Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`">line 50, col 52, Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`</failure>
+        </testcase>
+        <testcase name="org.ty.unsupported-operator" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tests/unit/ci/test_storage" line="67" column="52">
+            <failure message="Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`">line 67, col 52, Operator `/` is not supported between objects of type `TempPathFactory` and `Literal[&quot;ci-data&quot;]`</failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/cli.py" tests="2" disabled="0" errors="0" failures="2" package="org.ty">
+        <testcase name="org.ty.unresolved-reference" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/cli" line="320" column="17">
+            <failure message="Name `RunResult` used when not defined">line 320, col 17, Name `RunResult` used when not defined</failure>
+        </testcase>
+        <testcase name="org.ty.unknown-argument" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/cli" line="442" column="21">
+            <failure message="Argument `summary_line` does not match any known parameter">line 442, col 21, Argument `summary_line` does not match any known parameter</failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/context.py" tests="1" disabled="0" errors="0" failures="1" package="org.ty">
+        <testcase name="org.ty.invalid-assignment" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/context" line="38" column="26">
+            <failure message="Object of type `None` is not assignable to `Path`">line 38, col 26, Object of type `None` is not assignable to `Path`</failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/github/__init__.py" tests="1" disabled="0" errors="0" failures="1" package="org.ty">
+        <testcase name="org.ty.invalid-return-type" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/github/__init__" line="101" column="16">
+            <failure message="Return type does not match returned value: expected `list[dict[str, Any]]`, found `(dict[str, Any] &amp; ~AlwaysFalsy) | list[Unknown]`">line 101, col 16, Return type does not match returned value: expected `list[dict[str, Any]]`, found `(dict[str, Any] &amp; ~AlwaysFalsy) | list[Unknown]`</failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/github/comments.py" tests="1" disabled="0" errors="0" failures="1" package="org.ty">
+        <testcase name="org.ty.invalid-return-type" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/github/comments" line="69" column="28">
+            <failure message="Return type does not match returned value: expected `dict[str, Any] | None`, found `Unknown | str`">line 69, col 28, Return type does not match returned value: expected `dict[str, Any] | None`, found `Unknown | str`</failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/runner/__init__.py" tests="3" disabled="0" errors="0" failures="3" package="org.ty">
+        <testcase name="org.ty.invalid-assignment" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/runner/__init__" line="195" column="17">
+            <failure message="Invalid subscript assignment with key of type `str | Unknown` and value of type `(JobRunResult &amp; ~Exception) | (BaseException &amp; ~Exception) | (Unknown &amp; ~Exception)` on object of type `dict[str, JobRunResult]`">line 195, col 17, Invalid subscript assignment with key of type `str | Unknown` and value of type `(JobRunResult &amp; ~Exception) | (BaseException &amp; ~Exception) | (Unknown &amp; ~Exception)` on object of type `dict[str, JobRunResult]`</failure>
+        </testcase>
+        <testcase name="org.ty.invalid-argument-type" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/runner/__init__" line="202" column="57">
+            <failure message="Argument to bound method `_job_summary_line` is incorrect: Expected `JobRunResult`, found `(JobRunResult &amp; ~Exception) | (BaseException &amp; ~Exception) | (Unknown &amp; ~Exception)`">line 202, col 57, Argument to bound method `_job_summary_line` is incorrect: Expected `JobRunResult`, found `(JobRunResult &amp; ~Exception) | (BaseException &amp; ~Exception) | (Unknown &amp; ~Exception)`</failure>
+        </testcase>
+        <testcase name="org.ty.unsupported-operator" classname="/home/loki/mnt/Remote/SSH/Loki-NAS-Root/mnt/user/KawataDev/kawata.py/tools/ci/src/ci_tool/runner/__init__" line="312" column="13">
+            <failure message="Operator `-` is not supported between objects of type `datetime` and `datetime | None`">line 312, col 13, Operator `-` is not supported between objects of type `datetime` and `datetime | None`</failure>
+        </testcase>
+    </testsuite>
+</testsuites>
