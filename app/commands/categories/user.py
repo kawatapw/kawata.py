@@ -32,6 +32,7 @@ from app.objects.score import SubmissionStatus
 from app.repositories import map_requests as map_requests_repo
 from app.repositories import users as users_repo
 from app.usecases.performance import ScoreParams
+from app.usecases.performance import calculate_performances
 
 # Define BEATMAPS_PATH
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
@@ -345,7 +346,7 @@ async def top(ctx: Context) -> str:
 
 @user_command(
     name="_with",
-    triggers=["_with", "w"],
+    triggers=["with", "w"],
     description="Specify custom accuracy & mod combinations with `/np`.",
     hidden=True,
 )
@@ -397,7 +398,7 @@ async def _with(ctx: Context) -> str:
         score_args.acc = acc
         msg_fields.append(f"{acc:.2f}%")
 
-    result = ctx.state.usecases.performance.calculate_performances(
+    result = calculate_performances(
         osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
         scores=[score_args],  # calculate one score
     )

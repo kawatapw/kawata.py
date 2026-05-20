@@ -75,10 +75,16 @@ class CodeSnippet:
                     # Caret should be at column position in the code
                     caret = " " * (self.column - 1) + "^"
                     if self.end_column > self.column:
-                        caret = " " * (self.column - 1) + "^" * (self.end_column - self.column)
-                    parts.append(f"   {' ' * len(line_num_str):>{line_num_width}} | {caret}")
+                        caret = " " * (self.column - 1) + "^" * (
+                            self.end_column - self.column
+                        )
+                    parts.append(
+                        f"   {' ' * len(line_num_str):>{line_num_width}} | {caret}"
+                    )
                 else:
-                    parts.append(f"   {' ' * len(line_num_str):>{line_num_width}} | {'^' * min(len(line), 20)}")
+                    parts.append(
+                        f"   {' ' * len(line_num_str):>{line_num_width}} | {'^' * min(len(line), 20)}"
+                    )
             else:
                 parts.append(f"   {line_num_str:>{line_num_width}} | {line}")
 

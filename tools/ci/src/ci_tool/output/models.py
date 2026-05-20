@@ -171,7 +171,12 @@ class SummaryData:
                 line_lower = line.lower()
                 if any(
                     kw in line_lower
-                    for kw in ["error", "failed", "returned a non-zero code", "caused by"]
+                    for kw in [
+                        "error",
+                        "failed",
+                        "returned a non-zero code",
+                        "caused by",
+                    ]
                 ):
                     parts.append(f"stderr: {line[:150]}")
                     break
