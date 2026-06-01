@@ -262,7 +262,7 @@ async def api_calculate_pp(
 async def api_calculate_pp_batch(
     token: HTTPCredentials = Depends(http_bearer_scheme),
     beatmap_ids: list[int] = Query([], alias="id"),
-    mods: int = Query(0, min=0, max=2_147_483_647),
+    mods: int = Query(0, ge=0, le=2_147_483_647),
     acclist: list[float] = Query([100, 99, 98, 95], alias="acc"),
 ) -> Response:
     """Calculate PP for multiple beatmap diffs in a single request.
@@ -377,7 +377,7 @@ async def api_calculate_pp_batch(
 @router.get("/search_players")
 @error_catcher
 async def api_search_players(
-    search: str | None = Query(None, alias="q", min=2, max=32),
+    search: str | None = Query(None, alias="q", min_length=2, max_length=32),
 ) -> Response:
     """Search for users on the server by name."""
     rows = await app.state.services.database.fetch_all(
@@ -1502,7 +1502,7 @@ async def api_get_clan(
 
     owner = await app.state.sessions.players.from_cache_or_sql(id=clan["owner"])
     if owner is None:
-        raise RuntimeError("Clan owner not found")
+        raise HTTPException(status_code=404, detail="Clan owner not found")
 
     return ORJSONResponse(
         {

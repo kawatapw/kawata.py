@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.console import Console
@@ -14,6 +14,9 @@ from rich.table import Table
 from ci_tool.config import Config
 from ci_tool.context import Context
 from ci_tool.storage.file_backend import FileStorageBackend
+
+if TYPE_CHECKING:
+    from ci_tool.runner.models import RunResult
 
 app = typer.Typer(
     name="ci",
@@ -95,7 +98,7 @@ def config_cmd(
 @app.command()
 def doctor() -> None:
     """Validate setup: check commands, parsers, storage."""
-    ctx = get_context()
+    get_context()
     cfg = get_config()
     issues: list[str] = []
 

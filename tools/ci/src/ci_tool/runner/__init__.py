@@ -6,8 +6,6 @@ import asyncio
 import os
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Sequence
 
 from ci_tool.config import Config
 from ci_tool.context import Context

@@ -87,9 +87,10 @@ async def mp_help(ctx: Context, match: Match) -> str:
     for cmd in get_registry().get_by_category(CommandCategory.MULTIPLAYER):
         if (
             not cmd.metadata.description
+            or cmd.metadata.hidden
             or ctx.player.priv & cmd.privileges != cmd.privileges
         ):
-            # no doc, or insufficient permissions.
+            # no doc, hidden, or insufficient permissions.
             continue
 
         cmds.append(

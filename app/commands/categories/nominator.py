@@ -13,6 +13,7 @@ from app.commands.base import nominator_command
 from app.commands.context import Context
 from app.logging import Ansi
 from app.logging import log
+from app.logging import logLevel
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import RankedStatus
 from app.repositories import map_requests as map_requests_repo
@@ -99,6 +100,7 @@ _status_str_to_int_map = {"unrank": 0, "rank": 2, "love": 5}
 
 
 def status_to_id(s: str) -> int:
+    """Map a ranked-status keyword to its numeric status id."""
     return _status_str_to_int_map[s]
 
 
@@ -118,14 +120,14 @@ async def _map(ctx: Context) -> str:
 
     if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
         log(
-            f"Player Last NP: {ctx.player.last_np}\nFull Context: {ctx}",
+            f"Player {ctx.player.id} Last NP: {ctx.player.last_np}",
             Ansi.LBLUE,
             extra={
                 "filter": {
                     "debugLevel": 2,
                 },
             },
-            level=14,
+            level=logLevel.DBGLV2,
             logger="console.debug",
         )
         return "Please /np a map first!"
@@ -151,9 +153,11 @@ async def _map(ctx: Context) -> str:
                 await maps_repo.partial_update(_bmap.id, status=new_status, frozen=True)
 
             # make sure cache and db are synced about the newest change
-            for _bmap in ctx.cache.beatmapset[bmap.set_id].maps:
-                _bmap.status = new_status
-                _bmap.frozen = True
+            cached_set = ctx.cache.beatmapset.get(bmap.set_id)
+            if cached_set is not None:
+                for _bmap in cached_set.maps:
+                    _bmap.status = new_status
+                    _bmap.frozen = True
 
             # select all map ids for clearing map requests.
             modified_beatmap_ids = [

@@ -537,23 +537,23 @@ class BanchoPacketReader:
     # XXX: some osu! packets use i16 for
     # array length, while others use i32
     def read_i32_list_i16l(self) -> tuple[int, ...]:
-        length = int.from_bytes(self.body_view[:2], "little")
+        original_length = int.from_bytes(self.body_view[:2], "little")
         self.body_view = self.body_view[2:]
 
-        length = min(length, self._MAX_LIST_LENGTH)
+        length = min(original_length, self._MAX_LIST_LENGTH)
 
         val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
-        self.body_view = self.body_view[length * 4 :]
+        self.body_view = self.body_view[original_length * 4 :]
         return val
 
     def read_i32_list_i32l(self) -> tuple[int, ...]:
-        length = int.from_bytes(self.body_view[:4], "little")
+        original_length = int.from_bytes(self.body_view[:4], "little")
         self.body_view = self.body_view[4:]
 
-        length = min(length, self._MAX_LIST_LENGTH)
+        length = min(original_length, self._MAX_LIST_LENGTH)
 
         val = struct.unpack(f"<{'i' * length}", self.body_view[: length * 4])
-        self.body_view = self.body_view[length * 4 :]
+        self.body_view = self.body_view[original_length * 4 :]
         return val
 
     def read_string(self) -> str:

@@ -210,16 +210,18 @@ async def health_check() -> Response:
         await app.state.services.database.ping()
         checks["checks"]["database"] = "connected"
     except Exception as e:
+        log(f"Health check database ping failed: {e}", Ansi.LRED)
         checks["status"] = "unhealthy"
-        checks["checks"]["database"] = f"failed: {e!s}"
+        checks["checks"]["database"] = "failed"
 
     # Check Redis
     try:
         await app.state.services.redis.ping()
         checks["checks"]["redis"] = "connected"
     except Exception as e:
+        log(f"Health check redis ping failed: {e}", Ansi.LRED)
         checks["status"] = "unhealthy"
-        checks["checks"]["redis"] = f"failed: {e!s}"
+        checks["checks"]["redis"] = "failed"
 
     # Return appropriate HTTP status
     status_code = 200 if checks["status"] == "healthy" else 503
@@ -591,12 +593,16 @@ class SendMessage(BasePacket):
                 )
                 if cmd.resp is not None:
                     if app.state.sessions.bot is None:
-                        raise RuntimeError("Bot is not available")
-                    t_chan.send_selective(
-                        msg=cmd.resp,
-                        sender=app.state.sessions.bot,
-                        recipients=staff | {player},
-                    )
+                        log(
+                            "Bot session unavailable; skipping staff command response",
+                            Ansi.LYELLOW,
+                        )
+                    else:
+                        t_chan.send_selective(
+                            msg=cmd.resp,
+                            sender=app.state.sessions.bot,
+                            recipients=staff | {player},
+                        )
 
         else:
             # no commands were triggered
@@ -1652,9 +1658,6 @@ async def handle_osu_login_request(
             )
             # Continue anyway, mail isn't critical for login
 
-        if app.state.sessions.bot is None:
-            raise RuntimeError("Bot is not available")
-
         try:
             if not player.priv & Privileges.VERIFIED:
                 # this is the player's first login, verify their
@@ -1673,12 +1676,18 @@ async def handle_osu_login_request(
                         | Privileges.ALUMNI,
                     )
 
-                data += app.packets.send_message(
-                    sender=app.state.sessions.bot.name,
-                    msg=WELCOME_MSG,
-                    recipient=player.name,
-                    sender_id=app.state.sessions.bot.id,
-                )
+                if app.state.sessions.bot is None:
+                    log(
+                        "Bot session unavailable; skipping welcome message",
+                        Ansi.LYELLOW,
+                    )
+                else:
+                    data += app.packets.send_message(
+                        sender=app.state.sessions.bot.name,
+                        msg=WELCOME_MSG,
+                        recipient=player.name,
+                        sender_id=app.state.sessions.bot.id,
+                    )
         except Exception as e:
             log(
                 "Error handling first-time user verification",
@@ -1694,8 +1703,6 @@ async def handle_osu_login_request(
             # Continue anyway, they can still play even if verification failed
 
     else:
-        if app.state.sessions.bot is None:
-            raise RuntimeError("Bot is not available")
         try:
             # player is restricted, one way data
             for o in app.state.sessions.players.unrestricted:
@@ -1710,12 +1717,18 @@ async def handle_osu_login_request(
                     data += app.packets.user_stats(o)
 
             data += app.packets.account_restricted()
-            data += app.packets.send_message(
-                sender=app.state.sessions.bot.name,
-                msg=RESTRICTED_MSG,
-                recipient=player.name,
-                sender_id=app.state.sessions.bot.id,
-            )
+            if app.state.sessions.bot is None:
+                log(
+                    "Bot session unavailable; skipping restricted message",
+                    Ansi.LYELLOW,
+                )
+            else:
+                data += app.packets.send_message(
+                    sender=app.state.sessions.bot.name,
+                    msg=RESTRICTED_MSG,
+                    recipient=player.name,
+                    sender_id=app.state.sessions.bot.id,
+                )
         except Exception as e:
             log(
                 "Error processing restricted player login",

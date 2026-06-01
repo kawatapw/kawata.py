@@ -140,7 +140,13 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
                 )
 
                 if player is None:
-                    raise RuntimeError("Player not found")
+                    log(
+                        f"Could not resolve player for expired donor "
+                        f"id {expired_donor['id']}; skipping.",
+                        Ansi.LYELLOW,
+                        level=logLevel.WARNING,
+                    )
+                    continue
 
                 # TODO: perhaps make a `revoke_donor` method?
                 await player.remove_privs(Privileges.DONATOR)

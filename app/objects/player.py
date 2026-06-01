@@ -913,6 +913,8 @@ class Player:
                 f"{self} tried leaving a match, but slot couldn't be found?",
                 Ansi.LYELLOW,
             )
+            self.leave_channel(self.match.chat)
+            self.match = None
             return
         if slot.status == SlotStatus.locked:
             # player was kicked, keep the slot locked.
@@ -1309,11 +1311,11 @@ class Player:
 
     def update_latest_activity_soon(self) -> None:
         """Update the player's latest activity in the database."""
-        task = users_repo.partial_update(
-            id=self.id,
-            latest_activity=int(time.time()),
-        )
         if app.state.loop is not None:
+            task = users_repo.partial_update(
+                id=self.id,
+                latest_activity=int(time.time()),
+            )
             app.state.loop.create_task(task)  # type: ignore[unused-awaitable]
 
     def enqueue(self, data: bytes) -> None:

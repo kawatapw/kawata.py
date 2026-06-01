@@ -34,7 +34,9 @@ def generate_help_message(
     Returns:
         Formatted help message
     """
-    prefix = "!"
+    import app.settings
+
+    prefix = app.settings.COMMAND_PREFIX
 
     # If search query provided, search and filter
     if search_query:
@@ -103,7 +105,7 @@ def generate_general_help(
             # Show full command with namespace if applicable
             cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
             lines.append(
-                f"  !{cmd_prefix}{cmd.metadata.name:15} - {cmd.metadata.description or 'No description'}"
+                f"  {prefix}{cmd_prefix}{cmd.metadata.name:15} - {cmd.metadata.description or 'No description'}"
             )
 
     return "\n".join(lines)
@@ -137,7 +139,7 @@ def generate_category_help(
     for cmd in sorted(available_commands, key=lambda c: c.metadata.name):
         # Show full command with namespace if applicable
         cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
-        lines.append(f"!{cmd_prefix}{cmd.metadata.name}")
+        lines.append(f"{prefix}{cmd_prefix}{cmd.metadata.name}")
         if cmd.metadata.description:
             lines.append(f"  {cmd.metadata.description}")
         if cmd.metadata.usage:
@@ -174,7 +176,7 @@ def generate_command_help(
 
     # Build command display name with namespace if applicable
     cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
-    cmd_display = f"!{cmd_prefix}{cmd.metadata.name}"
+    cmd_display = f"{prefix}{cmd_prefix}{cmd.metadata.name}"
 
     lines = [
         f"Command: {cmd_display}",
@@ -280,7 +282,7 @@ def generate_search_results(
         for cmd in sorted(category_matches, key=lambda c: c.metadata.name):
             # Show full command with namespace if applicable
             cmd_prefix = f"{cmd.metadata.namespace} " if cmd.metadata.namespace else ""
-            lines.append(f"  !{cmd_prefix}{cmd.metadata.name}")
+            lines.append(f"  {prefix}{cmd_prefix}{cmd.metadata.name}")
             if cmd.metadata.description:
                 lines.append(f"    {cmd.metadata.description}")
             if cmd.metadata.usage:

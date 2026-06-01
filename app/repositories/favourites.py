@@ -120,7 +120,9 @@ async def create(
     favourite = await app.state.services.database.fetch_one(select_stmt)
 
     if favourite is None:
-        raise ValueError(f"Favourite with id {favourite} not found after creation")
+        raise ValueError(
+            f"Favourite for userid {userid}, setid {setid} not found after creation"
+        )
     return cast("Favourite", favourite)
 
 

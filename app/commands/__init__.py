@@ -180,16 +180,27 @@ class CommandRegistry:
         return self._categories.get(category, [])
 
     def get_available(self, player: Player) -> list[Command]:
-        """Get all commands available to a player."""
-        return [
-            cmd
-            for cmd in self._commands.values()
-            if player.priv & cmd.privileges == cmd.privileges
-        ]
+        """Get all commands available to a player (deduplicated across aliases)."""
+        seen: set[int] = set()
+        available: list[Command] = []
+        for cmd in self._commands.values():
+            if id(cmd) in seen:
+                continue
+            seen.add(id(cmd))
+            if player.priv & cmd.privileges == cmd.privileges:
+                available.append(cmd)
+        return available
 
     def get_all_commands(self) -> list[Command]:
-        """Get all registered commands."""
-        return list(self._commands.values())
+        """Get all registered commands (deduplicated across aliases)."""
+        seen: set[int] = set()
+        unique: list[Command] = []
+        for cmd in self._commands.values():
+            if id(cmd) in seen:
+                continue
+            seen.add(id(cmd))
+            unique.append(cmd)
+        return unique
 
     async def execute(
         self,

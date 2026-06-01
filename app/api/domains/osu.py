@@ -633,7 +633,8 @@ def parse_form_data_score_params(
     from the form data's 'score' parameters."""
     score_parts = score_data.getlist("score")
     if len(score_parts) != 2:
-        raise ValueError("Invalid score data")
+        log("Invalid score data: expected 2 'score' parts", Ansi.LYELLOW)
+        return None
 
     score_data_b64 = score_data.getlist("score")[0]
     if app.settings.DEBUG_LEVEL >= 2 and app.settings.DEBUG_FOCUS in [
@@ -642,10 +643,12 @@ def parse_form_data_score_params(
     ]:
         log(f"Score Data b64: {score_data_b64}", Ansi.LMAGENTA)
     if not isinstance(score_data_b64, str):
-        raise TypeError("Invalid score data")
+        log("Invalid score data: score_data_b64 is not a str", Ansi.LYELLOW)
+        return None
     replay_file = score_data.getlist("score")[1]
     if not isinstance(replay_file, StarletteUploadFile):
-        raise TypeError("Invalid replay data")
+        log("Invalid replay data: replay_file is not an upload", Ansi.LYELLOW)
+        return None
 
     return (
         score_data_b64.encode(),
