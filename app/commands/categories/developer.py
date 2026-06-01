@@ -192,7 +192,7 @@ async def givedonator(ctx: Context) -> str | None:
     description="Wipe scores for a map.",
 )
 async def wipemap(ctx: Context) -> str | None:
-    # (intentionally no docstring)
+    """Wipe scores for the most recently /np'ed map."""
     if ctx.args:
         return "Invalid syntax: !wipemap"
 

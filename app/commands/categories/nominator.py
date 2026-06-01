@@ -99,6 +99,7 @@ _status_str_to_int_map = {"unrank": 0, "rank": 2, "love": 5}
 
 
 def status_to_id(s: str) -> int:
+    """Map a ranked-status keyword to its numeric status id."""
     return _status_str_to_int_map[s]
 
 

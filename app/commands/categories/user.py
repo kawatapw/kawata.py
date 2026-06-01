@@ -410,7 +410,8 @@ async def _with(ctx: Context) -> str:
     )
 
 
-class ParsingError(str): ...
+class ParsingError(str):
+    """String subclass marking a command-argument parsing failure."""
 
 
 def parse__with__command_args(
