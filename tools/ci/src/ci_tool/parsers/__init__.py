@@ -6,7 +6,6 @@ import importlib
 import pkgutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Type
 
 from ci_tool.parsers.models import ParsedResult
 
