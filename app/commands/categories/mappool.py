@@ -140,7 +140,11 @@ async def pool_add(ctx: Context) -> str:
         if mods == pool_map["mods"] and slot == pool_map["slot"]:
             pool_beatmap = await Beatmap.from_bid(pool_map["map_id"])
             if pool_beatmap is None:
-                raise ValueError("Pool beatmap not found")
+                log(
+                    f"Could not find beatmap {pool_map['map_id']} in pool {name}.",
+                    Ansi.LRED,
+                )
+                return f"{mods_slot} refers to an unknown or removed beatmap."
             return f"{mods_slot} is already {pool_beatmap.embed}!"
 
         if pool_map["map_id"] == bmap.id:
@@ -174,6 +178,9 @@ async def pool_remove(ctx: Context) -> str:
     r_match = regexes.MAPPOOL_PICK.fullmatch(mods_slot)
     if not r_match:
         return "Invalid pick syntax; correct example: HD2"
+
+    if len(r_match[1]) % 2 != 0:
+        return "Invalid mods."
 
     # not calling mods.filter_invalid_combos here intentionally.
     mods = Mods.from_modstr(r_match[1])

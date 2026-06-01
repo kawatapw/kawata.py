@@ -228,7 +228,7 @@ async def clan_list(ctx: Context) -> str:
     if ctx.args:
         if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
             return "Invalid syntax: !clan list (page)"
-        offset = 25 * int(ctx.args[0])
+        offset = 25 * (int(ctx.args[0]) - 1)
     else:
         offset = 0
 
@@ -239,7 +239,8 @@ async def clan_list(ctx: Context) -> str:
 
     msg = [f"bancho.py clans listing ({num_clans} total)."]
 
-    for idx, clan in enumerate(all_clans, offset):
+    page_clans = all_clans[offset : offset + 25]
+    for idx, clan in enumerate(page_clans, offset):
         clan_display_name = f"[{clan['tag']}] {clan['name']}"
         msg.append(f"{idx + 1}. {clan_display_name}")
 

@@ -235,7 +235,7 @@ async def alertuser(ctx: Context) -> str:
 async def switchserv(ctx: Context) -> str:
     """Switch your client's internal endpoints to a specified IP address."""
     if len(ctx.args) != 1:
-        return "Invalid syntax: !switch <endpoint>"
+        return "Invalid syntax: !switchserv <endpoint>"
 
     new_bancho_ip = ctx.args[0]
 

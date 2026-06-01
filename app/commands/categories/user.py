@@ -270,7 +270,7 @@ async def recent(ctx: Context) -> str:
     # replaced with a better system to fix the maps.
     elif score.bmap.total_length != 0:
         completion = score.time_elapsed / (score.bmap.total_length * 1000)
-        score_lines.append(f"FAIL {{{completion * 100:.2f}% complete}})")
+        score_lines.append(f"FAIL ({completion * 100:.2f}% complete)")
     else:
         score_lines.append("FAIL")
 
@@ -514,4 +514,4 @@ async def apikey(ctx: Context) -> str:
     await users_repo.partial_update(ctx.player.id, api_key=ctx.player.api_key)
     ctx.state.sessions.api_keys[ctx.player.api_key] = ctx.player.id
 
-    return f"API key generated. Copy your api key from (this url)[http://{ctx.player.api_key}]."
+    return f"API key generated. Copy your api key: {ctx.player.api_key}"

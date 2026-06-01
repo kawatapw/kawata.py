@@ -7,6 +7,7 @@ Commands for managing seasons.
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 from datetime import datetime
 from typing import Any
 
@@ -59,7 +60,7 @@ async def season_create(ctx: Context) -> str | None:
         return f"No provider found for schedule type: {schedule['schedule_type']}"
 
     # calculate season dates based on schedule
-    current_time = datetime.now()
+    current_time = datetime.now(UTC)
     start_date, end_date = provider.calculate_next_season(
         schedule["schedule_type"],
         current_time,
@@ -221,7 +222,7 @@ async def season_schedule(ctx: Context) -> str | None:
         return None
 
     if not ctx.args:
-        return "Invalid syntax: !season schedule <create/list/info>"
+        return "Invalid syntax: !season schedule <create/list>"
 
     action = ctx.args[0].lower()
 
@@ -269,7 +270,7 @@ async def season_schedule(ctx: Context) -> str | None:
 
         return "\n".join(msg)
 
-    return "Invalid action. Use: create, list, or info"
+    return "Invalid action. Use: create or list"
 
 
 @season_command(

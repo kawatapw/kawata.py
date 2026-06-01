@@ -34,7 +34,9 @@ def generate_help_message(
     Returns:
         Formatted help message
     """
-    prefix = "!"
+    import app.settings
+
+    prefix = app.settings.COMMAND_PREFIX
 
     # If search query provided, search and filter
     if search_query:

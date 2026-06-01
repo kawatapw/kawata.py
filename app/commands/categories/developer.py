@@ -56,8 +56,14 @@ async def debug(ctx: Context) -> str | None:
     """Set the console's debug level."""
     if len(ctx.args) < 1:
         return "Invalid syntax: !debug <0-3>"
-    settings.DEBUG_LEVEL = int(ctx.args[0])
-    return f"Set Debug Level to {int(ctx.args[0])}."
+    try:
+        level = int(ctx.args[0])
+    except ValueError:
+        return "Invalid syntax: !debug <0-3>"
+    if not 0 <= level <= 3:
+        return "Invalid syntax: !debug <0-3>"
+    settings.DEBUG_LEVEL = level
+    return f"Set Debug Level to {level}."
 
 
 @developer_command(
