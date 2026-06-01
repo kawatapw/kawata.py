@@ -226,7 +226,7 @@ async def clan_leave(ctx: Context) -> str:
 async def clan_list(ctx: Context) -> str:
     """List all existing clans' information."""
     if ctx.args:
-        if len(ctx.args) != 1 or not ctx.args[0].isdecimal():
+        if len(ctx.args) != 1 or not ctx.args[0].isdecimal() or int(ctx.args[0]) < 1:
             return "Invalid syntax: !clan list (page)"
         offset = 25 * (int(ctx.args[0]) - 1)
     else:

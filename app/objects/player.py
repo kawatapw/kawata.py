@@ -913,6 +913,7 @@ class Player:
                 f"{self} tried leaving a match, but slot couldn't be found?",
                 Ansi.LYELLOW,
             )
+            self.leave_channel(self.match.chat)
             self.match = None
             return
         if slot.status == SlotStatus.locked:
